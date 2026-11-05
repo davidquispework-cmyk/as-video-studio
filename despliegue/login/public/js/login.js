@@ -32,9 +32,9 @@
   /* Y se dice cual es, que si no el login de la v2 no se distingue del de la v1. */
   (function marcarVersion() {
     if (!window.location.pathname.startsWith('/v2/')) return;
-    document.title = 'Acceso · AS Video Studio';
+    document.title = 'Acceso · Shaddai Studio';
     const sub = document.querySelector('.card__sub');
-    if (sub) sub.textContent = 'AS Video Studio';
+    if (sub) sub.textContent = 'Shaddai Studio';
   })();
 
   /* --- token anti-CSRF: se pide al cargar y se refresca si caduca ---------- */

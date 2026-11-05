@@ -107,8 +107,11 @@ a { color: var(--acento); }
 }
 #cabecera h1 {
   font-size: 12px; letter-spacing: .16em; text-transform: uppercase;
-  color: var(--acento); flex: 0 0 auto;
+  color: var(--dorado, #e0bb78); flex: 0 0 auto;
+  display: flex; align-items: center; gap: 7px;
 }
+/* el logo: la lampara de aceite con su llama */
+#cabecera h1 .logo-marca { width: 22px; height: 18px; flex: 0 0 auto; }
 #cabecera button { font-size: 12px; padding: 3px 8px; }
 /* el nombre del proyecto cede sitio antes que el medidor de coste, que es de
    ancho fijo y tiene que caber entero para poder leerse de un vistazo */
