@@ -1,5 +1,8 @@
 # AS Video Studio — lo que hay que saber antes de tocarlo
 
+**Antes de nada, lee [NOTAS-DAVID.md](NOTAS-DAVID.md)**: quién es el dueño, qué se
+ha hecho y qué queda pendiente.
+
 Lee primero [README.md](README.md): qué es, cómo se arranca y cómo está montado.
 Y si vienes a retomar sin contexto, `docs/RETOMAR.md`: el estado al cerrar, qué
 está desplegado y **los fallos que se encontraron con su causa** — el sitio
