@@ -47,6 +47,13 @@ El VPS no tiene GPU: nada de modelos de vídeo locales. Todo a coste 0:
    clave hechos en Kling/Hailuo/Meta AI gratis; el estudio pone voz, subtítulos y cifras.
 3. **Etapa 3**: personajes «marioneta» SVG por piezas (brazos articulados) con gestos.
 
+## Decisión de dinero (5-nov-2026)
+Por ahora TODO GRATIS: imágenes y clips a mano (manual), voz gratis, efectos del render.
+Al construir algo que pueda automatizarse pagando, dejar el modo automático PREPARADO
+pero apagado (como el modo de imagen OpenAI), para activarlo más adelante con una
+recarga única pequeña (~10 $, fal.ai o Replicate; nada de suscripciones). Lo que más
+tiempo ahorraría al pagar: imágenes automáticas baratas (~0,5-1 $ por vídeo de 1 min).
+
 ## Pendiente / ideas
 1. Catálogo de la mamá: faltan nombre de tienda, WhatsApp, prendas y fotos.
 2. Web del negocio.
