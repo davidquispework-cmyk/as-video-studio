@@ -47,6 +47,7 @@ import websocket
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import ambiente  # noqa: E402
 import cartelas  # noqa: E402
 import estadisticas  # noqa: E402
 import medios  # noqa: E402
@@ -68,6 +69,11 @@ PARAMS_POR_DEFECTO = {
     # y esto decide CUAL. Asi cambiar la paleta de transiciones deja obsoleto el
     # render y nada mas: ni las imagenes ni las capas.
     "transiciones": [],
+    # AMBIENTE Y 2.5D (pasos/ambiente.py): "auto" elige los efectos leyendo
+    # cada plano, "no" los apaga, una lista los fuerza en todos. Con
+    # `profundidad` la figura se recorta (rembg, CPU) y va en su propia capa.
+    "ambiente": "auto",
+    "profundidad": True,
     "conservar_frames": False,
     # CUANTOS PROCESOS DE CAPTURA A LA VEZ. 0 = automatico (ver LOTES_A_LA_VEZ),
     # 1 = en fila. Es una palanca de VELOCIDAD pura: el video sale identico
@@ -326,8 +332,11 @@ html,body{margin:0;padding:0;background:#0b0c09;overflow:hidden}
    #camara y cubre el cuadro entero-- se comeria el subtitulo, y eso no da
    error, da un subtitulo apagado. Se dice, y asi no hay que deducirlo. */
 #camara{z-index:0}
-#capafija{position:absolute;left:0;top:0;width:__W__px;height:__H__px;z-index:1}
+#capafija{position:absolute;left:0;top:0;width:__W__px;height:__H__px;z-index:2}
 #capafija > svg{width:__W__px;height:__H__px;display:block}
+/* AMBIENTE (pasos/ambiente.py): canvas y figura recortada, si el plano los
+   lleva. #delante va entre la camara y el subtitulo (z-index 1). */
+__AMBCSS__
 </style></head><body>
 <!-- DOS CAPAS, Y LA DIFERENCIA ES EN QUE LADO DEL TRANSFORM ESTAN.
      #capa va DENTRO de #camara, asi que la escala el zoom: ahi vive lo que
@@ -339,8 +348,10 @@ html,body{margin:0;padding:0;background:#0b0c09;overflow:hidden}
 <div id="lienzo">
   <div id="camara">
     <img id="fondo" src="__FONDO__">
+    __AMBDENTRO__
     <div id="capa">__CAPA__</div>
   </div>
+  __AMBFUERA__
   <div id="capafija">__CAPAFIJA__</div>
 </div>
 <script>
@@ -394,12 +405,25 @@ function ventana(u){
   return [px, py, pw];
 }
 
+// EL AMBIENTE DEL PLANO (pasos/ambiente.py): null = el plano sale como antes.
+const AMB = __AMB__;
+__AMBJS__
+
 function pintar(t){
   const u = DUR > 0 ? Math.min(1, Math.max(0, t/DUR)) : 0;
   const v = ventana(u), s = W / v[2];
-  camara.style.transform =
+  // BALANCEO del plano entero cuando no hay figura recortada que balancear:
+  // un giro de medio grado y un 1,5 % de zoom de mas para no enseñar bordes.
+  let extra = '';
+  if (AMB && !AMB.figura){
+    const r = Math.sin(Math.PI*2*t/5.2)*0.45;
+    extra = 'translate(' + W/2 + 'px,' + H/2 + 'px) rotate(' + r.toFixed(3) +
+            'deg) scale(1.015) translate(' + (-W/2) + 'px,' + (-H/2) + 'px) ';
+  }
+  camara.style.transform = extra +
     'translate(' + (-v[0]*s).toFixed(3) + 'px,' + (-v[1]*s).toFixed(3) +
     'px) scale(' + s.toFixed(6) + ')';
+  if (AMB) ambiente(t, v, s);
   if (svg && svg.setCurrentTime) svg.setCurrentTime(t);
   if (svgFijo && svgFijo.setCurrentTime) svgFijo.setCurrentTime(t);
   // Sigue devolviendo 1 y no undefined: quien llama hace
@@ -414,11 +438,22 @@ def _url_local(ruta):
     return "file:///" + os.path.abspath(ruta).replace("\\", "/")
 
 
-def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30):
+def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
+               amb=None):
     ancho, alto = [int(v) for v in p["resolucion"]]
     hw, hh = mov.get("hyperframe_px") or [3072, 2048]
     duracion = float(escena["t_out"]) - float(escena["t_in"])
+    # Con figura recortada el fondo es el RELLENO (sin la figura): la figura
+    # va encima, en su propia capa, y se mueve aparte.
+    if amb and amb.get("fondo"):
+        hyper = amb["fondo"]
+    dentro, fuera, css = ambiente.html_capas(amb, hw, hh, ancho, alto)
     html = (PAGINA
+            .replace("__AMBCSS__", css)
+            .replace("__AMBDENTRO__", dentro)
+            .replace("__AMBFUERA__", fuera)
+            .replace("__AMBJS__", ambiente.AMBIENTE_JS if amb else "")
+            .replace("__AMB__", json.dumps(amb) if amb else "null")
             .replace("__W__", str(ancho)).replace("__H__", str(alto))
             .replace("__HW__", str(hw)).replace("__HH__", str(hh))
             .replace("__FONDO__", _url_local(hyper))
@@ -987,7 +1022,8 @@ def renderizar_plano(tarea, navegador=None):
     pagina = _pagina_de(tarea["escena"], tarea["mov"], tarea["capa"],
                         tarea["hyper"], {"resolucion": tarea["resolucion"]},
                         os.path.join(carpeta, "escena.html"),
-                        capa_fija=tarea.get("capa_fija") or "", fps=fps)
+                        capa_fija=tarea.get("capa_fija") or "", fps=fps,
+                        amb=tarea.get("ambiente"))
 
     navegador.abrir(pagina)
     for numero in range(total):
@@ -1299,6 +1335,7 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
     resultados = {}
     clips = []
     tareas = []
+    sesion_recorte = None
     for indice, escena in enumerate(escenas):
         sid = escena["id"]
         uid = f"escena:{sid}"
@@ -1343,7 +1380,23 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
                 with open(ruta_fija, "r", encoding="utf-8") as fh:
                     fija = fh.read()
 
+        # EL AMBIENTE se prepara AQUI, en el proceso principal y una vez por
+        # imagen (con cache en trabajo/ambiente): el recorte carga un modelo de
+        # cientos de MB que no tiene por que vivir en cada lote.
+        amb = None
+        if p.get("ambiente", "auto") not in ("no", False, None):
+            if sesion_recorte is None and p.get("profundidad", True):
+                sesion_recorte = ambiente.sesion_recorte() or False
+            try:
+                amb = ambiente.configurar(escena, hyper,
+                                          os.path.join(trabajo, "ambiente"), p,
+                                          sesion_recorte or None)
+            except Exception as e:  # el plano sale sin ambiente, y se dice
+                print(f"[render] {sid}: sin ambiente ({e})", flush=True)
+                amb = None
+
         tareas.append({
+            "ambiente": amb,
             "id": sid, "escena": {"id": sid, "t_in": escena["t_in"],
                                   "t_out": escena["t_out"]},
             "mov": {"ventana_ini": mov["ventana_ini"],

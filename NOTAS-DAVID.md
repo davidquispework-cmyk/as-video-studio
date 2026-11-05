@@ -30,10 +30,19 @@ gancho «¿Sabías…?», subtítulos palabra a palabra con la clave resaltada, 
 muñecos geométricos con túnica, personajes que SE MUEVEN). Inspirarse en el formato, no
 copiar su estilo exacto. Nombre de canal propuesto: «Lumbrera» (Salmo 119:105).
 El VPS no tiene GPU: nada de modelos de vídeo locales. Todo a coste 0:
-1. **Etapa 1**: efectos de ambiente en el render (luces que parpadean, partículas,
+1. **Etapa 1 — HECHA (5-nov-2026)**: efectos de ambiente en el render (luces que parpadean, partículas,
    agua, nubes, rayos) + profundidad 2.5D (separar personaje/fondo con rembg en CPU,
    capas con parallax) + balanceo suave. El render ya dibuja cada fotograma con el
    navegador (p8_render / capas de p7): animar con CSS/SVG/JS ahí.
+   Cómo quedó: `pasos/ambiente.py` + la página de `p8_render`. Elige solo los efectos
+   leyendo narración y prompt de cada plano (fuego/lámpara→luz y brasas; mar/río→agua;
+   cielo/monte→nubes; tormenta→rayos; lluvia; ángel/gloria→haces de luz; polvo siempre;
+   viñeta siempre). Recorta la figura con rembg (CPU, con caché) y la mueve aparte
+   (parallax + balanceo); sin figura clara, balancea el plano entero. Params del render:
+   `ambiente` ("auto" | "no" | lista) y `profundidad` (true/false); en plan.json una
+   escena puede llevar `"ambiente": [...]` para forzarlos. Probado en vertical 1080×1920:
+   ~0,5 s por fotograma en un solo proceso. Pendiente: botón en la pantalla para
+   elegir efectos por plano; detectar dónde está el agua (hoy: el 30 % de abajo).
 2. **Etapa 2**: subir un CLIP de vídeo por plano (además de imagen) para 1-3 momentos
    clave hechos en Kling/Hailuo/Meta AI gratis; el estudio pone voz, subtítulos y cifras.
 3. **Etapa 3**: personajes «marioneta» SVG por piezas (brazos articulados) con gestos.

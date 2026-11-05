@@ -23,3 +23,9 @@ websocket-client==1.9.0
 # La voz gratuita (pasos/voz_gratis.py): las voces neuronales de Microsoft
 # Edge, sin clave. Trae aiohttp.
 edge-tts==7.3.1
+
+# La profundidad 2.5D del render (pasos/ambiente.py): separa la figura del
+# fondo en CPU. Opcional de verdad: si falta, el video sale con los efectos de
+# ambiente pero sin capas. El modelo (~176 MB) se baja solo la primera vez.
+rembg==2.0.67
+onnxruntime==1.29.0

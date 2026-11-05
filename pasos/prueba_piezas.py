@@ -400,8 +400,10 @@ def prueba_callouts():
     # will-change a #capafija. Con el z-index escrito no depende de nada.
     pagina = p8_render.PAGINA
     ok("#camara{z-index:0}" in pagina, "la camara declara su z-index")
-    ok("z-index:1" in pagina.split("#capafija{")[1].split("}")[0],
-       "y la capa quieta el suyo, por encima")
+    # 2 y no 1: entre las dos va el ambiente de delante (#delante, z-index 1,
+    # ver pasos/ambiente.py), y el subtitulo tiene que quedar por encima.
+    ok("z-index:2" in pagina.split("#capafija{")[1].split("}")[0],
+       "y la capa quieta el suyo, por encima (tambien del ambiente)")
     ok(pagina.index("__CAPA__") < pagina.index("__CAPAFIJA__"),
        "y ademas va despues en el DOM: las dos cosas dicen lo mismo")
 
