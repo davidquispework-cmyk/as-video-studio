@@ -30,6 +30,7 @@ multiplicar por 6,8 y multiplica por 1,7, porque la parte que se multiplica es
 la pequena. Sin esta cuenta delante, la pantalla asustaria con un numero falso.
 """
 import os
+import re
 
 try:
     from nucleo import coste as COSTE
@@ -57,6 +58,13 @@ CALIDADES = ("low", "medium", "high")
 #: no mueve ninguna firma ni deja obsoleto nada de lo ya hecho.
 MODOS_IMAGEN = ("manual", "openai")
 
+#: DE DONDE SALE LA VOZ.
+#:   gratis    las voces neuronales de Microsoft Edge (pasos/voz_gratis.py):
+#:             sin clave y sin coste, con marcas de palabra.
+#:   cartesia  la de siempre, de pago, con la clave de Cartesia.
+#: Igual que el modo de imagen: se lee al locutar, no entra en ninguna firma.
+MODOS_VOZ = ("gratis", "cartesia")
+
 #: El tamano con el que se generan los planos, y por tanto con el que hay que
 #: mirar la tabla de precios. Es el de `p6_assets` para 16:9.
 TAMANO = "1536x1024"
@@ -75,6 +83,12 @@ POR_DEFECTO = {
     # cambia el de fabrica (las suites viejas lo ponen en 'openai', que es el
     # camino que prueban); lo guardado en ajustes.json manda siempre.
     "modo_imagen": os.environ.get("ESTUDIO_MODO_IMAGEN") or "manual",
+    # La voz, con la misma regla: gratis de fabrica; las suites viejas fijan
+    # 'cartesia' con ESTUDIO_MODO_VOZ porque es el camino que prueban.
+    "modo_voz": os.environ.get("ESTUDIO_MODO_VOZ") or "gratis",
+    # La voz gratuita de los videos que no han elegido una (vacio = la de
+    # fabrica del idioma, ver voz_gratis.POR_IDIOMA).
+    "voz_gratis": "",
     # Si ya se ha pasado por la guia de inicio (las tarjetas que piden las
     # claves al entrar por primera vez). Vive aqui y no en el navegador
     # porque es de la instalacion, no de la pantalla: desde el movil no hay
@@ -92,6 +106,9 @@ def leer():
             salida[clave] = valor
     if salida.get("calidad_imagen") not in CALIDADES:
         salida["calidad_imagen"] = POR_DEFECTO["calidad_imagen"]
+    if salida.get("modo_voz") not in MODOS_VOZ:
+        salida["modo_voz"] = POR_DEFECTO["modo_voz"]
+    salida["voz_gratis"] = str(salida.get("voz_gratis") or "")
     if salida.get("modo_imagen") not in MODOS_IMAGEN:
         salida["modo_imagen"] = POR_DEFECTO["modo_imagen"]
     salida["onboarding_visto"] = bool(salida.get("onboarding_visto"))
@@ -113,6 +130,12 @@ def guardar(cambios):
         if clave == "calidad_imagen" and valor not in CALIDADES:
             raise ValueError(
                 f"calidad {valor!r}: solo {', '.join(CALIDADES)}")
+        if clave == "modo_voz" and valor not in MODOS_VOZ:
+            raise ValueError(
+                f"modo de voz {valor!r}: solo {', '.join(MODOS_VOZ)}")
+        if clave == "voz_gratis" and valor and not re.match(
+                r"^[a-z]{2,3}-[A-Z]{2,}(?:-[A-Za-z]+)?-[A-Za-z]+Neural$", str(valor)):
+            raise ValueError(f"{valor!r} no es una voz gratuita (es-PE-AlexNeural...)")
         if clave == "modo_imagen" and valor not in MODOS_IMAGEN:
             raise ValueError(
                 f"modo de imagen {valor!r}: solo {', '.join(MODOS_IMAGEN)}")
@@ -121,6 +144,16 @@ def guardar(cambios):
         actual[clave] = valor
     escribir_json(RUTA, actual)
     return actual
+
+
+def voz_gratuita_activa():
+    """True si la locucion sale de las voces gratuitas y no de Cartesia."""
+    return leer()["modo_voz"] == "gratis"
+
+
+def voz_gratis_por_defecto():
+    """La voz gratuita elegida en Configuracion, o "" para la de fabrica."""
+    return leer()["voz_gratis"]
 
 
 def modo_imagen():

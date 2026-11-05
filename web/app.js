@@ -2310,6 +2310,7 @@ function pintarConfig() {
     return;
   }
   caja.appendChild(bloquePruebaClaves());
+  caja.appendChild(seccionModoVoz());
   caja.appendChild(seccionModoImagen());
   caja.appendChild(seccionOpenAI(ficha));
   /* la calidad solo importa si se paga a OpenAI */
@@ -2360,6 +2361,124 @@ async function guardarModoImagen(modo) {
     vista.error = e.message;
   }
   repintarClaves();
+}
+
+/* DE DÓNDE SALE LA VOZ: 'gratis' (voces neuronales de Microsoft Edge) o
+   'cartesia' (de pago). Con la gratuita, se elige aquí la voz de los vídeos que
+   no tengan una propia, y se escucha antes de elegirla. */
+const VOCES_GRATIS = { idioma: '', lista: null, cargando: false, error: '', sonando: '' };
+
+function modoVoz() {
+  const datos = estadoConfig().ajustes;
+  return (datos && datos.ajustes && datos.ajustes.modo_voz) || 'gratis';
+}
+
+async function cargarVocesGratis(idioma) {
+  if (VOCES_GRATIS.cargando || (VOCES_GRATIS.lista && VOCES_GRATIS.idioma === idioma)) return;
+  VOCES_GRATIS.cargando = true;
+  try {
+    const r = await pedir(`${BASE}/api/voces-gratis?idioma=${encodeURIComponent(idioma)}`);
+    Object.assign(VOCES_GRATIS, { idioma, lista: r.voces || [], efectiva: r.efectiva, error: '' });
+  } catch (e) {
+    VOCES_GRATIS.error = e.message;
+  }
+  VOCES_GRATIS.cargando = false;
+  repintarClaves();
+}
+
+async function guardarAjusteVoz(cambios, aviso) {
+  const vista = estadoConfig();
+  try {
+    const r = await pedir(API.ajustes(), { method: 'PUT', cuerpo: cambios });
+    vista.ajustes = { ...(vista.ajustes || {}), ajustes: r.ajustes, costes: r.costes };
+    APP.light.voces = null;          // el catálogo de voces cambia con el modo
+    if (aviso) toast(aviso);
+  } catch (e) {
+    toast(e.message, true);
+  }
+  repintarClaves();
+}
+
+let REPRODUCTOR_MUESTRA = null;
+function escucharVozGratis(voz) {
+  if (REPRODUCTOR_MUESTRA) { REPRODUCTOR_MUESTRA.pause(); REPRODUCTOR_MUESTRA = null; }
+  if (VOCES_GRATIS.sonando === voz) { VOCES_GRATIS.sonando = ''; repintarClaves(); return; }
+  VOCES_GRATIS.sonando = voz;
+  REPRODUCTOR_MUESTRA = new Audio(`${BASE}/api/voces-gratis/muestra?voz=${encodeURIComponent(voz)}`);
+  REPRODUCTOR_MUESTRA.addEventListener('ended', () => { VOCES_GRATIS.sonando = ''; repintarClaves(); });
+  REPRODUCTOR_MUESTRA.addEventListener('error', () => {
+    VOCES_GRATIS.sonando = ''; toast('No se ha podido escuchar esa voz', true); repintarClaves();
+  });
+  REPRODUCTOR_MUESTRA.play().catch(() => {});
+  repintarClaves();
+}
+
+function seccionModoVoz() {
+  const datos = estadoConfig().ajustes;
+  const modo = modoVoz();
+  const caja = h('section', { clase: 'bloque-config' },
+    h('div', { clase: 'fila' },
+      h('h3', {}, 'De dónde sale la voz'),
+      h('span', { clase: 'crece' }),
+      datos ? pastillaEstado('ok', modo === 'gratis' ? 'gratis' : 'Cartesia') : null));
+  if (!datos) {
+    caja.appendChild(h('div', { clase: 'cargando' }, 'leyendo los ajustes...'));
+    return caja;
+  }
+  [
+    { id: 'gratis', nombre: 'Voces gratuitas (Microsoft)',
+      texto: 'Voces neuronales muy naturales, decenas en español (Perú, México, '
+        + 'España, Argentina…). Sin clave y sin coste. Sincronizan igual de bien.' },
+    { id: 'cartesia', nombre: 'Cartesia (de pago)',
+      texto: 'Las voces de Cartesia con tu clave. Se paga por cada carácter locutado.' },
+  ].forEach(op => {
+    const puesta = op.id === modo;
+    caja.appendChild(h('button', {
+      clase: 'fila-modo-imagen' + (puesta ? ' elegida' : ''), disabled: puesta,
+      onclick: () => guardarAjusteVoz({ modo_voz: op.id }, op.id === 'gratis'
+        ? 'Voz gratuita puesta: la locución ya no cuesta nada'
+        : 'Voz de Cartesia puesta (de pago)'),
+    },
+      h('span', { clase: 'nombre' }, (puesta ? '● ' : '○ ') + op.nombre),
+      h('span', { clase: 'meta' }, op.texto)));
+  });
+
+  if (modo === 'gratis') {
+    const idioma = 'es';
+    if (!VOCES_GRATIS.lista && !VOCES_GRATIS.cargando && !VOCES_GRATIS.error) {
+      setTimeout(() => cargarVocesGratis(idioma), 0);
+    }
+    const puesta = datos.ajustes.voz_gratis || '';
+    const efectiva = puesta || VOCES_GRATIS.efectiva || '';
+    caja.appendChild(h('div', { clase: 'pista' },
+      h('b', {}, 'La voz de tus vídeos: '),
+      'la que elija cada estilo por su descripción; si un vídeo no tiene una '
+      + 'voz gratuita propia, se usa esta.'));
+    if (VOCES_GRATIS.error) {
+      caja.appendChild(cajaError(`No se han podido leer las voces: ${VOCES_GRATIS.error}`));
+    } else if (!VOCES_GRATIS.lista) {
+      caja.appendChild(h('div', { clase: 'cargando' }, 'cargando las voces gratuitas…'));
+    } else {
+      const lista = VOCES_GRATIS.lista;
+      const fila = h('div', { clase: 'fila-clave' },
+        h('select', {
+          onchange: ev => guardarAjusteVoz({ voz_gratis: ev.target.value },
+            'Voz por defecto cambiada. Pulsa «Regenerar Audio» en un vídeo para oírla.'),
+        },
+          ...lista.map(v => h('option', { value: v.id, selected: v.id === efectiva },
+            `${v.nombre} — ${v.genero === 'male' ? 'hombre' : v.genero === 'female' ? 'mujer' : ''}`
+            + (v.nativa ? '' : ' (acento extranjero)')))),
+        h('button', { clase: 'mini', onclick: () => escucharVozGratis(efectiva) },
+          VOCES_GRATIS.sonando === efectiva ? '❚❚ Parar' : '▶ Escuchar'));
+      caja.appendChild(fila);
+      const ficha = lista.find(v => v.id === efectiva);
+      if (ficha) caja.appendChild(h('div', { clase: 'meta' }, ficha.descripcion));
+    }
+  }
+  caja.appendChild(h('div', { clase: 'meta' },
+    'Cambiarlo no regraba nada solo: la voz nueva se oye la próxima vez que '
+    + 'pulses «Generar» o «Regenerar Audio».'));
+  return caja;
 }
 
 function seccionModoImagen() {
@@ -2549,7 +2668,10 @@ function seccionCartesia(ficha) {
       pastillaEstado(ficha.cartesia.puesta ? 'ok' : 'vacio',
         ficha.cartesia.puesta ? ficha.cartesia.cola : 'sin poner')),
     h('div', { clase: 'pista' },
-      'Una sola, y no se reparte: la locución se sintetiza de una tirada.'),
+      modoVoz() === 'gratis'
+        ? 'Solo hace falta si eliges la voz de Cartesia. Con la voz gratuita '
+          + '(arriba) puedes dejarla vacía.'
+        : 'Una sola, y no se reparte: la locución se sintetiza de una tirada.'),
     h('div', { clase: 'fila-clave' }, campo,
       h('button', {
         clase: 'mini',
@@ -10487,8 +10609,11 @@ function selectorVozPropiaLight(e) {
   const propias = lista.filter(v => v.publica === false);
   if (!propias.length) {
     caja.appendChild(h('div', { clase: 'pista' },
-      'No hay voces clonadas en esta cuenta de Cartesia: la voz se elige por la '
-      + 'descripción de arriba. Si clonas una, aparecerá aquí.'));
+      lista.some(v => v.gratis)
+        ? 'Con la voz gratuita, la voz se elige por la descripción de arriba entre '
+          + 'las voces de Microsoft (o elígela en la ficha del estilo).'
+        : 'No hay voces clonadas en esta cuenta de Cartesia: la voz se elige por la '
+          + 'descripción de arriba. Si clonas una, aparecerá aquí.'));
     return caja;
   }
   if (e.voz_id && !propias.some(v => v.id === e.voz_id)) e.voz_id = '';
@@ -11158,7 +11283,7 @@ const TARJETAS_INICIO = [
   { id: 'bienvenida', titulo: 'Bienvenido a AS Video Studio', pinta: tarjetaBienvenidaInicio },
   { id: 'claude', titulo: '1 · Tu cuenta de Claude', pinta: tarjetaClaudeInicio },
   { id: 'openai', titulo: '2 · Las imágenes: gratis o con OpenAI', pinta: tarjetaOpenAIInicio },
-  { id: 'cartesia', titulo: '3 · La clave de Cartesia (voz)', pinta: tarjetaCartesiaInicio },
+  { id: 'cartesia', titulo: '3 · La voz: gratis o con Cartesia', pinta: tarjetaCartesiaInicio },
   { id: 'jamendo', titulo: '4 · La clave de Jamendo (música, opcional)', pinta: tarjetaJamendoInicio },
   { id: 'freesound', titulo: '5 · La clave de FreeSound (efectos, opcional)', pinta: tarjetaFreeSoundInicio },
   { id: 'listo', titulo: 'Todo listo', pinta: tarjetaFinalInicio },
@@ -11488,8 +11613,13 @@ function tarjetaCartesiaInicio() {
   const puesta = !!(ficha && ficha.cartesia && ficha.cartesia.puesta);
   return [
     h('div', { clase: 'pista' },
-      'Cartesia pone la voz que narra el vídeo: sin ella no hay locución. Una '
-      + 'sola clave, y la locución se sintetiza de una tirada.'),
+      h('b', {}, 'Lo normal es no pagar nada: '),
+      'el estudio viene con voces gratuitas muy naturales (decenas en español). '
+      + 'En ese caso SALTA ESTE PASO; la voz se elige y se escucha en '
+      + 'Configuración → «De dónde sale la voz».'),
+    h('div', { clase: 'pista' },
+      'Solo si prefieres las voces de Cartesia (de pago): pon aquí su clave y '
+      + 'cambia el modo en Configuración.'),
     h('ol', { clase: 'inicio-pasos' },
       h('li', {}, 'Crea una cuenta en ', enlaceInicio('play.cartesia.ai', 'https://play.cartesia.ai/'),
         '. El plan gratuito da para probar.'),

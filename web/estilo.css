@@ -1252,6 +1252,7 @@ video { width: 100%; border-radius: 9px; border: 1px solid var(--linea); backgro
   display: flex; gap: 8px; align-items: center; margin-top: 8px;
 }
 .fila-clave input { flex: 1; min-width: 0; }
+.fila-clave select { flex: 1; min-width: 0; width: auto; }
 
 /* Una calidad de imagen, con su precio. Es un boton y no una fila de radio a
    proposito: lo que se elige aqui es un PRECIO, y el precio tiene que ser lo

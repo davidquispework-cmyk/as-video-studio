@@ -1883,6 +1883,47 @@ def catalogo_voces_global(idioma: str = Query(default=None),
             "solo_nativas": bool(nativas or solo_nativas)}
 
 
+# ------------------------------------------------------------ la voz gratuita
+#
+# Las voces neuronales de Microsoft Edge (pasos/voz_gratis.py). Con el modo de
+# voz «gratis» puesto, /api/voces ya devuelve estas; estas dos rutas son para
+# Configuracion, que deja elegir la voz de fabrica y escucharla antes.
+
+@app.get("/api/voces-gratis")
+def catalogo_voces_gratis(idioma: str = Query(default="es"),
+                          refrescar: int = Query(default=0)):
+    """Las voces gratuitas de un idioma (nativas primero, Peru delante)."""
+    if PASOS_MODULOS is None:
+        raise ErrorApi(503, f"los pasos no se han podido cargar: {ERROR_PASOS}")
+    mod = PASOS_MODULOS.voz_gratis
+    try:
+        voces = mod.voces(idioma, refrescar=bool(refrescar))
+    except Exception as fallo:  # noqa: BLE001
+        raise ErrorApi(502, f"no se ha podido leer el catalogo de voces gratuitas: {fallo}")
+    puesta = AJUSTES.voz_gratis_por_defecto()
+    return {"voces": voces, "total": len(voces), "idioma": idioma,
+            "puesta": puesta, "efectiva": mod.elegir("", idioma, puesta)}
+
+
+@app.get("/api/voces-gratis/muestra")
+def muestra_voz_gratis(peticion: Request, voz: str = Query(...)):
+    """Unos segundos de esa voz, para escucharla. Se guarda: la segunda vez
+    no vuelve a salir a la red."""
+    if PASOS_MODULOS is None:
+        raise ErrorApi(503, f"los pasos no se han podido cargar: {ERROR_PASOS}")
+    mod = PASOS_MODULOS.voz_gratis
+    if not mod.es_voz_gratis(voz):
+        raise ErrorApi(400, f"{voz!r} no es una voz gratuita")
+    destino = os.path.join(mod.RAIZ_ESTUDIO, "cache", "muestras_voz", f"{voz}.mp3")
+    if not os.path.isfile(destino):
+        try:
+            mod.muestra(voz, destino)
+        except Exception as fallo:  # noqa: BLE001
+            raise ErrorApi(502, f"no se ha podido sintetizar la muestra: {fallo}")
+    return FileResponse(destino, media_type="audio/mpeg",
+                        headers={"Cache-Control": "public, max-age=86400"})
+
+
 # ------------------------------------------------------------ voz descrita
 #
 # Elegir voz era rebuscar entre ochocientas fichas con nombres que no dicen nada
@@ -2273,6 +2314,8 @@ def estimar_video(cuerpo: dict = Body(default=None)):
     caracteres = int(round(horquilla["presupuesto_palabras"] * 6.1))
     tarifas = COSTE.tarifas()
     usd_caracter = float(((tarifas.get("tts") or {}).get("usd_por_caracter")) or 0.0)
+    if AJUSTES.voz_gratuita_activa():
+        usd_caracter = 0.0           # la voz gratuita no cuesta nada
     usd_tts = round(caracteres * usd_caracter, 4)
     usd_imagenes = round(imagenes * usd_imagen, 3)
 
@@ -9285,6 +9328,8 @@ def _coste_previsto(ctx, pestanas):
     usd_imagen = light.usd_por_imagen(calidad)
     tarifas = COSTE.tarifas()
     usd_caracter = float(((tarifas.get("tts") or {}).get("usd_por_caracter")) or 0.0)
+    if AJUSTES.voz_gratuita_activa():
+        usd_caracter = 0.0           # la voz gratuita no cuesta nada
 
     imagenes = planos["con_imagen"] if "video" in pestanas else 0
     caracteres = 0

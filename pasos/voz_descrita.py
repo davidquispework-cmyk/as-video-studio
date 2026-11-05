@@ -180,6 +180,10 @@ def proponer(encargo, idioma="es", ajuste=None, avisar=None, proyecto_id=None,
 
     avisa(0.05, "leyendo el catalogo de voces")
     voz_fija = str(voz_fija or "").strip()
+    # con la voz gratuita puesta, una voz fija de Cartesia (la clonada del
+    # canal) no esta en el catalogo: se elige por la descripcion
+    if voz_fija and p4_voz.gratis() and not p4_voz.voz_gratis.es_voz_gratis(voz_fija):
+        voz_fija = ""
     voces, ids = _voces_para_instruccion(idioma, voz_fija)
     if voz_fija and voz_fija not in ids:
         raise RuntimeError(f"la voz elegida a mano ({voz_fija}) no esta en el "

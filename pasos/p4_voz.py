@@ -76,6 +76,8 @@ import requests
 
 try:
     from . import cadencia, cli_claude, comun, estadisticas, marcas_tts, presets_voz
+    from . import ajustes as ajustes_estudio
+    from . import voz_gratis
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
     import cli_claude
     import comun
@@ -83,6 +85,8 @@ except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
     import estadisticas
     import marcas_tts
     import presets_voz
+    import ajustes as ajustes_estudio
+    import voz_gratis
 
 PASO = "voz"
 RAIZ_ESTUDIO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -145,6 +149,14 @@ SR = motor.SR
 
 
 # --------------------------------------------------------------------- utiles
+
+def gratis():
+    """True si la locucion sale de las voces gratuitas (Configuracion)."""
+    try:
+        return ajustes_estudio.voz_gratuita_activa()
+    except Exception:                                    # noqa: BLE001
+        return False
+
 
 def simulado():
     """True si hay que trabajar sin llamar a Cartesia (ESTUDIO_SIMULAR=1)."""
@@ -342,6 +354,10 @@ def resolver_params(params):
     velocidad = normalizar_velocidad(elegir("velocidad", None))
 
     voz_id = str(elegir("voz_id", "")).strip()
+    # una voz gratuita guardada en un video, con Cartesia puesto: Cartesia no
+    # la conoce, asi que se usa su voz de fabrica en vez de fallar
+    if voz_gratis.es_voz_gratis(voz_id) and not gratis():
+        voz_id = ""
     if not voz_id:
         sugeridas = base.get("voces_sugeridas") or []
         if sugeridas:
@@ -357,7 +373,16 @@ def resolver_params(params):
     if hueco < 0:
         raise ValueError("hueco_minimo no puede ser negativo")
 
+    motor_voz = "gratis" if gratis() else "cartesia"
+    try:
+        defecto_gratis = ajustes_estudio.voz_gratis_por_defecto()
+    except Exception:                                    # noqa: BLE001
+        defecto_gratis = ""
     return {
+        "motor_voz": motor_voz,
+        # la voz gratuita que se usaria: la del video si es gratuita, si no la
+        # de Configuracion, si no la de fabrica del idioma
+        "voz_gratis": voz_gratis.elegir(voz_id, idioma, defecto_gratis),
         "preset": nombre_preset or None,
         "modelo": modelo,
         "voz_id": voz_id,
@@ -908,6 +933,11 @@ def sintetizar_toma(texto, cfg, progreso=None):
     if simulado():
         avisa(0.5, "simulando toma")
         return _toma_simulada(texto, cfg)
+    if cfg.get("motor_voz") == "gratis":
+        pcm, duracion, palabras = voz_gratis.toma(
+            texto, cfg.get("voz_gratis") or voz_gratis.elegir("", cfg.get("idioma")),
+            cfg.get("velocidad"), SR, avisa)
+        return motor.wav_desde_pcm(pcm), duracion, palabras
     return _toma_real(texto, cfg, avisa)
 
 
@@ -996,7 +1026,9 @@ def sintetizar_bloques(bloques, destino, cfg, avisar=None,
     trozos = [" ".join(por_bloque[bid] for bid in sec["bloques"])
               for sec in secciones]
     wav = duracion = palabras = None
-    if len(trozos) > 1 and not simulado():
+    # el contexto de varias entradas es de Cartesia; la voz gratuita graba de
+    # una vez (y las secciones se siguen sacando de los bloques, abajo)
+    if len(trozos) > 1 and not simulado() and cfg.get("motor_voz") != "gratis":
         avisa(0.05, f"{len(trozos)} secciones en un solo contexto")
         try:
             wav, duracion, palabras = _toma_por_contexto(trozos, cfg, progreso)
@@ -1058,7 +1090,9 @@ def sintetizar_bloques(bloques, destino, cfg, avisar=None,
         "marcas_tts": marcas_tts.resumen(anotados),
         "avisos_marcas": list(dict.fromkeys(avisos_marcas)),
         "resumen": (f"{len(anotados)} bloques, {round(duracion, 1)}s, "
-                    f"{cfg['modelo']} {cfg.get('preset') or 'sin preset'}"),
+                    + (f"voz gratuita {cfg.get('voz_gratis')}"
+                       if cfg.get("motor_voz") == "gratis" else
+                       f"{cfg['modelo']} {cfg.get('preset') or 'sin preset'}")),
     }
     if extra_meta:
         salidas.update(extra_meta)
@@ -1192,7 +1226,8 @@ def previsualizar(proyecto, params, segundos=20):
 
     firma = hashlib.sha256(json.dumps(
         [texto, cfg["modelo"], cfg["voz_id"], cfg["idioma"],
-         cfg["experimental_controls"], simulado()],
+         cfg["experimental_controls"], simulado(),
+         cfg.get("motor_voz"), cfg.get("voz_gratis"), cfg.get("velocidad")],
         sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:12]
     carpeta = proyecto.ruta("previsualizaciones")
     os.makedirs(carpeta, exist_ok=True)
@@ -1366,6 +1401,13 @@ def listar_voces(idioma=None, refrescar=False, solo_nativas=False):
     Se guarda la HUELLA de la clave, no la clave. Un cache de antes de esta
     fecha no la lleva, asi que se refresca una vez y ya la tiene.
     """
+    # CON LA VOZ GRATUITA PUESTA el catalogo es el suyo: asi la pantalla de
+    # voces, el elegir-por-descripcion de un estilo y la previa funcionan igual
+    if gratis():
+        fichas = voz_gratis.voces(idioma, refrescar=refrescar)
+        if solo_nativas:
+            fichas = [f for f in fichas if f.get("nativa")] or fichas
+        return fichas
     cache = None
     if os.path.exists(RUTA_CACHE_VOCES):
         try:
@@ -1587,6 +1629,8 @@ def regrabar_seccion(bloques, seccion_id, cfg, meta, destino, peticion="",
 
     if simulado():
         wav_nuevo, dur_nueva, marcas_nuevas = _toma_simulada(trozo, cfg)
+    elif cfg.get("motor_voz") == "gratis":
+        wav_nuevo, dur_nueva, marcas_nuevas = sintetizar_toma(trozo, cfg, progreso)
     else:
         wav_nuevo, dur_nueva, marcas_nuevas = _toma_por_contexto(
             [trozo], cfg, progreso)

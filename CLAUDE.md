@@ -39,6 +39,10 @@ los params.** Vive en `ajustes.json` (`ajustes.modo_imagen`) y lo consulta
 todos los proyectos y la pantalla ofrecería regenerar los vídeos enteros. Las
 suites viejas prueban el camino de OpenAI y por eso `pruebas.ps1` pone
 `ESTUDIO_MODO_IMAGEN=openai`; el manual tiene la suya (`prueba_subidas.py`).
+La voz va igual: `ajustes.modo_voz` (gratis / cartesia), leído al locutar por
+`p4_voz.gratis`; con la gratuita, `listar_voces` devuelve el catálogo de
+`voz_gratis` y `sintetizar_toma` graba con él. `pruebas.ps1` pone
+`ESTUDIO_MODO_VOZ=cartesia` y la gratuita tiene `prueba_voz_gratis.py`.
 
 ---
 

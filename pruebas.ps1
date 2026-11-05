@@ -61,6 +61,9 @@ $env:ESTUDIO_ESTADISTICAS = Join-Path $env:TEMP 'estudio_pruebas_estadisticas.js
 # se paga nada). El modo manual tiene la suya, `pasos\prueba_subidas.py`, que
 # lo fija ella misma.
 $env:ESTUDIO_MODO_IMAGEN = 'openai'
+# Y lo mismo con la voz: las de siempre prueban Cartesia (doblado o sin clave);
+# la gratuita tiene la suya, `pasos\prueba_voz_gratis.py`.
+$env:ESTUDIO_MODO_VOZ = 'cartesia'
 Remove-Item -Force $env:ESTUDIO_ESTADISTICAS -ErrorAction SilentlyContinue
 
 $suites = @(
@@ -78,7 +81,7 @@ $suites = @(
   'pasos\prueba_piezas.py', 'pasos\prueba_conservar.py',
   'pasos\prueba_encuadres.py', 'pasos\prueba_presets.py',
   'pasos\prueba_presets_light.py', 'pasos\prueba_regresiones.py',
-  'pasos\prueba_subidas.py'
+  'pasos\prueba_subidas.py', 'pasos\prueba_voz_gratis.py'
 )
 
 $fallos = 0

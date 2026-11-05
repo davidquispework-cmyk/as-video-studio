@@ -75,7 +75,7 @@ autentica nada, a propósito (ver «Quién está dentro» más abajo).
 | Las **fuentes** de los subtítulos y las cartelas | medir y dibujar el texto | ver el aviso de `motores/README.md` |
 | El **CLI de Claude**, con sesión | el guion, el catálogo visual, los rótulos | no hay vídeo |
 | Una **clave de OpenAI** | las imágenes, **solo en modo OpenAI** | en modo manual (el de fábrica) no hace falta: las imágenes las subes tú |
-| Una **clave de Cartesia** | la voz | no hay vídeo |
+| Una **clave de Cartesia** | la voz, **solo en modo Cartesia** | con la voz gratuita (la de fábrica) no hace falta |
 | Las de **Jamendo** y **FreeSound** | música y efectos | el vídeo sale sin ellos; son las únicas prescindibles |
 
 Las claves se ponen en **Configuración** (el engranaje de arriba a la derecha) y
@@ -130,6 +130,25 @@ Los estilos nuevos, en modo manual, usan **tus imágenes de ejemplo tal cual**
 como referencia (no se dibujan las seis láminas). Las imágenes subidas viven en
 `<proyecto>/subidas/` y el código está en `pasos/subidas.py`; la prueba es
 `pasos/prueba_subidas.py`.
+
+---
+
+## Voz gratis
+
+**De fábrica, la locución tampoco se paga.** En Configuración → «De dónde
+sale la voz»:
+
+| Modo | Qué hace |
+|---|---|
+| **Voces gratuitas (el de fábrica)** | Las voces neuronales de Microsoft Edge (`pasos/voz_gratis.py`, con la biblioteca `edge-tts`): decenas en español —Perú, México, España, Argentina, Colombia…—, sin clave y sin coste. Devuelven la marca de tiempo de cada palabra, así que planos, cartelas y subtítulos se sincronizan igual que con Cartesia. |
+| **Cartesia (de pago)** | Como siempre. |
+
+La voz se elige como antes —el estilo la escoge por su descripción, ahora
+entre las voces gratuitas— y en Configuración se elige y se **escucha** la voz
+por defecto. Las pausas escritas en el guion (`<break>`) se respetan; los
+controles de velocidad, volumen y emoción de Cartesia se ignoran. No es un
+servicio con contrato: si Microsoft lo cambiara, Cartesia sigue a un clic. La
+prueba es `pasos/prueba_voz_gratis.py` (sin red: dobla el servicio).
 
 ---
 

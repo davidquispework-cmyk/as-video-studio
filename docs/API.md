@@ -112,6 +112,8 @@ Reglas que valen para toda la API y no se repiten en cada fila:
 | `POST` | `/api/proyectos/{pid}/voz/previsualizar` | Sintetiza unos segundos con estos mandos de voz para escucharlos. |
 | `POST` | `/api/proyectos/{pid}/voz/secciones/{seccion_id}/regrabar` | Regraba una seccion de la toma, con microcambio si se pide. |
 | `GET` | `/api/voces` | Catalogo de voces de Cartesia, sin atarlo a ningun proyecto. |
+| `GET` | `/api/voces-gratis` | Las voces gratuitas de un idioma (nativas primero, Peru delante). |
+| `GET` | `/api/voces-gratis/muestra` | Unos segundos de esa voz, para escucharla. Se guarda: la segunda vez |
 
 ## Catálogo, escenarios y piezas
 
@@ -266,4 +268,4 @@ Reglas que valen para toda la API y no se repiten en cada fila:
 
 ---
 
-**152 endpoints.** Escrito por `generar_api.py` desde `app.py`.
+**154 endpoints.** Escrito por `generar_api.py` desde `app.py`.

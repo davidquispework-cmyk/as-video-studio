@@ -19,3 +19,7 @@ requests==2.34.2
 # Solo por el camino de la voz por websocket (pasos/p4_voz), pero sin el ese
 # camino falla en el momento de usarlo, no al arrancar: va aqui a proposito.
 websocket-client==1.9.0
+
+# La voz gratuita (pasos/voz_gratis.py): las voces neuronales de Microsoft
+# Edge, sin clave. Trae aiohttp.
+edge-tts==7.3.1
