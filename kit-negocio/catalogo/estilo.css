@@ -1,0 +1,29 @@
+:root { --fondo:#fbf7f2; --tarjeta:#fff; --texto:#2b2320; --tenue:#7a6d66; --acento:#b5476b; --verde:#1fa855; --linea:#eadfd6; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--fondo); color:var(--texto); }
+.cab { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:20px 16px; max-width:1100px; margin:auto; }
+.cab h1 { margin:0; font-size:26px; color:var(--acento); }
+.cab p { margin:4px 0 0; color:var(--tenue); }
+.filtros { display:flex; flex-wrap:wrap; gap:8px; padding:0 16px 12px; max-width:1100px; margin:auto; }
+.filtros input, .filtros select { flex:1 1 160px; padding:10px 12px; border:1px solid var(--linea); border-radius:10px; font-size:15px; background:#fff; }
+.rejilla { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:14px; padding:0 16px 24px; max-width:1100px; margin:auto; }
+.prenda { background:var(--tarjeta); border:1px solid var(--linea); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; }
+.foto { aspect-ratio:4/5; background:#f1e8e0; display:flex; align-items:center; justify-content:center; color:var(--tenue); font-size:13px; position:relative; }
+.foto img { width:100%; height:100%; object-fit:cover; }
+.agotado .foto::after { content:"AGOTADO"; position:absolute; inset:auto 0 0 0; background:rgba(43,35,32,.8); color:#fff; text-align:center; padding:6px; font-weight:700; font-size:12px; letter-spacing:.1em; }
+.info { padding:10px 12px 12px; display:flex; flex-direction:column; gap:6px; flex:1; }
+.info h2 { font-size:15px; margin:0; }
+.precio { font-weight:700; color:var(--acento); font-size:17px; }
+.meta { color:var(--tenue); font-size:12px; }
+select.mini { padding:6px 8px; border:1px solid var(--linea); border-radius:8px; font-size:13px; }
+button { font:inherit; cursor:pointer; border:0; border-radius:10px; }
+.pedir { margin-top:auto; background:var(--verde); color:#fff; padding:10px; font-weight:600; }
+.pedir:disabled { background:#bbb; cursor:not-allowed; }
+.secundario { background:#fff; border:1px solid var(--linea); padding:9px 12px; }
+.vacio, .pie { text-align:center; color:var(--tenue); padding:16px; }
+@media print {
+  .filtros, #pdf, .pedir, select.mini, .pie { display:none !important; }
+  body { background:#fff; }
+  .rejilla { grid-template-columns:repeat(3,1fr); gap:10px; }
+  .prenda { break-inside:avoid; }
+}

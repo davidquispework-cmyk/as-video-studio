@@ -1,0 +1,12 @@
+{
+  "tienda": "Modas Mamá",
+  "eslogan": "Ropa bonita para cada día",
+  "whatsapp": "51999999999",
+  "moneda": "S/",
+  "productos": [
+    {"id": "p001", "nombre": "Blusa de lino blanca", "categoria": "Blusas", "precio": 45, "tallas": ["S","M","L"], "colores": ["Blanco"], "foto": "", "agotado": false},
+    {"id": "p002", "nombre": "Vestido floral de verano", "categoria": "Vestidos", "precio": 79, "tallas": ["S","M","L","XL"], "colores": ["Rosa","Azul"], "foto": "", "agotado": false},
+    {"id": "p003", "nombre": "Pantalón jean clásico", "categoria": "Pantalones", "precio": 89, "tallas": ["28","30","32","34"], "colores": ["Azul"], "foto": "", "agotado": false},
+    {"id": "p004", "nombre": "Casaca de punto", "categoria": "Casacas", "precio": 99, "tallas": ["M","L"], "colores": ["Beige","Negro"], "foto": "", "agotado": true}
+  ]
+}

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catálogo</title>
+<meta name="description" content="Catálogo de ropa: precios, tallas y pedidos por WhatsApp.">
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<header class="cab">
+  <div><h1 id="tienda">Catálogo</h1><p id="eslogan"></p></div>
+  <button id="pdf" class="secundario">Descargar en PDF</button>
+</header>
+<nav class="filtros">
+  <input id="busca" type="search" placeholder="Buscar prenda…">
+  <select id="categoria"><option value="">Todas las categorías</option></select>
+  <select id="talla"><option value="">Todas las tallas</option></select>
+</nav>
+<main id="rejilla" class="rejilla"></main>
+<p id="vacio" class="vacio" hidden>No hay prendas con esos filtros.</p>
+<footer class="pie">Pedidos por WhatsApp · <span id="pie-tienda"></span></footer>
+<script src="app.js"></script>
+</body>
+</html>
