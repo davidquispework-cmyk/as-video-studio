@@ -5307,6 +5307,11 @@ function navLight() {
   const sub = dentro ? v.vista : '';
   const hayGuion = dentro && !!v.guion;
   const hayPlanos = dentro && !!versionDe(v.fichas.assets || {});
+  /* MODO MANUAL: la pestaña se abre en cuanto hay audio, aunque todavía no haya
+     ninguna imagen. Ahí está el panel para SUBIRLAS, y sin esto quedaba un
+     círculo sin salida: la tanda se paraba pidiendo las imágenes y la pestaña
+     donde se suben seguía cerrada porque no había imágenes. */
+  const puedeSubir = dentro && !!v.audio;
   const hayVideo = dentro && (!!v.audio || hayMp4Light());
 
   const paradas = [
@@ -5331,10 +5336,11 @@ function navLight() {
       porque: dentro ? (hayGuion ? 'el texto y la voz' : 'todavía no hay guion')
         : 'abre un vídeo primero',
       ir: () => { pararPrevia(); v.vista = 'guion'; pintarLight(); } },
-    { id: 'diapositivas', texto: 'Imágenes', puede: hayPlanos,
+    { id: 'diapositivas', texto: 'Imágenes', puede: hayPlanos || puedeSubir,
       activa: sub === 'previa',
       porque: hayPlanos ? 'la imagen de cada plano, sola'
-        : 'todavía no hay imágenes que mirar',
+        : (puedeSubir ? 'sube aquí tus imágenes, plano a plano'
+          : 'todavía no hay imágenes que mirar'),
       ir: () => { v.vista = 'previa'; pintarLight(); } },
     { id: 'video', texto: 'Vídeo', puede: hayVideo, activa: sub === 'video',
       porque: hayVideo ? 'el montaje y el repaso' : 'todavía no hay nada montado',

@@ -186,7 +186,7 @@ def main():
         ok(False, "sin imagenes la tanda deberia pararse")
     except p6_assets.FaltanImagenes as falta:
         igual(falta.sids, sorted(con_imagen), "dice TODAS las que faltan, y solo esas")
-        ok("Subir imagenes" in str(falta), "y dice donde subirlas")
+        ok("Tus imagenes" in str(falta), "y dice donde subirlas")
 
     fichas = p6_assets.prompts_para_subir(proyecto, params)
     igual([f["id"] for f in fichas], con_imagen,

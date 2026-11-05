@@ -208,7 +208,8 @@ class FaltanImagenes(RuntimeError):
         total = f" de {total_con_imagen}" if total_con_imagen else ""
         super().__init__(
             f"faltan {len(sids)}{total} imagenes por subir ({lista}). Abre "
-            f"«Subir imagenes» en la pestana Imagenes, copia el prompt de cada "
+            f"la pestana «Imagenes» (barra de abajo) y, en el panel «Tus "
+            f"imagenes», copia el prompt de cada "
             f"plano, generala donde quieras (Gemini, ChatGPT...) y subela; "
             f"luego vuelve a pulsar «Generar imagenes». Lo demas ya esta hecho "
             f"y no se repite.")
