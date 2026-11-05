@@ -14,7 +14,7 @@ aceite, Salmo 119:105). Vídeos animados narrados, temas bíblicos (canal «HECH
 - Ambos modos se eligen en Configuración; Cartesia y OpenAI siguen disponibles.
 - Marca Shaddai Studio en el estudio y en el login.
 - Skills en `.claude/skills/`: catalogo-ropa, web-negocio, presentaciones, tesis,
-  ahorro-claude, tendencias-redes.
+  ahorro-claude, tendencias-redes, director-creativo (consejero para usar la plataforma).
 - `kit-negocio/`: catálogo de ropa que ya funciona (para la tienda de su mamá) +
   guías (`LEEME.md`, `CONECTORES-Y-AHORRO.md`).
 
