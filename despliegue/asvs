@@ -144,7 +144,15 @@ actualizar() {
   systemctl restart as-video-login as-video-studio
   trap - EXIT
   rm -rf "$temporal"
-  sleep 2
+  # EL ESTUDIO TARDA EN ARRANCAR (importa los pasos y los motores): con un
+  # `sleep 2` a secas el resumen decia «no contesta por dentro» con todo bien.
+  # Se le espera hasta 30 s antes de pintar el estado.
+  local puerto espera
+  puerto="$(_puerto)"
+  for espera in $(seq 1 30); do
+    curl -fsS --max-time 2 "http://127.0.0.1:${puerto:-8110}/api/salud" >/dev/null 2>&1 && break
+    sleep 1
+  done
   echo
   estado
 }
