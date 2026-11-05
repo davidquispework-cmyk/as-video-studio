@@ -24,6 +24,20 @@ Estudio en /opt/as-video-studio. Para actualizar tras subir cambios a `main`:
 `asvs actualizar` en la consola de Hostinger. Claude Code está instalado en el VPS.
 Conectores de David: GitHub, Hostinger (solo estado/DNS), Google Drive, Google Sheets.
 
+## Plan de ANIMACIÓN (decidido, empezar por la etapa 1)
+Inspiración: TikTok @uncristianoinquieto (vertical 9:16, ~1:05 para Creator Rewards,
+gancho «¿Sabías…?», subtítulos palabra a palabra con la clave resaltada, cifras grandes,
+muñecos geométricos con túnica, personajes que SE MUEVEN). Inspirarse en el formato, no
+copiar su estilo exacto. Nombre de canal propuesto: «Lumbrera» (Salmo 119:105).
+El VPS no tiene GPU: nada de modelos de vídeo locales. Todo a coste 0:
+1. **Etapa 1**: efectos de ambiente en el render (luces que parpadean, partículas,
+   agua, nubes, rayos) + profundidad 2.5D (separar personaje/fondo con rembg en CPU,
+   capas con parallax) + balanceo suave. El render ya dibuja cada fotograma con el
+   navegador (p8_render / capas de p7): animar con CSS/SVG/JS ahí.
+2. **Etapa 2**: subir un CLIP de vídeo por plano (además de imagen) para 1-3 momentos
+   clave hechos en Kling/Hailuo/Meta AI gratis; el estudio pone voz, subtítulos y cifras.
+3. **Etapa 3**: personajes «marioneta» SVG por piezas (brazos articulados) con gestos.
+
 ## Pendiente / ideas
 1. Catálogo de la mamá: faltan nombre de tienda, WhatsApp, prendas y fotos.
 2. Web del negocio.
