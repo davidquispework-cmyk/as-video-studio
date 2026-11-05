@@ -32,7 +32,9 @@ estado.roto.*
 despliegue/login/node_modules/
 despliegue/login/datos/
 node_modules/
-.claude/
+.claude/*
+# las skills SI se guardan: son las instrucciones de David para Claude
+!.claude/skills/
 
 # NOTAS INTERNAS de quien lo desarrolla (estado, despliegues, cuentas): se
 # quedan en su maquina y no viajan en el repositorio publico.
