@@ -49,6 +49,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import ambiente  # noqa: E402
 import cartelas  # noqa: E402
+import clips  # noqa: E402
 import estadisticas  # noqa: E402
 import medios  # noqa: E402
 import sonido  # noqa: E402
@@ -405,6 +406,12 @@ function ventana(u){
   return [px, py, pw];
 }
 
+// EL CLIP DEL PLANO (pasos/clips.py, etapa 2): la lista de fotogramas del
+// video que subio la persona, uno por fotograma del render, o null si el plano
+// es una imagen quieta. Con clip, #fondo cambia de fotograma en cada pintado y
+// la camara, las capas y el subtitulo siguen igual encima.
+const CLIP = __CLIP__;
+
 // EL AMBIENTE DEL PLANO (pasos/ambiente.py): null = el plano sale como antes.
 const AMB = __AMB__;
 __AMBJS__
@@ -415,7 +422,7 @@ function pintar(t){
   // BALANCEO del plano entero cuando no hay figura recortada que balancear:
   // un giro de medio grado y un 1,5 % de zoom de mas para no enseñar bordes.
   let extra = '';
-  if (AMB && !AMB.figura){
+  if (AMB && !AMB.figura && !AMB.sin_balanceo){
     const r = Math.sin(Math.PI*2*t/5.2)*0.45;
     extra = 'translate(' + W/2 + 'px,' + H/2 + 'px) rotate(' + r.toFixed(3) +
             'deg) scale(1.015) translate(' + (-W/2) + 'px,' + (-H/2) + 'px) ';
@@ -426,6 +433,15 @@ function pintar(t){
   if (AMB) ambiente(t, v, s);
   if (svg && svg.setCurrentTime) svg.setCurrentTime(t);
   if (svgFijo && svgFijo.setCurrentTime) svgFijo.setCurrentTime(t);
+  if (CLIP && CLIP.length){
+    // se ESPERA a que el fotograma este decodificado: si no, la captura
+    // pillaria el anterior y el clip saldria a tirones
+    const i = Math.min(CLIP.length - 1, Math.max(0, Math.round(t * FPS)));
+    if (fondo.getAttribute('src') !== CLIP[i]){
+      fondo.src = CLIP[i];
+      return fondo.decode().then(() => 1, () => 1);
+    }
+  }
   // Sigue devolviendo 1 y no undefined: quien llama hace
   // `Promise.resolve(pintar(t))`, asi que un valor pelado vale igual.
   return 1;
@@ -439,7 +455,7 @@ def _url_local(ruta):
 
 
 def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
-               amb=None):
+               amb=None, fotos_clip=None):
     ancho, alto = [int(v) for v in p["resolucion"]]
     hw, hh = mov.get("hyperframe_px") or [3072, 2048]
     duracion = float(escena["t_out"]) - float(escena["t_in"])
@@ -454,6 +470,8 @@ def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
             .replace("__AMBFUERA__", fuera)
             .replace("__AMBJS__", ambiente.AMBIENTE_JS if amb else "")
             .replace("__AMB__", json.dumps(amb) if amb else "null")
+            .replace("__CLIP__", json.dumps([_url_local(f) for f in fotos_clip])
+                     if fotos_clip else "null")
             .replace("__W__", str(ancho)).replace("__H__", str(alto))
             .replace("__HW__", str(hw)).replace("__HH__", str(hh))
             .replace("__FONDO__", _url_local(hyper))
@@ -1019,11 +1037,17 @@ def renderizar_plano(tarea, navegador=None):
         print(f"[render] {sid}: {len(resisten)} fichero(s) de la pasada anterior "
               f"siguen bloqueados en {carpeta} ({os.path.basename(resisten[0])}…)",
               flush=True)
+    # EL CLIP DEL PLANO, si lo tiene: sus fotogramas van a una subcarpeta
+    # (los del render son f00001.png... en la raiz y no se pueden mezclar)
+    fotos_clip = None
+    if tarea.get("clip_video"):
+        fotos_clip = clips.extraer_fotogramas(
+            tarea["clip_video"], os.path.join(carpeta, "clip"), fps, total)
     pagina = _pagina_de(tarea["escena"], tarea["mov"], tarea["capa"],
                         tarea["hyper"], {"resolucion": tarea["resolucion"]},
                         os.path.join(carpeta, "escena.html"),
                         capa_fija=tarea.get("capa_fija") or "", fps=fps,
-                        amb=tarea.get("ambiente"))
+                        amb=tarea.get("ambiente"), fotos_clip=fotos_clip)
 
     navegador.abrir(pagina)
     for numero in range(total):
@@ -1066,6 +1090,7 @@ def renderizar_plano(tarea, navegador=None):
             "transicion": corte.get("tipo") or "corte",
             "ranura": corte.get("ranura") or "corte",
             "frames_transicion": pintados,
+            "clip_video": bool(fotos_clip),
             "origen": "renderizado"}
 
 
@@ -1383,8 +1408,25 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
         # EL AMBIENTE se prepara AQUI, en el proceso principal y una vez por
         # imagen (con cache en trabajo/ambiente): el recorte carga un modelo de
         # cientos de MB que no tiene por que vivir en cada lote.
+        # EL CLIP (etapa 2): si la persona subio un video para este plano, sale
+        # en lugar de la imagen quieta. Sin recorte de figura ni balanceo: el
+        # clip ya trae su propio movimiento; las particulas y la luz si.
+        ruta_clip = clips.ruta_de(proyecto.raiz, sid)
+        con_clip = os.path.isfile(ruta_clip) and p.get("clips", True)
         amb = None
-        if p.get("ambiente", "auto") not in ("no", False, None):
+        if p.get("ambiente", "auto") not in ("no", False, None) and con_clip:
+            try:
+                amb = ambiente.configurar(escena, hyper,
+                                          os.path.join(trabajo, "ambiente"),
+                                          dict(p, profundidad=False), None)
+                if amb:
+                    amb = {k: v for k, v in amb.items()
+                           if k not in ("figura", "fondo")}
+                    amb["sin_balanceo"] = True
+            except Exception as e:
+                print(f"[render] {sid}: sin ambiente ({e})", flush=True)
+                amb = None
+        elif p.get("ambiente", "auto") not in ("no", False, None):
             if sesion_recorte is None and p.get("profundidad", True):
                 sesion_recorte = ambiente.sesion_recorte() or False
             try:
@@ -1397,6 +1439,7 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
 
         tareas.append({
             "ambiente": amb,
+            "clip_video": ruta_clip if con_clip else None,
             "id": sid, "escena": {"id": sid, "t_in": escena["t_in"],
                                   "t_out": escena["t_out"]},
             "mov": {"ventana_ini": mov["ventana_ini"],

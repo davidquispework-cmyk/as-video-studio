@@ -43,8 +43,21 @@ El VPS no tiene GPU: nada de modelos de vídeo locales. Todo a coste 0:
    escena puede llevar `"ambiente": [...]` para forzarlos. Probado en vertical 1080×1920:
    ~0,5 s por fotograma en un solo proceso. Pendiente: botón en la pantalla para
    elegir efectos por plano; detectar dónde está el agua (hoy: el 30 % de abajo).
-2. **Etapa 2**: subir un CLIP de vídeo por plano (además de imagen) para 1-3 momentos
-   clave hechos en Kling/Hailuo/Meta AI gratis; el estudio pone voz, subtítulos y cifras.
+2. **Etapa 2 — HECHA (5-nov-2026)**: CLIP de vídeo por plano (además de la imagen)
+   para 1-3 momentos clave hechos gratis en Kling/Hailuo/Meta AI.
+   Cómo se usa: pestaña Imágenes → tarjeta del plano → «🎬 Añadir clip de vídeo»:
+   «Copiar prompt del clip» (prompt de MOVIMIENTO), hacer el clip con la imagen del
+   plano, «Subir clip». Luego volver a montar el vídeo (solo se rehace ese plano).
+   Cómo quedó: `pasos/clips.py` + rutas `/api/proyectos/{pid}/clips/{plano}` en
+   `app.py` + `p8_render` (pone los fotogramas del clip en lugar de la imagen; voz,
+   subtítulos, cartelas, partículas y zoom siguen encima). Guardado en
+   `<proyecto>/subidas/clips/S00N.mp4`, mudo, 30 fps, recortado al plano, máx 20 s.
+   Si el plano dura más que el clip, se congela el último fotograma. Si el plano no
+   tenía imagen, se usa el primer fotograma del clip. Con clip no hay recorte de
+   figura ni balanceo (el clip ya se mueve). Prueba: `pasos/prueba_clips.py`.
+   **Modo automático (de pago) PREPARADO Y APAGADO**: Configuración → «Clips de vídeo»
+   → automático + variable `FAL_KEY` en el servidor (fal.ai, Kling 2.1, ~0,28 $/clip).
+   Sin las dos cosas no gasta nada. Pendiente: probar ese modo con saldo real.
 3. **Etapa 3**: personajes «marioneta» SVG por piezas (brazos articulados) con gestos.
 
 ## Decisión de dinero (5-nov-2026)

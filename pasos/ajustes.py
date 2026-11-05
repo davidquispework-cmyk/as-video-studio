@@ -65,6 +65,12 @@ MODOS_IMAGEN = ("manual", "openai")
 #: Igual que el modo de imagen: se lee al locutar, no entra en ninguna firma.
 MODOS_VOZ = ("gratis", "cartesia")
 
+#: DE DONDE SALEN LOS CLIPS DE VIDEO de los planos (pasos/clips.py).
+#:   manual  los sube una persona (Kling, Hailuo, Meta AI gratis). De fabrica.
+#:   auto    los pide el estudio a fal.ai pagando (~0,28 $ por clip). APAGADO:
+#:           ademas de elegirlo hace falta la variable de entorno FAL_KEY.
+MODOS_CLIP = ("manual", "auto")
+
 #: El tamano con el que se generan los planos, y por tanto con el que hay que
 #: mirar la tabla de precios. Es el de `p6_assets` para 16:9.
 TAMANO = "1536x1024"
@@ -89,6 +95,8 @@ POR_DEFECTO = {
     # La voz gratuita de los videos que no han elegido una (vacio = la de
     # fabrica del idioma, ver voz_gratis.POR_IDIOMA).
     "voz_gratis": "",
+    # Los clips de video de los planos: manual (gratis) de fabrica.
+    "modo_clip": "manual",
     # Si ya se ha pasado por la guia de inicio (las tarjetas que piden las
     # claves al entrar por primera vez). Vive aqui y no en el navegador
     # porque es de la instalacion, no de la pantalla: desde el movil no hay
@@ -111,6 +119,8 @@ def leer():
     salida["voz_gratis"] = str(salida.get("voz_gratis") or "")
     if salida.get("modo_imagen") not in MODOS_IMAGEN:
         salida["modo_imagen"] = POR_DEFECTO["modo_imagen"]
+    if salida.get("modo_clip") not in MODOS_CLIP:
+        salida["modo_clip"] = POR_DEFECTO["modo_clip"]
     salida["onboarding_visto"] = bool(salida.get("onboarding_visto"))
     return salida
 
@@ -139,6 +149,9 @@ def guardar(cambios):
         if clave == "modo_imagen" and valor not in MODOS_IMAGEN:
             raise ValueError(
                 f"modo de imagen {valor!r}: solo {', '.join(MODOS_IMAGEN)}")
+        if clave == "modo_clip" and valor not in MODOS_CLIP:
+            raise ValueError(
+                f"modo de clip {valor!r}: solo {', '.join(MODOS_CLIP)}")
         if clave == "onboarding_visto" and not isinstance(valor, bool):
             raise ValueError("onboarding_visto es verdadero o falso")
         actual[clave] = valor

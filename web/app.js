@@ -2312,6 +2312,7 @@ function pintarConfig() {
   caja.appendChild(bloquePruebaClaves());
   caja.appendChild(seccionModoVoz());
   caja.appendChild(seccionModoImagen());
+  caja.appendChild(seccionModoClip());
   caja.appendChild(seccionOpenAI(ficha));
   /* la calidad solo importa si se paga a OpenAI */
   if (modoImagen() !== 'manual') caja.appendChild(seccionCalidadImagen());
@@ -2516,6 +2517,50 @@ function seccionModoImagen() {
   caja.appendChild(h('div', { clase: 'meta' },
     'Se aplica al momento y a todos los vídeos. Cambiarlo no borra ni rehace '
     + 'ninguna imagen que ya tengas.'));
+  return caja;
+}
+
+/* LOS CLIPS DE VÍDEO de los planos (etapa 2): 'manual' (los subes tú, gratis)
+   o 'auto' (fal.ai, de pago). El automático queda PREPARADO pero apagado: además
+   de elegirlo aquí hace falta la variable FAL_KEY en el servidor. */
+function seccionModoClip() {
+  const datos = estadoConfig().ajustes;
+  const modo = (datos && datos.ajustes && datos.ajustes.modo_clip) || 'manual';
+  const caja = h('section', { clase: 'bloque-config' },
+    h('div', { clase: 'fila' },
+      h('h3', {}, 'Clips de vídeo de los planos'),
+      h('span', { clase: 'crece' }),
+      datos ? pastillaEstado('ok', modo === 'manual' ? 'manual · gratis' : 'automático · de pago')
+        : null));
+  if (!datos) return caja;
+  const opciones = [
+    { id: 'manual', nombre: 'Los subo yo (gratis)',
+      texto: 'En la tarjeta de cada plano copias el prompt de movimiento, haces el '
+        + 'clip gratis en Kling, Hailuo o Meta AI con la imagen del plano y lo subes. '
+        + 'El estudio le pone la voz, los subtítulos y las cifras.' },
+    { id: 'auto', nombre: 'Que los haga fal.ai (de pago, ~0,28 $ por clip)',
+      texto: 'Un botón por plano pide el clip a fal.ai. Necesita además la clave '
+        + 'FAL_KEY en el servidor; sin ella no se gasta nada.' },
+  ];
+  opciones.forEach(op => {
+    const puesta = op.id === modo;
+    caja.appendChild(h('button', {
+      clase: 'fila-modo-imagen' + (puesta ? ' elegida' : ''),
+      disabled: puesta,
+      onclick: async () => {
+        const vista = estadoConfig();
+        try {
+          const r = await pedir(API.ajustes(), { method: 'PUT', cuerpo: { modo_clip: op.id } });
+          vista.ajustes = { ...(vista.ajustes || {}), ajustes: r.ajustes, costes: r.costes };
+          SUBIDAS.datos = null;
+          toast(op.id === 'manual' ? 'Clips manuales: gratis' : 'Clips automáticos: de pago');
+        } catch (e) { toast(e.message, true); }
+        repintarClaves();
+      },
+    },
+      h('span', { clase: 'nombre' }, (puesta ? '● ' : '○ ') + op.nombre),
+      h('span', { clase: 'meta' }, op.texto)));
+  });
   return caja;
 }
 
@@ -8270,6 +8315,47 @@ async function subirAPlanos(ficheros, plano) {
   }
 }
 
+/* EL CLIP DE UN PLANO (etapa 2). Va a su tarjeta, uno por plano. */
+async function subirClip(ficheros, sid) {
+  const v = videoAbierto();
+  const f = Array.from(ficheros || [])[0];
+  if (!f) return;
+  SUBIDAS.subiendo += 1;
+  repintarVideo();
+  try {
+    const cuerpo = new FormData();
+    cuerpo.append('clip', f, f.name);
+    SUBIDAS.datos = await pedir(`${API.proyecto(v.pid)}/clips/${encodeURIComponent(sid)}`,
+      { method: 'POST', cuerpo });
+    SUBIDAS.cambiadas.add(sid);
+    toast(`Clip de ${sid} subido. Al volver a montar el vídeo saldrá en movimiento.`);
+  } catch (e) { toast(e.message, true); }
+  SUBIDAS.subiendo -= 1;
+  repintarVideo();
+}
+
+async function quitarClip(sid) {
+  const v = videoAbierto();
+  if (!window.confirm(`¿Quitar el clip de ${sid}? Volverá a salir su imagen quieta.`)) return;
+  try {
+    SUBIDAS.datos = await pedir(`${API.proyecto(v.pid)}/clips/${encodeURIComponent(sid)}`,
+      { method: 'DELETE' });
+  } catch (e) { toast(e.message, true); }
+  repintarVideo();
+}
+
+async function clipAutomatico(sid) {
+  const v = videoAbierto();
+  if (!window.confirm(`Pedir el clip de ${sid} a fal.ai cuesta unos 0,28 $. ¿Seguir?`)) return;
+  toast('Pidiendo el clip… tarda uno o dos minutos');
+  try {
+    SUBIDAS.datos = await pedir(`${API.proyecto(v.pid)}/clips/${encodeURIComponent(sid)}/auto`,
+      { method: 'POST' });
+    toast(`Clip de ${sid} listo`);
+  } catch (e) { toast(e.message, true); }
+  repintarVideo();
+}
+
 async function quitarSubida(sid) {
   const v = videoAbierto();
   if (!window.confirm(`¿Quitar la imagen subida de ${sid}?`)) return;
@@ -8383,8 +8469,35 @@ function tarjetaSubida(plano) {
       botonElegirFicheros(plano.subida ? 'Cambiar' : 'Elegir', { accept: 'image/*' },
         files => subirAPlanos(files, plano.id)),
       plano.subida ? h('button', { clase: 'mini fantasma peligro',
-        onclick: () => quitarSubida(plano.id) }, 'Quitar') : null));
-  soltarEn(tarjeta, files => subirAPlanos(files, plano.id));
+        onclick: () => quitarSubida(plano.id) }, 'Quitar') : null),
+    /* EL CLIP (opcional): para los 1-3 momentos clave que piden movimiento */
+    h('details', { clase: 'subida-clip', open: plano.clip ? true : null },
+      h('summary', {}, plano.clip
+        ? `🎬 Con clip de vídeo (${Number(plano.clip_segundos || 0).toFixed(1)} s)`
+        : '🎬 Añadir clip de vídeo (opcional)'),
+      plano.clip ? h('video', {
+        src: `${API.archivo(v.pid, `subidas/clips/${plano.id}.mp4`)}?v=${plano.clip_mtime || 0}`,
+        muted: true, loop: true, controls: true, preload: 'metadata' }) : null,
+      h('div', { clase: 'meta' },
+        'Haz el clip gratis en Kling, Hailuo o Meta AI: sube allí la imagen de '
+        + 'este plano y pega este prompt. Luego sube aquí el vídeo (sale mudo; '
+        + 'la voz la pone el estudio).'),
+      h('pre', {}, plano.prompt_clip || ''),
+      h('div', { clase: 'subida-mandos' },
+        h('button', { clase: 'mini', onclick: () => copiarPrompt(plano.prompt_clip || '') },
+          'Copiar prompt del clip'),
+        botonElegirFicheros(plano.clip ? 'Cambiar clip' : 'Subir clip', { accept: 'video/*,.gif' },
+          files => subirClip(files, plano.id)),
+        plano.clip ? h('button', { clase: 'mini fantasma peligro',
+          onclick: () => quitarClip(plano.id) }, 'Quitar clip') : null,
+        (SUBIDAS.datos && SUBIDAS.datos.clip_auto && plano.subida)
+          ? h('button', { clase: 'mini', onclick: () => clipAutomatico(plano.id) },
+            'Hacerlo automático (de pago)') : null)));
+  soltarEn(tarjeta, files => {
+    const lista = Array.from(files || []);
+    if (lista.length === 1 && /^video\//.test(lista[0].type || '')) subirClip(lista, plano.id);
+    else subirAPlanos(files, plano.id);
+  });
   return tarjeta;
 }
 

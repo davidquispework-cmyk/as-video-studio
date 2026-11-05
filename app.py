@@ -84,6 +84,7 @@ except Exception as fallo:  # noqa: BLE001
 # en el paso de assets dejaria la pantalla de ajustes en blanco.
 sys.path.insert(0, os.path.join(RAIZ_ESTUDIO, "pasos"))
 import ajustes as AJUSTES  # noqa: E402
+import clips as CLIPS  # noqa: E402
 import cli_claude as CLI_CLAUDE  # noqa: E402
 import estadisticas as ESTADISTICAS  # noqa: E402
 
@@ -5036,7 +5037,22 @@ def _ficha_subidas(ctx):
     p6 = PASOS_MODULOS.p6_assets
     planos = p6.prompts_para_subir(ctx.proyecto, ctx.estado.params("assets") or {})
     hechas = sum(1 for f in planos if f["subida"])
+    # LOS CLIPS (etapa 2): cada plano dice si lleva video y trae el prompt de
+    # movimiento para Kling / Hailuo / Meta AI.
+    con_clip = CLIPS.listar(ctx.proyecto.raiz)
+    plan = PASOS_MODULOS.p6_assets.plan_actual(ctx.proyecto) or {}
+    escenas = {e.get("id"): e for e in plan.get("escenas") or []}
+    for f in planos:
+        info = con_clip.get(f["id"])
+        f["clip"] = bool(info)
+        f["clip_mtime"] = (info or {}).get("mtime")
+        f["clip_segundos"] = (info or {}).get("segundos")
+        f["prompt_clip"] = CLIPS.prompt_para_copiar(
+            escenas.get(f["id"]) or {}, plan.get("formato") or "")
+    auto, motivo = CLIPS.automatico_disponible()
     return {"modo": AJUSTES.modo_imagen(), "planos": planos,
+            "modo_clip": AJUSTES.leer().get("modo_clip", "manual"),
+            "clips": len(con_clip), "clip_auto": auto, "clip_auto_motivo": motivo,
             "total": len(planos), "subidas": hechas,
             "faltan": [f["id"] for f in planos if not f["subida"]],
             "tamano": _tamano_de_plano(ctx)}
@@ -5172,6 +5188,113 @@ def borrar_subida(pid: str, sid: str):
         _subidas().borrar(ctx.proyecto.raiz, sid)
     except ValueError as fallo:
         raise ErrorApi(400, str(fallo))
+    return _ficha_subidas(ctx)
+
+
+# ================================================ LOS CLIPS DE VIDEO (etapa 2)
+#
+# Un plano puede llevar, ademas de su imagen, un clip de video hecho fuera
+# (Kling, Hailuo, Meta AI). Vive en `<proyecto>/subidas/clips/<plano>.mp4` y el
+# render lo pone en lugar de la imagen quieta (ver `pasos/clips.py`).
+#
+# Subirlo o quitarlo escribe la huella del clip en los params de ESA unidad del
+# render (`unidades["escena:S007"]["clip"]`): asi solo ese plano queda por
+# volver a montar, y no el video entero. Es una accion de la persona, no un
+# defecto escrito al abrir una pantalla (regla 1 de CLAUDE.md).
+
+def _marcar_clip_en_render(ctx, sid):
+    uid = f"escena:{sid}"
+    previos = ((ctx.estado.params("render") or {}).get("unidades") or {})
+    ficha = dict(previos.get(uid) or {})
+    huella = CLIPS.huella(ctx.proyecto.raiz, sid)
+    if (ficha.get("clip") or "") == huella:
+        return
+    if huella:
+        ficha["clip"] = huella
+    else:
+        ficha.pop("clip", None)
+    ctx.estado.actualizar_params("render", {"unidades": {uid: ficha}})
+
+
+def _plano_con_imagen(ctx, plano):
+    try:
+        sid = CLIPS.subidas.validar_id(plano)
+    except ValueError as fallo:
+        raise ErrorApi(400, str(fallo))
+    validos = {f["id"] for f in PASOS_MODULOS.p6_assets.prompts_para_subir(
+        ctx.proyecto, ctx.estado.params("assets") or {})}
+    if validos and sid not in validos:
+        raise ErrorApi(400, f"{sid} no es un plano con imagen en este vídeo")
+    return sid
+
+
+@app.post("/api/proyectos/{pid}/clips/{sid}", status_code=201)
+async def subir_clip(pid: str, sid: str, peticion: Request):
+    """Sube el clip de video de un plano (un solo fichero, multipart)."""
+    ctx = contexto(pid)
+    sid = _plano_con_imagen(ctx, sid)
+    tipo = (peticion.headers.get("content-type") or "").lower()
+    if not tipo.startswith("multipart/"):
+        raise ErrorApi(400, "manda el clip como multipart")
+    try:
+        formulario = await peticion.form()
+    except Exception as fallo:                              # noqa: BLE001
+        raise ErrorApi(400, f"multipart ilegible: {fallo}")
+    ficheros = [v for _k, v in formulario.multi_items() if hasattr(v, "read")]
+    if len(ficheros) != 1:
+        raise ErrorApi(400, "se sube un solo clip por plano")
+    nombre = os.path.basename(str(getattr(ficheros[0], "filename", "") or ""))
+    contenido = await ficheros[0].read()
+    try:
+        hecho = await asyncio.to_thread(CLIPS.guardar, ctx.proyecto.raiz, sid,
+                                        contenido, _tamano_de_plano(ctx), nombre)
+    except ValueError as fallo:
+        raise ErrorApi(400, str(fallo))
+    _marcar_clip_en_render(ctx, sid)
+    ctx.bitacora.anotar("clip_subido", "render", hecho)
+    ficha = _ficha_subidas(ctx)
+    ficha["guardados"] = [sid]
+    return ficha
+
+
+@app.delete("/api/proyectos/{pid}/clips/{sid}")
+def borrar_clip(pid: str, sid: str):
+    """Quita el clip de un plano: vuelve a salir su imagen quieta."""
+    ctx = contexto(pid)
+    try:
+        CLIPS.borrar(ctx.proyecto.raiz, sid)
+        sid = CLIPS.subidas.validar_id(sid)
+    except ValueError as fallo:
+        raise ErrorApi(400, str(fallo))
+    _marcar_clip_en_render(ctx, sid)
+    return _ficha_subidas(ctx)
+
+
+@app.post("/api/proyectos/{pid}/clips/{sid}/auto", status_code=201)
+async def clip_automatico(pid: str, sid: str):
+    """MODO AUTOMATICO, DE PAGO Y APAGADO: pide el clip a fal.ai.
+
+    Se niega (409) sin `modo_clip = auto` en Configuracion y sin FAL_KEY, antes
+    de gastar nada.
+    """
+    ctx = contexto(pid)
+    sid = _plano_con_imagen(ctx, sid)
+    listo, motivo = CLIPS.automatico_disponible()
+    if not listo:
+        raise ErrorApi(409, motivo)
+    plan = PASOS_MODULOS.p6_assets.plan_actual(ctx.proyecto) or {}
+    escena = next((e for e in plan.get("escenas") or [] if e.get("id") == sid), {})
+    try:
+        hecho = await asyncio.to_thread(
+            CLIPS.generar_automatico, ctx.proyecto.raiz, sid, escena,
+            _tamano_de_plano(ctx), plan.get("formato") or "")
+    except ValueError as fallo:
+        raise ErrorApi(400, str(fallo))
+    except Exception as fallo:                              # noqa: BLE001
+        raise ErrorApi(502, f"fal.ai: {fallo}")
+    _marcar_clip_en_render(ctx, sid)
+    ctx.bitacora.anotar("clip_automatico", "render",
+                        dict(hecho, coste=CLIPS.COSTE_APROX_CLIP))
     return _ficha_subidas(ctx)
 
 

@@ -2517,3 +2517,11 @@ button.avisa:hover:not(:disabled) { border-color: var(--aviso); }
 }
 .fila-modo-imagen:disabled .meta { color: var(--tenue); }
 .fila-modo-imagen .nombre { font-weight: 600; color: var(--texto); }
+
+/* EL CLIP DE VIDEO de un plano (etapa 2 de la animacion) */
+.subida-clip { margin-top: 6px; font-size: 12px; }
+.subida-clip summary { cursor: pointer; color: var(--tenue); }
+.subida-clip video { display: block; width: 100%; max-height: 220px; margin: 6px 0;
+  border-radius: 6px; background: #000; }
+.subida-clip pre { white-space: pre-wrap; font-size: 11px; max-height: 120px;
+  overflow: auto; margin: 6px 0; }
