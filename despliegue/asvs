@@ -15,7 +15,7 @@
 set -euo pipefail
 
 RAIZ="${ASVS_RAIZ:-/opt/as-video-studio}"
-REPO="${ASVS_REPO:-NeverBlink/as-video-studio}"
+REPO="${ASVS_REPO:-davidquispework-cmyk/as-video-studio}"
 RAMA="${ASVS_RAMA:-main}"
 USUARIO="${ASVS_USUARIO:-studio}"
 

@@ -2438,3 +2438,78 @@ button.avisa:hover:not(:disabled) { border-color: var(--aviso); }
 }
 .previa-feedback .aportadas { margin: 6px 0 8px; }
 .previa-feedback .zona-suelta { padding: 9px 11px; font-size: 12px; }
+
+/* ===================================== LAS IMÁGENES QUE SUBES TÚ (modo manual)
+   El panel de la pestaña Imágenes: una tarjeta por plano con su prompt y su
+   hueco para soltar la imagen. */
+.panel-subidas { display: flex; flex-direction: column; gap: 10px; }
+.panel-subidas.encima { outline: 2px dashed var(--acento); outline-offset: 4px; }
+.subidas-progreso { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.subidas-progreso .barra {
+  flex: 1; height: 8px; border-radius: 4px; background: var(--hueco);
+  border: 1px solid var(--linea); overflow: hidden;
+}
+.subidas-progreso .relleno { height: 100%; width: 0; background: var(--ok); }
+.subidas-acciones, .subidas-filtro { flex-wrap: wrap; gap: 8px; align-items: center; }
+.panel-subidas a.boton {
+  display: inline-block; padding: 3px 8px; font-size: 12px; border-radius: 6px;
+  border: 1px solid var(--linea); background: var(--boton); color: var(--texto);
+  text-decoration: none;
+}
+.panel-subidas a.boton:hover { border-color: var(--acento); }
+.subidas-filtro button.elegido { border-color: var(--acento); color: var(--acento); }
+.aviso-ok {
+  border-left: 3px solid var(--ok); background: var(--hueco); color: var(--texto);
+  padding: 8px 12px; border-radius: 6px; font-size: 13px;
+}
+.rejilla-subidas {
+  display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+.rejilla-subidas .vacio { grid-column: 1 / -1; }
+.tarjeta-subida {
+  display: flex; flex-direction: column; gap: 6px; padding: 10px;
+  background: var(--hueco); border: 1px solid var(--linea); border-radius: 10px;
+  min-width: 0;
+}
+.tarjeta-subida.hecha { border-color: var(--ok-borde); }
+.tarjeta-subida.encima { border-color: var(--acento); outline: 2px dashed var(--acento); }
+.subida-cab { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.subida-imagen {
+  aspect-ratio: 3 / 2; background: var(--lienzo); border-radius: 6px;
+  overflow: hidden; display: flex; align-items: center; justify-content: center;
+}
+.subida-imagen img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.subida-hueco {
+  color: var(--tenue2); font-size: 12px; text-align: center; padding: 12px;
+  border: 1px dashed var(--linea); border-radius: 6px; width: 90%; height: 80%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.subida-narracion {
+  font-size: 12px; color: var(--tenue); font-style: italic;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.subida-prompt summary { cursor: pointer; font-size: 12px; color: var(--tenue); }
+.subida-prompt pre {
+  white-space: pre-wrap; word-break: break-word; font-size: 11px;
+  max-height: 220px; overflow: auto; background: var(--lienzo);
+  border: 1px solid var(--linea-suave); border-radius: 6px; padding: 8px;
+  margin: 6px 0 0; color: var(--texto);
+}
+.subida-mandos { display: flex; gap: 6px; flex-wrap: wrap; }
+.prompt-oculto { position: fixed; left: -9999px; top: 0; }
+
+/* El selector de Configuración: de dónde salen las imágenes. */
+.fila-modo-imagen {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  width: 100%; text-align: left; margin-top: 8px; padding: 10px 12px;
+  border: 1px solid var(--linea); border-radius: 8px; background: var(--hueco);
+}
+.fila-modo-imagen:hover:not(:disabled) { border-color: var(--acento); }
+.fila-modo-imagen.elegida {
+  background: var(--marcado); border-color: var(--acento); cursor: default;
+  opacity: 1;                            /* deshabilitada pero NO apagada: es la que manda */
+}
+.fila-modo-imagen:disabled .meta { color: var(--tenue); }
+.fila-modo-imagen .nombre { font-weight: 600; color: var(--texto); }

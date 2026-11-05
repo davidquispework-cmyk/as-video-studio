@@ -56,6 +56,11 @@ if (Test-Path $sucio) {
 # las reales por antiguedad, y con ellas se va lo unico que hace que `cadencia` y
 # la barra dejen de usar la tabla escrita y usen lo medido de esta maquina.
 $env:ESTUDIO_ESTADISTICAS = Join-Path $env:TEMP 'estudio_pruebas_estadisticas.json'
+
+# LAS SUITES DE SIEMPRE PRUEBAN EL CAMINO DE OPENAI (con el motor doblado: no
+# se paga nada). El modo manual tiene la suya, `pasos\prueba_subidas.py`, que
+# lo fija ella misma.
+$env:ESTUDIO_MODO_IMAGEN = 'openai'
 Remove-Item -Force $env:ESTUDIO_ESTADISTICAS -ErrorAction SilentlyContinue
 
 $suites = @(
@@ -72,7 +77,8 @@ $suites = @(
   'pasos\prueba_repaso.py',
   'pasos\prueba_piezas.py', 'pasos\prueba_conservar.py',
   'pasos\prueba_encuadres.py', 'pasos\prueba_presets.py',
-  'pasos\prueba_presets_light.py', 'pasos\prueba_regresiones.py'
+  'pasos\prueba_presets_light.py', 'pasos\prueba_regresiones.py',
+  'pasos\prueba_subidas.py'
 )
 
 $fallos = 0

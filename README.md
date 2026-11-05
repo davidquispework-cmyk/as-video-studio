@@ -48,7 +48,7 @@ su candado y su contraseña — incluido todo lo que hace falta alrededor (ffmpe
 el navegador que dibuja los planos, las fuentes, el CLI de Claude):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/NeverBlink/as-video-studio/main/instalar.sh -o instalar.sh && bash instalar.sh
+curl -fsSL https://raw.githubusercontent.com/davidquispework-cmyk/as-video-studio/main/instalar.sh -o instalar.sh && bash instalar.sh
 ```
 
 Los tres pasos, con qué pulsar y qué hacer si algo falla, están en
@@ -74,7 +74,7 @@ autentica nada, a propósito (ver «Quién está dentro» más abajo).
 | **Microsoft Edge** (o Chrome) | rasterizar cada plano | igual |
 | Las **fuentes** de los subtítulos y las cartelas | medir y dibujar el texto | ver el aviso de `motores/README.md` |
 | El **CLI de Claude**, con sesión | el guion, el catálogo visual, los rótulos | no hay vídeo |
-| Una **clave de OpenAI** | las imágenes | no hay vídeo |
+| Una **clave de OpenAI** | las imágenes, **solo en modo OpenAI** | en modo manual (el de fábrica) no hace falta: las imágenes las subes tú |
 | Una **clave de Cartesia** | la voz | no hay vídeo |
 | Las de **Jamendo** y **FreeSound** | música y efectos | el vídeo sale sin ellos; son las únicas prescindibles |
 
@@ -104,6 +104,32 @@ en `pasos/asistente.py`.
 (cada una contra su servicio, sin gastar) y cada cuenta de Claude enseña, al
 lado de la sesión, cómo respondió la última vez: funciona, sin cupo, sesión
 caducada. Lo apunta cada llamada al CLI (`pasos/salud_cli.py`).
+
+---
+
+## Imágenes gratis: el modo manual
+
+**De fábrica, el estudio no paga ninguna imagen.** En Configuración →
+«De dónde salen las imágenes» hay dos modos:
+
+| Modo | Qué hace |
+|---|---|
+| **Manual (gratis, el de fábrica)** | El estudio hace todo lo demás —guion, voz, corte en planos, cartelas, dirección— y en la pestaña **Imágenes** enseña una tarjeta por plano con su **prompt listo para copiar**. Generas la imagen donde quieras (Gemini, ChatGPT, Copilot, tus fotos) y la subes: en su tarjeta, varias a la vez o en un **.zip** (cada fichero va al plano de su nombre: `S001.png`, `S002.jpg`…). También se pueden **descargar todos los prompts en un .txt**. Se recortan solas al tamaño del vídeo. |
+| **OpenAI (de pago)** | Como siempre: gpt-image dibuja cada plano con tu clave. |
+
+Cómo va en el modo manual:
+
+1. «Generar imágenes» corta la narración en planos y **se para** diciendo
+   cuántas imágenes faltan. No es un error: es el momento de subirlas.
+2. Sube las imágenes en el panel «Tus imágenes» de la pestaña Imágenes.
+3. Vuelve a pulsar «Generar imágenes»: las coloca y sigue. Lo demás no se repite.
+4. ¿Quieres cambiar una después? Súbela otra vez en su tarjeta y pulsa
+   «Colocar en el vídeo»: se cambia ese plano y nada más.
+
+Los estilos nuevos, en modo manual, usan **tus imágenes de ejemplo tal cual**
+como referencia (no se dibujan las seis láminas). Las imágenes subidas viven en
+`<proyecto>/subidas/` y el código está en `pasos/subidas.py`; la prueba es
+`pasos/prueba_subidas.py`.
 
 ---
 

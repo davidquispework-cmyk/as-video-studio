@@ -54,7 +54,7 @@ contraseña root? Restablece tu contraseña»**. Tarda un minuto.
 ### 2. Pega esta línea y pulsa Intro
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/NeverBlink/as-video-studio/main/instalar.sh -o instalar.sh && bash instalar.sh
+curl -fsSL https://raw.githubusercontent.com/davidquispework-cmyk/as-video-studio/main/instalar.sh -o instalar.sh && bash instalar.sh
 ```
 
 Ahora espera. Irá contando lo que hace: el vídeo, las fuentes, el navegador, el

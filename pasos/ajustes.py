@@ -48,6 +48,15 @@ RUTA = os.environ.get("ESTUDIO_AJUSTES") or os.path.join(RAIZ_ESTUDIO,
 #: Las calidades que acepta el motor de imagen, de mas barata a mas cara.
 CALIDADES = ("low", "medium", "high")
 
+#: DE DONDE SALEN LAS IMAGENES DE LOS PLANOS.
+#:   manual  las pone una persona: el estudio prepara el prompt de cada plano,
+#:           se genera donde se quiera (Gemini, ChatGPT gratis, fotos propias)
+#:           y se sube. No se paga ninguna imagen.
+#:   openai  las dibuja gpt-image con la clave de OpenAI, como siempre.
+#: Se lee AL GENERAR y no se escribe en los params del proyecto: asi cambiarlo
+#: no mueve ninguna firma ni deja obsoleto nada de lo ya hecho.
+MODOS_IMAGEN = ("manual", "openai")
+
 #: El tamano con el que se generan los planos, y por tanto con el que hay que
 #: mirar la tabla de precios. Es el de `p6_assets` para 16:9.
 TAMANO = "1536x1024"
@@ -62,6 +71,10 @@ TOKENS_ENTRADA_POR_IMAGEN = 5114
 
 POR_DEFECTO = {
     "calidad_imagen": "low",
+    # Manual de fabrica: lo normal es no pagar imagenes. ESTUDIO_MODO_IMAGEN
+    # cambia el de fabrica (las suites viejas lo ponen en 'openai', que es el
+    # camino que prueban); lo guardado en ajustes.json manda siempre.
+    "modo_imagen": os.environ.get("ESTUDIO_MODO_IMAGEN") or "manual",
     # Si ya se ha pasado por la guia de inicio (las tarjetas que piden las
     # claves al entrar por primera vez). Vive aqui y no en el navegador
     # porque es de la instalacion, no de la pantalla: desde el movil no hay
@@ -79,6 +92,8 @@ def leer():
             salida[clave] = valor
     if salida.get("calidad_imagen") not in CALIDADES:
         salida["calidad_imagen"] = POR_DEFECTO["calidad_imagen"]
+    if salida.get("modo_imagen") not in MODOS_IMAGEN:
+        salida["modo_imagen"] = POR_DEFECTO["modo_imagen"]
     salida["onboarding_visto"] = bool(salida.get("onboarding_visto"))
     return salida
 
@@ -98,11 +113,24 @@ def guardar(cambios):
         if clave == "calidad_imagen" and valor not in CALIDADES:
             raise ValueError(
                 f"calidad {valor!r}: solo {', '.join(CALIDADES)}")
+        if clave == "modo_imagen" and valor not in MODOS_IMAGEN:
+            raise ValueError(
+                f"modo de imagen {valor!r}: solo {', '.join(MODOS_IMAGEN)}")
         if clave == "onboarding_visto" and not isinstance(valor, bool):
             raise ValueError("onboarding_visto es verdadero o falso")
         actual[clave] = valor
     escribir_json(RUTA, actual)
     return actual
+
+
+def modo_imagen():
+    """'manual' (las imagenes las sube una persona) u 'openai'."""
+    return leer()["modo_imagen"]
+
+
+def imagenes_manuales():
+    """True si los planos se ilustran con imagenes subidas, sin pagar nada."""
+    return modo_imagen() == "manual"
 
 
 def calidad_imagen():

@@ -5,7 +5,7 @@
 #  Se pega UNA linea en la consola del servidor y esto deja el estudio montado,
 #  con su acceso por contrasena y su HTTPS:
 #
-#      curl -fsSL https://raw.githubusercontent.com/NeverBlink/as-video-studio/main/instalar.sh -o instalar.sh
+#      curl -fsSL https://raw.githubusercontent.com/davidquispework-cmyk/as-video-studio/main/instalar.sh -o instalar.sh
 #      bash instalar.sh
 #
 #  Se puede volver a lanzar las veces que haga falta: no repite lo que ya esta
@@ -22,7 +22,7 @@ set -euo pipefail
 
 VERSION_INSTALADOR="1.0.0"
 
-REPO="${ASVS_REPO:-NeverBlink/as-video-studio}"
+REPO="${ASVS_REPO:-davidquispework-cmyk/as-video-studio}"
 RAMA="${ASVS_RAMA:-main}"
 RAIZ="${ASVS_RAIZ:-/opt/as-video-studio}"
 USUARIO="${ASVS_USUARIO:-studio}"

@@ -45,6 +45,11 @@ Reglas que valen para toda la API y no se repiten en cada fila:
 | `GET` | `/api/proyectos/{pid}/repaso/imagenes/{nombre}` | Una imagen de referencia de una nota. |
 | `DELETE` | `/api/proyectos/{pid}/repaso/{nid}` | Quita una nota del repaso. |
 | `PUT` | `/api/proyectos/{pid}/repaso/{nid}` | Cambia el texto, el instante o las imágenes de una nota. |
+| `GET` | `/api/proyectos/{pid}/subidas` | Los planos que necesitan imagen, con su prompt y si ya tienen una. |
+| `POST` | `/api/proyectos/{pid}/subidas` | Sube imagenes de planos: una, varias o un .zip. |
+| `GET` | `/api/proyectos/{pid}/subidas/imagen/{sid}` | La imagen subida de un plano. |
+| `GET` | `/api/proyectos/{pid}/subidas/prompts.txt` | Todos los prompts en un .txt, para trabajar fuera del estudio. |
+| `DELETE` | `/api/proyectos/{pid}/subidas/{sid}` | Quita la imagen subida de un plano (la ya colocada en el video se queda |
 
 ## Pasos: estado, params y ejecución
 
@@ -261,4 +266,4 @@ Reglas que valen para toda la API y no se repiten en cada fila:
 
 ---
 
-**147 endpoints.** Escrito por `generar_api.py` desde `app.py`.
+**152 endpoints.** Escrito por `generar_api.py` desde `app.py`.

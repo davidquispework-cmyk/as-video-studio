@@ -2310,8 +2310,10 @@ function pintarConfig() {
     return;
   }
   caja.appendChild(bloquePruebaClaves());
+  caja.appendChild(seccionModoImagen());
   caja.appendChild(seccionOpenAI(ficha));
-  caja.appendChild(seccionCalidadImagen());
+  /* la calidad solo importa si se paga a OpenAI */
+  if (modoImagen() !== 'manual') caja.appendChild(seccionCalidadImagen());
   caja.appendChild(seccionCartesia(ficha));
   caja.appendChild(seccionCLI());
   caja.appendChild(seccionOtrasClaves(ficha));
@@ -2337,6 +2339,66 @@ async function cargarAjustes() {
   repintarClaves();
 }
 
+
+/* DE DÓNDE SALEN LAS IMÁGENES: 'manual' (las subes tú, gratis) u 'openai'. */
+function modoImagen() {
+  const datos = estadoConfig().ajustes;
+  return (datos && datos.ajustes && datos.ajustes.modo_imagen) || 'manual';
+}
+
+async function guardarModoImagen(modo) {
+  const vista = estadoConfig();
+  try {
+    const r = await pedir(API.ajustes(),
+                          { method: 'PUT', cuerpo: { modo_imagen: modo } });
+    vista.ajustes = { ...(vista.ajustes || {}), ajustes: r.ajustes, costes: r.costes };
+    SUBIDAS.datos = null;           // el panel de Imágenes vuelve a preguntar
+    toast(modo === 'manual'
+      ? 'Modo manual: las imágenes las pones tú y no se paga ninguna'
+      : 'Modo OpenAI: las imágenes se generan con tu clave (de pago)');
+  } catch (e) {
+    vista.error = e.message;
+  }
+  repintarClaves();
+}
+
+function seccionModoImagen() {
+  const datos = estadoConfig().ajustes;
+  const modo = modoImagen();
+  const caja = h('section', { clase: 'bloque-config' },
+    h('div', { clase: 'fila' },
+      h('h3', {}, 'De dónde salen las imágenes'),
+      h('span', { clase: 'crece' }),
+      datos ? pastillaEstado('ok', modo === 'manual' ? 'manual · gratis' : 'OpenAI')
+        : null));
+  if (!datos) {
+    caja.appendChild(h('div', { clase: 'cargando' }, 'leyendo los ajustes...'));
+    return caja;
+  }
+  const opciones = [
+    { id: 'manual', nombre: 'Las subo yo (gratis)',
+      texto: 'El estudio prepara el prompt de cada plano; tú generas la imagen '
+        + 'donde quieras (Gemini, ChatGPT, Copilot, tus fotos) y la subes en la '
+        + 'pestaña Imágenes. No hace falta la clave de OpenAI.' },
+    { id: 'openai', nombre: 'Que las genere OpenAI (de pago)',
+      texto: 'Se dibujan solas con gpt-image y tu clave de OpenAI. Cuesta '
+        + 'unos céntimos por imagen y hace falta saldo en tu cuenta.' },
+  ];
+  opciones.forEach(op => {
+    const puesta = op.id === modo;
+    caja.appendChild(h('button', {
+      clase: 'fila-modo-imagen' + (puesta ? ' elegida' : ''),
+      disabled: puesta,
+      onclick: () => guardarModoImagen(op.id),
+    },
+      h('span', { clase: 'nombre' }, (puesta ? '● ' : '○ ') + op.nombre),
+      h('span', { clase: 'meta' }, op.texto)));
+  });
+  caja.appendChild(h('div', { clase: 'meta' },
+    'Se aplica al momento y a todos los vídeos. Cambiarlo no borra ni rehace '
+    + 'ninguna imagen que ya tengas.'));
+  return caja;
+}
 
 async function guardarCalidadImagen(calidad) {
   const vista = estadoConfig();
@@ -2440,8 +2502,11 @@ function seccionOpenAI(ficha) {
         : pastillaEstado(puesta ? 'ok' : 'vacio',
           puesta ? cuenta.cola : 'sin poner'))),
     h('div', { clase: 'pista' },
-      'La clave con la que se generan las imágenes. Imprescindible, como la de '
-      + 'Cartesia y la cuenta de Claude: sin ella no hay planos que montar.'),
+      modoImagen() === 'manual'
+        ? 'Solo hace falta si eliges que las imágenes las genere OpenAI. En '
+          + 'modo manual (el de arriba) puedes dejarla vacía.'
+        : 'La clave con la que se generan las imágenes. En modo OpenAI es '
+          + 'imprescindible: sin ella no hay planos que montar.'),
     h('div', { clase: 'fila-clave' }, campo,
       h('button', {
         clase: 'mini',
@@ -7983,6 +8048,312 @@ function irAPrimeraObsoleta() {
   if (i >= 0) { PREVIA.i = i; PREVIA.t = 0; repintarVideo(); }
 }
 
+/* ===================================== LAS IMÁGENES QUE SUBES TÚ (modo manual)
+ *
+ * Con el modo de imagen «manual» (Configuración) el estudio NO llama a OpenAI:
+ * prepara el prompt de cada plano, tú generas la imagen donde quieras (Gemini,
+ * ChatGPT, Copilot, tus propias fotos) y la subes aquí. El paso de imágenes la
+ * coloca en su plano y el resto —subtítulos, movimiento, música, MP4— sigue
+ * igual que siempre.
+ *
+ * Tres maneras de subir, que se pueden mezclar:
+ *   - arrastrar o elegir la imagen en la tarjeta de su plano;
+ *   - arrastrar varias a la vez (o un .zip) sobre el panel: cada una va al
+ *     plano que diga su nombre (S001.png, S002.jpg…);
+ *   - descargar todos los prompts en un .txt y trabajar fuera.
+ *
+ * El estado vive en SUBIDAS y se pide al servidor al abrir la pestaña. */
+const SUBIDAS = {
+  pid: '', datos: null, cargando: false, error: '', subiendo: 0,
+  cambiadas: new Set(), colocando: false, filtro: 'faltan',
+};
+
+const API_SUBIDAS = {
+  lista: pid => `${API.proyecto(pid)}/subidas`,
+  subir: (pid, plano) => `${API.proyecto(pid)}/subidas`
+    + (plano ? `?plano=${encodeURIComponent(plano)}` : ''),
+  borrar: (pid, sid) => `${API.proyecto(pid)}/subidas/${encodeURIComponent(sid)}`,
+  prompts: (pid, soloFaltan) => `${API.proyecto(pid)}/subidas/prompts.txt`
+    + (soloFaltan ? '?solo_faltan=true' : ''),
+};
+
+async function cargarSubidas(forzar) {
+  const v = videoAbierto();
+  if (!v || !v.pid) return;
+  if (SUBIDAS.pid !== v.pid) {
+    Object.assign(SUBIDAS, { pid: v.pid, datos: null, error: '',
+      cambiadas: new Set(), filtro: 'faltan' });
+  }
+  if (SUBIDAS.cargando || (SUBIDAS.datos && !forzar)) return;
+  SUBIDAS.cargando = true;
+  try {
+    SUBIDAS.datos = await pedir(API_SUBIDAS.lista(v.pid));
+    SUBIDAS.error = '';
+  } catch (e) {
+    SUBIDAS.error = e.message;
+  }
+  SUBIDAS.cargando = false;
+  repintarVideo();
+}
+
+/* Sube ficheros. Con `plano` va UNO a ese plano; sin él, cada uno al plano
+   que diga su nombre, y los .zip se abren en el servidor. */
+async function subirAPlanos(ficheros, plano) {
+  const v = videoAbierto();
+  const lista = Array.from(ficheros || []);
+  if (!lista.length) return;
+  if (plano && lista.length > 1) {
+    toast('En la tarjeta de un plano va una sola imagen', true);
+    return;
+  }
+  SUBIDAS.subiendo += 1;
+  repintarVideo();
+  try {
+    /* DE A POCOS: un .zip o veinte fotos de móvil en una sola petición pueden
+       pasar de lo que deja el proxy. Los zip van solos. */
+    const grupos = [];
+    let grupo = [];
+    let peso = 0;
+    lista.forEach(f => {
+      if (/\.zip$/i.test(f.name)) { grupos.push([f]); return; }
+      if (grupo.length && (grupo.length >= 10 || peso + f.size > 40e6)) {
+        grupos.push(grupo); grupo = []; peso = 0;
+      }
+      grupo.push(f); peso += f.size;
+    });
+    if (grupo.length) grupos.push(grupo);
+    let guardados = 0;
+    const ignorados = [];
+    for (const g of grupos) {
+      const cuerpo = new FormData();
+      g.forEach(f => cuerpo.append('imagenes', f, f.name));
+      try {
+        const r = await pedir(API_SUBIDAS.subir(v.pid, plano), { method: 'POST', cuerpo });
+        SUBIDAS.datos = r;
+        (r.guardados || []).forEach(sid => SUBIDAS.cambiadas.add(sid));
+        guardados += (r.guardados || []).length;
+        ignorados.push(...(r.ignorados || []));
+      } catch (e) {
+        ignorados.push({ fichero: g.map(f => f.name).join(', '), motivo: e.message });
+      }
+    }
+    if (guardados) toast(`${guardados} imagen${guardados === 1 ? '' : 'es'} subida${guardados === 1 ? '' : 's'}`);
+    if (ignorados.length) {
+      toast(`No se han usado ${ignorados.length}: `
+        + ignorados.slice(0, 3).map(i => `${i.fichero} (${i.motivo})`).join('; '), true);
+    }
+  } finally {
+    SUBIDAS.subiendo -= 1;
+    repintarVideo();
+  }
+}
+
+async function quitarSubida(sid) {
+  const v = videoAbierto();
+  if (!window.confirm(`¿Quitar la imagen subida de ${sid}?`)) return;
+  try {
+    SUBIDAS.datos = await pedir(API_SUBIDAS.borrar(v.pid, sid), { method: 'DELETE' });
+    SUBIDAS.cambiadas.delete(sid);
+  } catch (e) { toast(e.message, true); }
+  repintarVideo();
+}
+
+async function copiarPrompt(texto) {
+  try {
+    await navigator.clipboard.writeText(texto);
+    toast('Prompt copiado: pégalo en Gemini, ChatGPT o donde generes la imagen');
+  } catch (e) {
+    /* sin permiso de portapapeles (http sin candado, navegador viejo): se
+       selecciona en un cuadro para copiarlo a mano */
+    const area = h('textarea', { clase: 'prompt-oculto', readonly: true }, texto);
+    document.body.appendChild(area);
+    area.select();
+    try { document.execCommand('copy'); toast('Prompt copiado'); }
+    catch (e2) { toast('No se ha podido copiar: selecciónalo a mano', true); }
+    area.remove();
+  }
+}
+
+/* Las imágenes que han cambiado en un vídeo que YA tenía sus planos puestos se
+   colocan pidiendo esos planos al paso de imágenes: copiar un fichero, sin
+   llamar a ningún modelo y sin coste. */
+async function colocarSubidas() {
+  const v = videoAbierto();
+  const sids = Array.from(SUBIDAS.cambiadas);
+  if (!sids.length) return;
+  SUBIDAS.colocando = true;
+  repintarVideo();
+  try {
+    const datos = await pedir(API.ejecutar(v.pid, 'assets'), {
+      method: 'POST', cuerpo: { unidades: sids.map(s => `escena:${s}`) },
+    });
+    const tid = datos.trabajo_id || (datos.trabajo || {}).id;
+    if (tid) {
+      for (let i = 0; i < 600; i += 1) {
+        await new Promise(r => setTimeout(r, 1500));
+        const t = await pedir(API.trabajo(tid));
+        const estado = String(t.estado || (t.trabajo || {}).estado || '');
+        if (estado === 'listo') break;
+        if (estado === 'error' || estado === 'cancelado') {
+          throw new Error(t.error || (t.trabajo || {}).error || 'el trabajo ha fallado');
+        }
+      }
+    }
+    SUBIDAS.cambiadas = new Set();
+    toast('Imágenes colocadas en el vídeo');
+    PREVIA.ficha = null;            // que la vista vuelva a leer los planos
+    await recargarVideoAbierto();
+  } catch (e) {
+    toast(`No se han podido colocar: ${e.message}`, true);
+  }
+  SUBIDAS.colocando = false;
+  repintarVideo();
+}
+
+/* Una zona donde soltar ficheros. */
+function soltarEn(nodo, alSoltar) {
+  nodo.addEventListener('dragover', ev => { ev.preventDefault(); nodo.classList.add('encima'); });
+  nodo.addEventListener('dragleave', () => nodo.classList.remove('encima'));
+  nodo.addEventListener('drop', ev => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    nodo.classList.remove('encima');
+    if (ev.dataTransfer && ev.dataTransfer.files.length) alSoltar(ev.dataTransfer.files);
+  });
+  return nodo;
+}
+
+function botonElegirFicheros(texto, opciones, alElegir) {
+  const entrada = h('input', {
+    type: 'file', clase: 'oculto', accept: opciones.accept || 'image/*',
+    multiple: !!opciones.multiple,
+    onchange: ev => { alElegir(ev.target.files); ev.target.value = ''; },
+  });
+  return h('span', {},
+    h('button', { clase: opciones.clase || 'mini', onclick: () => entrada.click(),
+      disabled: !!opciones.disabled }, texto),
+    entrada);
+}
+
+function tarjetaSubida(plano) {
+  const v = videoAbierto();
+  const sello = plano.mtime || 0;
+  const miniatura = plano.subida
+    ? h('img', { src: `${API.archivo(v.pid, `subidas/${plano.id}.png`)}?mini=1&v=${sello}`,
+      alt: plano.id, loading: 'lazy' })
+    : h('div', { clase: 'subida-hueco' }, 'Arrastra aquí la imagen', h('br'), 'o pulsa «Elegir»');
+  const tarjeta = h('div', { clase: `tarjeta-subida${plano.subida ? ' hecha' : ''}` },
+    h('div', { clase: 'subida-cab' },
+      h('b', {}, plano.id),
+      h('span', { clase: 'meta' },
+        `${Number(plano.t_in || 0).toFixed(1)}–${Number(plano.t_out || 0).toFixed(1)} s`),
+      h('span', { clase: 'crece' }),
+      plano.subida ? pastillaEstado('ok', SUBIDAS.cambiadas.has(plano.id) ? 'nueva' : 'subida')
+        : pastillaEstado('vacio', 'falta')),
+    h('div', { clase: 'subida-imagen' }, miniatura),
+    h('div', { clase: 'subida-narracion' }, `«${plano.narracion}»`),
+    h('details', { clase: 'subida-prompt' },
+      h('summary', {}, 'Ver el prompt'),
+      h('pre', {}, plano.prompt)),
+    h('div', { clase: 'subida-mandos' },
+      h('button', { clase: 'mini primario', onclick: () => copiarPrompt(plano.prompt) },
+        'Copiar prompt'),
+      botonElegirFicheros(plano.subida ? 'Cambiar' : 'Elegir', { accept: 'image/*' },
+        files => subirAPlanos(files, plano.id)),
+      plano.subida ? h('button', { clase: 'mini fantasma peligro',
+        onclick: () => quitarSubida(plano.id) }, 'Quitar') : null));
+  soltarEn(tarjeta, files => subirAPlanos(files, plano.id));
+  return tarjeta;
+}
+
+/* El panel entero. Devuelve null si el estudio no está en modo manual. */
+function panelSubidas() {
+  const v = videoAbierto();
+  if (!v || !v.pid) return null;
+  if (SUBIDAS.pid !== v.pid || (!SUBIDAS.datos && !SUBIDAS.cargando && !SUBIDAS.error)) {
+    setTimeout(() => cargarSubidas(true), 0);
+    return null;
+  }
+  const d = SUBIDAS.datos;
+  if (SUBIDAS.error) return cajaError(`No se han podido leer tus imágenes: ${SUBIDAS.error}`);
+  if (!d || d.modo !== 'manual') return null;
+
+  const cuerpo = h('div', { clase: 'panel-subidas' });
+  if (!d.total) {
+    cuerpo.appendChild(h('div', { clase: 'pista' },
+      'Todavía no hay planos. Pulsa «Generar imágenes» abajo: el estudio corta '
+      + 'la narración en planos y prepara el prompt de cada uno. Como estás en '
+      + 'modo manual no se paga ninguna imagen: la tanda se parará pidiendo las '
+      + 'tuyas y aquí aparecerá un hueco por plano.'));
+    return plegable('Tus imágenes (modo gratis)', { abierto: true, clave: 'subidas',
+      resumen: 'esperando el corte en planos' }, cuerpo);
+  }
+
+  const faltan = d.total - d.subidas;
+  const porcentaje = Math.round(100 * d.subidas / Math.max(1, d.total));
+  cuerpo.appendChild(h('div', { clase: 'subidas-progreso' },
+    h('div', { clase: 'barra' }, h('div', { clase: 'relleno', datos: { p: porcentaje } })),
+    h('span', {}, `${d.subidas} de ${d.total} subidas`
+      + (faltan ? ` · faltan ${faltan}` : ' · ¡están todas!'))));
+  const relleno = cuerpo.querySelector('.relleno');
+  if (relleno) relleno.style.width = `${porcentaje}%`;
+
+  cuerpo.appendChild(h('div', { clase: 'pista' },
+    h('b', {}, 'Cómo funciona: '),
+    'copia el prompt de cada plano, genera la imagen gratis donde quieras '
+    + '(Gemini, ChatGPT, Copilot…) o usa una tuya, y súbela en su tarjeta. '
+    + 'También puedes soltar muchas a la vez —o un .zip— sobre este panel: '
+    + 'cada una va al plano de su nombre (S001.png, S002.jpg…). Se recortan '
+    + 'solas al tamaño del vídeo.'));
+
+  const hayImagenesPuestas = ((PREVIA.ficha || {}).escenas || []).some(e => e.imagen);
+  cuerpo.appendChild(h('div', { clase: 'fila subidas-acciones' },
+    botonElegirFicheros(SUBIDAS.subiendo ? 'Subiendo…' : 'Subir varias o un .zip',
+      { accept: 'image/*,.zip', multiple: true, clase: 'primario',
+        disabled: SUBIDAS.subiendo > 0 },
+      files => subirAPlanos(files)),
+    h('a', { clase: 'boton mini', href: API_SUBIDAS.prompts(v.pid, false),
+      download: '' }, 'Descargar todos los prompts'),
+    faltan ? h('a', { clase: 'boton mini', href: API_SUBIDAS.prompts(v.pid, true),
+      download: '' }, faltan === 1 ? 'Solo el que falta' : `Solo los ${faltan} que faltan`) : null,
+    h('span', { clase: 'crece' }),
+    (hayImagenesPuestas && SUBIDAS.cambiadas.size)
+      ? h('button', { clase: 'primario', disabled: SUBIDAS.colocando,
+        title: 'Pone en el vídeo las imágenes que acabas de cambiar. No cuesta nada.',
+        onclick: colocarSubidas },
+      SUBIDAS.colocando ? 'Colocando…'
+        : `Colocar en el vídeo (${SUBIDAS.cambiadas.size})`)
+      : null));
+
+  if (!faltan && !hayImagenesPuestas) {
+    cuerpo.appendChild(h('div', { clase: 'aviso-ok' },
+      'Ya están todas. Pulsa «Generar imágenes» abajo para colocarlas en el vídeo.'));
+  }
+
+  cuerpo.appendChild(h('div', { clase: 'fila subidas-filtro' },
+    ['faltan', 'todas'].map(f => h('button', {
+      clase: `mini${SUBIDAS.filtro === f ? ' elegido' : ' fantasma'}`,
+      onclick: () => { SUBIDAS.filtro = f; repintarVideo(); },
+    }, f === 'faltan' ? `Las que faltan (${faltan})` : `Todas (${d.total})`))));
+
+  const visibles = d.planos.filter(p => SUBIDAS.filtro === 'todas' || !p.subida);
+  const rejilla = h('div', { clase: 'rejilla-subidas' });
+  visibles.forEach(p => rejilla.appendChild(tarjetaSubida(p)));
+  if (!visibles.length) {
+    rejilla.appendChild(h('div', { clase: 'vacio' },
+      'No falta ninguna. Mira «Todas» para cambiar alguna.'));
+  }
+  cuerpo.appendChild(rejilla);
+  soltarEn(cuerpo, files => subirAPlanos(files));
+
+  return plegable('Tus imágenes (modo gratis)', {
+    abierto: faltan > 0, clave: 'subidas',
+    resumen: faltan ? `faltan ${faltan} de ${d.total}` : `las ${d.total} subidas`,
+    pastilla: pastillaEstado(faltan ? 'vacio' : 'ok', faltan ? 'pendiente' : 'completo'),
+  }, cuerpo);
+}
+
+
 function vistaPreviaLight() {
   const v = videoAbierto();
   const caja = h('div', { clase: 'light-previa' });
@@ -7996,6 +8367,11 @@ function vistaPreviaLight() {
     obsoletasEnLaCabecera(escenas),
     h('span', { clase: 'crece' }),
     costeLight()));
+
+  /* MODO MANUAL: el panel de subir tus imágenes va ARRIBA y antes de todo lo
+     demás, porque hasta que no estén no hay escenas que mirar. */
+  const subidas = panelSubidas();
+  if (subidas) caja.appendChild(subidas);
 
   if (PREVIA.error) { caja.appendChild(cajaError(PREVIA.error)); return caja; }
   if (!PREVIA.ficha) {
@@ -10781,7 +11157,7 @@ const INICIO = { abierta: false, paso: 0, arrancando: false, accesoFallido: '' }
 const TARJETAS_INICIO = [
   { id: 'bienvenida', titulo: 'Bienvenido a AS Video Studio', pinta: tarjetaBienvenidaInicio },
   { id: 'claude', titulo: '1 · Tu cuenta de Claude', pinta: tarjetaClaudeInicio },
-  { id: 'openai', titulo: '2 · La clave de OpenAI (imágenes)', pinta: tarjetaOpenAIInicio },
+  { id: 'openai', titulo: '2 · Las imágenes: gratis o con OpenAI', pinta: tarjetaOpenAIInicio },
   { id: 'cartesia', titulo: '3 · La clave de Cartesia (voz)', pinta: tarjetaCartesiaInicio },
   { id: 'jamendo', titulo: '4 · La clave de Jamendo (música, opcional)', pinta: tarjetaJamendoInicio },
   { id: 'freesound', titulo: '5 · La clave de FreeSound (efectos, opcional)', pinta: tarjetaFreeSoundInicio },
@@ -11083,8 +11459,14 @@ function tarjetaOpenAIInicio() {
   const puesta = !!(ficha && ficha.openai && ficha.openai.length);
   return [
     h('div', { clase: 'pista' },
-      'Con esta clave se dibujan los planos: sin ella no hay vídeo. Cada imagen '
-      + 'se paga; un vídeo de cuatro minutos son unos 4,4 $ en calidad baja.'),
+      h('b', {}, 'Lo normal es no pagar nada: '),
+      'el estudio viene en modo manual. Te prepara el prompt de cada plano, '
+      + 'tú generas la imagen gratis (Gemini, ChatGPT, Copilot…) y la subes en '
+      + 'la pestaña Imágenes. En ese caso SALTA ESTE PASO.'),
+    h('div', { clase: 'pista' },
+      'Solo si prefieres que las imágenes se dibujen solas (de pago, unos '
+      + '4,4 $ por vídeo de cuatro minutos): pon aquí la clave de OpenAI y '
+      + 'cambia el modo en Configuración → «De dónde salen las imágenes».'),
     h('ol', { clase: 'inicio-pasos' },
       h('li', {}, 'Entra en ', enlaceInicio('platform.openai.com', 'https://platform.openai.com/'),
         ' y crea una cuenta si no la tienes.'),

@@ -33,6 +33,13 @@ imagen. Tiene dos excepciones —la cartela y la continuación de un plano largo
 y las dos están explicadas en su docstring. Si añades una tercera, comprueba
 antes que lo que la justifica no es un bug.
 
+**4. El modo de imagen (manual / openai) se LEE AL GENERAR, no se guarda en
+los params.** Vive en `ajustes.json` (`ajustes.modo_imagen`) y lo consulta
+`p6_assets._es_manual`. Si fuera un param, cambiar de modo movería la firma de
+todos los proyectos y la pantalla ofrecería regenerar los vídeos enteros. Las
+suites viejas prueban el camino de OpenAI y por eso `pruebas.ps1` pone
+`ESTUDIO_MODO_IMAGEN=openai`; el manual tiene la suya (`prueba_subidas.py`).
+
 ---
 
 ## El grafo, y por qué no se toca

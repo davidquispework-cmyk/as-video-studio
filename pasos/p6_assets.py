@@ -77,6 +77,9 @@ import moodboard  # noqa: E402
 # del video. Los dos son de pasos anteriores a este, asi que no hay circulo.
 import p2_brief  # noqa: E402
 import p4_voz  # noqa: E402
+# El modo de imagen (manual / openai) y donde viven las imagenes subidas.
+import ajustes as ajustes_estudio  # noqa: E402
+import subidas  # noqa: E402
 
 from nucleo.proyecto import ahora  # noqa: E402
 
@@ -130,7 +133,10 @@ PARAMS_POR_DEFECTO = {
     # persona; a partir de ahi es un dato. QUE PLANTILLAS puede usar vive en los
     # params de rotulos, junto al resto del grafismo.
     "semilla": 7,
-    "motor_imagen": "openai",          # openai | adoptar
+    # openai | adoptar | manual. Sin fijar aqui, manda el ajuste global
+    # «modo de imagen» de Configuracion (`_es_manual`): asi cambiarlo no mueve
+    # la firma de ningun proyecto.
+    "motor_imagen": "openai",
     "imagenes_previas": [],            # carpetas de arte ya aprobado
     # Fotogramas REALES del video de referencia, aprobados a mano, para que el
     # dibujo de una persona o un sitio concreto se parezca al original. Vacio en
@@ -175,12 +181,106 @@ def describir(params):
     p = _con_defectos(params)
     catalogo = p["catalogo"] or {}
     motor = ("adoptando arte ya existente" if p["motor_imagen"] == "adoptar"
+             else "con las imagenes que subas tu (sin coste)" if _es_manual(p)
              else f"generando con gpt-image-2 en calidad {p['calidad']}")
     encuadre = ("asigna a cada plano su clase de encuadre en texto "
                 "(caben diagramas y pantallas)")
     return (f"Corta la narracion en planos de {p['min_s']:.0f}-{p['max_s']:.0f} s, "
             f"{encuadre} y {len(catalogo.get('reparto') or {})} fichas de "
             f"reparto, y produce una imagen por plano {motor}.")
+
+
+class FaltaImagen(RuntimeError):
+    """Modo manual: este plano todavia no tiene imagen subida."""
+
+    def __init__(self, sid):
+        super().__init__(f"{sid}: falta su imagen")
+        self.sid = sid
+
+
+class FaltanImagenes(RuntimeError):
+    """Modo manual: la tanda no puede terminar hasta que se suban estas."""
+
+    def __init__(self, sids, total_con_imagen=0):
+        sids = sorted(set(sids))
+        self.sids = sids
+        lista = ", ".join(sids[:12]) + ("…" if len(sids) > 12 else "")
+        total = f" de {total_con_imagen}" if total_con_imagen else ""
+        super().__init__(
+            f"faltan {len(sids)}{total} imagenes por subir ({lista}). Abre "
+            f"«Subir imagenes» en la pestana Imagenes, copia el prompt de cada "
+            f"plano, generala donde quieras (Gemini, ChatGPT...) y subela; "
+            f"luego vuelve a pulsar «Generar imagenes». Lo demas ya esta hecho "
+            f"y no se repite.")
+
+
+def _es_manual(p):
+    """True si los planos se ilustran con imagenes SUBIDAS, sin llamar a nadie.
+
+    Lo decide el param del proyecto si alguien lo fijo a 'manual' o a
+    'adoptar'; si no, el ajuste global de Configuracion. Se lee al generar y
+    no se escribe en los params, asi que pasar de un modo a otro no deja
+    obsoleta ninguna imagen ya hecha.
+    """
+    motor = (p or {}).get("motor_imagen")
+    if motor == "manual":
+        return True
+    if motor == "adoptar":
+        return False
+    try:
+        return ajustes_estudio.imagenes_manuales()
+    except Exception:                                # noqa: BLE001
+        return False
+
+
+def _colocar_subida(nombre, destino, p):
+    """Modo manual: copia al plano la imagen que subio la persona. -> meta
+
+    Lanza FaltaImagen si todavia no la hay; quien recorre los planos las
+    junta todas y las dice de una vez al final.
+    """
+    carpeta = p.get("_subidas")
+    ruta = os.path.join(carpeta, f"{nombre}.png") if carpeta else ""
+    if not ruta or not os.path.isfile(ruta):
+        raise FaltaImagen(nombre)
+    huella = medios.huella_fichero(ruta)
+    os.makedirs(os.path.dirname(destino), exist_ok=True)
+    medios.copiar(ruta, destino)
+    return {"origen": "subida", "firma": huella, "firma_subida": huella,
+            "coste": 0.0}
+
+
+def prompts_para_subir(proyecto, params, plan=None):
+    """El prompt de cada plano que necesita imagen, para copiarlo. -> [ficha]
+
+    No genera nada ni llama a ningun modelo: lee el plan (el corte en planos,
+    con su direccion) y la guia de estilo. Lo usa la pantalla de subida.
+    """
+    p = _con_defectos(params)
+    plan = plan if plan is not None else plan_actual(proyecto)
+    guia = (p.get("estilo") or {}).get("guia")
+    if isinstance(guia, dict):
+        guia = guia.get("guia")
+    guia = guia or (p.get("estilo") or {}).get("prompt") or ""
+    formato = plan.get("formato") or ""
+    hechas = subidas.listar(proyecto.raiz)
+    salida = []
+    for escena in plan.get("escenas") or []:
+        sid = escena.get("id")
+        if not sid or cartelas.sin_imagen(escena) or escena.get("sigue_a") \
+                or escena.get("componente"):
+            continue
+        salida.append({
+            "id": sid,
+            "t_in": escena.get("t_in"), "t_out": escena.get("t_out"),
+            "narracion": escena.get("narracion") or "",
+            "prompt": subidas.prompt_para_copiar(
+                escena, guia=guia, idioma=plan.get("idioma") or "",
+                formato=formato),
+            "subida": sid in hechas,
+            "mtime": (hechas.get(sid) or {}).get("mtime"),
+        })
+    return salida
 
 
 def _con_defectos(params):
@@ -3233,6 +3333,8 @@ def _producir_imagen(nombre, prompt, referencias, destino, p, rehacer=False,
     no dice donde mirar.
     """
     tamano = tamano or "apaisado"
+    if _es_manual(p):
+        return _colocar_subida(nombre, destino, p)
     firma = medios.huella({"prompt": prompt, "calidad": p["calidad"],
                            # el tamano entra en la firma: la misma escena en
                            # vertical es otra imagen, y la cache no puede
@@ -3550,6 +3652,10 @@ def _generar_escenas(plan, dirs, p, trabajo, toca, unidades, resultados, avisar,
     # resultados, el coste acumulado y el contador de avance
     cerrojo = threading.Lock()
     estado = {"coste": 0.0, "hechas": 0}
+    # modo manual: los planos que aun no tienen imagen subida. Se juntan y se
+    # dicen todos al final, en vez de parar en el primero.
+    manual = _es_manual(p)
+    faltan = []
 
     def anunciar(sid):
         with cerrojo:
@@ -3611,6 +3717,22 @@ def _generar_escenas(plan, dirs, p, trabajo, toca, unidades, resultados, avisar,
             # «redibujar el video entero», y ahi si lo has pedido.
             pedida = (uid in set(unidades) if unidades is not None
                       else bool(forzar))
+            # MODO MANUAL: si la persona ha subido OTRA imagen para un plano
+            # que ya tenia una, se coloca la nueva sin que haga falta pedirlo.
+            if manual and hecho and not pedida \
+                    and not cartelas.sin_imagen(escena) \
+                    and not escena.get("sigue_a") \
+                    and not escena.get("componente"):
+                subida = os.path.join(p.get("_subidas") or "", f"{sid}.png")
+                if os.path.isfile(subida):
+                    previa_ficha = medios.leer_json(ficha_json, {}) or {}
+                    if previa_ficha.get("firma_subida") \
+                            != medios.huella_fichero(subida):
+                        pedida = True
+            # y la segunda mitad de un plano largo se vuelve a copiar siempre:
+            # es una copia local, y asi sigue a su hogar si este ha cambiado
+            if manual and hecho and not pedida and escena.get("sigue_a"):
+                pedida = True
             if hecho and not pedida:
                 if not _sin_imagen(escena):
                     previas[sid] = destino
@@ -3665,6 +3787,9 @@ def _generar_escenas(plan, dirs, p, trabajo, toca, unidades, resultados, avisar,
                 fuente = os.path.join(dirs["escenas"],
                                       f"{escena['sigue_a']}.png")
                 if not os.path.exists(fuente):
+                    if manual:
+                        # se coloca sola en cuanto se suba la de su plano
+                        continue
                     raise RuntimeError(f"{sid}: sigue a {escena['sigue_a']} y esa "
                                        f"imagen no esta generada todavia")
                 medios.copiar(fuente, destino)
@@ -3687,7 +3812,8 @@ def _generar_escenas(plan, dirs, p, trabajo, toca, unidades, resultados, avisar,
                 # dentro de ese sitio, y comparando ids no lo era -- los ids se
                 # heredan del plan anterior y dejan de ir en orden --. Asi los dos
                 # caminos dan exactamente las mismas referencias.
-                referencias = _referencias_escena(
+                # en manual no se adjunta nada a nadie: no hay generador
+                referencias = [] if manual else _referencias_escena(
                     escena, plan, dirs, p, dirs["cache"], previas,
                     anteriores=orden_cadena, notas=notas_repaso)
                 nota_texto = _texto_feedback(
@@ -3713,7 +3839,7 @@ def _generar_escenas(plan, dirs, p, trabajo, toca, unidades, resultados, avisar,
                 # ficha de antes, sin `peticion`, se comporta como siempre.
                 previa = ((medios.leer_json(ficha_json, {}) or {})
                           if hecho and not forzar else {})
-                if previa.get("peticion") == peticion:
+                if previa.get("peticion") == peticion and not manual:
                     print(f"[assets] {sid}: ya estaba dibujado con esta misma "
                           f"peticion en una pasada sin sellar; se queda sin "
                           f"pagarlo otra vez", flush=True)
@@ -3730,7 +3856,8 @@ def _generar_escenas(plan, dirs, p, trabajo, toca, unidades, resultados, avisar,
                 # entera de planos sucios no la merece. Con nota y a mano si:
                 # es la diferencia entre «adjunta lo de siempre» y «mira las
                 # imagenes y adjunta lo que la nota pide» (pasos/corrector.py).
-                if nota_texto and pedida and _corrector_activo(p):
+                if nota_texto and pedida and not manual \
+                        and _corrector_activo(p):
                     corregido = _corregir_con_agente(
                         escena, plan, dirs, p, trabajo, notas_repaso, proyecto,
                         nota_texto, avisar)
@@ -3764,26 +3891,35 @@ def _generar_escenas(plan, dirs, p, trabajo, toca, unidades, resultados, avisar,
                 # 14 planos con la firma SIN cambiar y su PNG en el banco,
                 # 0,55 $. Es el ultimo resto de la deduccion vieja que el
                 # comentario de `_generar_escenas` da por retirada.
-                meta = _producir_imagen(sid, prompt,
-                                        [r["ruta"] for r in referencias],
-                                        destino, p,
-                                        # y para la que SI se ha pedido,
-                                        # saltarse la cache: con el mismo
-                                        # prompt devolveria la que se acaba de
-                                        # rechazar
-                                        rehacer=(pedida and forzar
-                                                 and os.path.exists(destino)),
-                                        # al tamano del formato del video: un
-                                        # plano vertical se PIDE vertical, no
-                                        # se recorta de uno apaisado
-                                        tamano=tamano_imagen,
-                                        # solo si el filtro de seguridad
-                                        # rechaza el de verdad
-                                        prompt_seguro=_prompt_sin_narracion(
-                                            prompt, escena_final))
-                # en la ficha, para que la pasada siguiente sepa si se le pide
-                # lo mismo aunque esta no llegue a sellarse
-                meta = dict(meta, peticion=peticion)
+                if manual:
+                    try:
+                        meta = _colocar_subida(sid, destino, p)
+                    except FaltaImagen:
+                        with cerrojo:
+                            faltan.append(sid)
+                        continue
+                    meta = dict(meta, peticion=peticion)
+                else:
+                    meta = _producir_imagen(sid, prompt,
+                                            [r["ruta"] for r in referencias],
+                                            destino, p,
+                                            # y para la que SI se ha pedido,
+                                            # saltarse la cache: con el mismo
+                                            # prompt devolveria la que se acaba de
+                                            # rechazar
+                                            rehacer=(pedida and forzar
+                                                     and os.path.exists(destino)),
+                                            # al tamano del formato del video: un
+                                            # plano vertical se PIDE vertical, no
+                                            # se recorta de uno apaisado
+                                            tamano=tamano_imagen,
+                                            # solo si el filtro de seguridad
+                                            # rechaza el de verdad
+                                            prompt_seguro=_prompt_sin_narracion(
+                                                prompt, escena_final))
+                    # en la ficha, para que la pasada siguiente sepa si se le pide
+                    # lo mismo aunque esta no llegue a sellarse
+                    meta = dict(meta, peticion=peticion)
                 if corregido:
                     meta = dict(meta, corrector={
                         k: corregido.get(k) for k in
@@ -3823,18 +3959,22 @@ def _generar_escenas(plan, dirs, p, trabajo, toca, unidades, resultados, avisar,
     # otro. Asi «en fila» y «a la vez» dejan de ser dos caminos distintos con dos
     # ordenes distintos, y la unica diferencia entre ellos es el reloj.
     grupos = _cadenas_por_set(escenas, orden)
-    if cadenas <= 1:
+    if cadenas <= 1 or manual:
+        # en manual no hay nada que esperar: copiar ficheros va en fila
         for grupo in grupos:
             una_cadena(grupo)
-        return estado["coste"]
-
-    avisar(0.34, f"{len(grupos)} cadenas de planos, {cadenas} a la vez")
-    # Un fallo dentro de una cadena tiene que salir del paso, no quedarse
-    # tragado en su hilo: se recoge el resultado de cada una para que la
-    # excepcion vuelva a levantarse aqui.
-    with ThreadPoolExecutor(max_workers=cadenas) as pool:
-        for tarea in [pool.submit(una_cadena, g) for g in grupos]:
-            tarea.result()
+    else:
+        avisar(0.34, f"{len(grupos)} cadenas de planos, {cadenas} a la vez")
+        # Un fallo dentro de una cadena tiene que salir del paso, no quedarse
+        # tragado en su hilo: se recoge el resultado de cada una para que la
+        # excepcion vuelva a levantarse aqui.
+        with ThreadPoolExecutor(max_workers=cadenas) as pool:
+            for tarea in [pool.submit(una_cadena, g) for g in grupos]:
+                tarea.result()
+    if faltan:
+        raise FaltanImagenes(faltan, total_con_imagen=sum(
+            1 for e in escenas if not cartelas.sin_imagen(e)
+            and not e.get("sigue_a") and not e.get("componente")))
     return estado["coste"]
 
 
@@ -4025,7 +4165,7 @@ def _exigir_estilo(p):
     Solo se exige en el modo que genera imagenes: 'adoptar' reutiliza arte ya
     aprobado y no llama a nadie.
     """
-    if p.get("motor_imagen") == "adoptar":
+    if p.get("motor_imagen") == "adoptar" or _es_manual(p):
         return
     rutas = (p.get("estilo") or {}).get("referencias") or []
     # `reubicar`: el proyecto pudo escribirse en otra maquina y los ficheros
@@ -4531,6 +4671,9 @@ def _asset_hecho(uid, ficha, dirs, p):
     puede conservarlo.
     """
     nombre = ficha["nombre"]
+    if ficha["tipo"] == "reparto" and _es_manual(p):
+        # en modo manual no hay hojas de personaje: no se adjunta nada a nadie
+        return True
     if ficha["tipo"] == "reparto":
         return os.path.exists(os.path.join(dirs["reparto"], f"{nombre}.png"))
     if ficha["tipo"] in ("mapa", "grafico"):
@@ -4656,6 +4799,9 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_assets=False,
     tipos = {str(t) for t in (tipos or [])} or None
     if tipos:
         solo_assets = True
+    # donde estan las imagenes subidas (modo manual); va en la copia local de
+    # los params, no en los guardados: no entra en ninguna firma
+    p["_subidas"] = subidas.carpeta(proyecto.raiz)
     _exigir_estilo(p)
     trabajo = medios.sembrar_trabajo(proyecto, "assets")
     dirs = {
@@ -4724,7 +4870,13 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_assets=False,
         avisar(0.05 + 0.25 * (indice / max(1, len(pendientes))),
                f"asset {ficha['nombre']} · {indice + 1} de {len(pendientes)}",
                (indice + 1, len(pendientes)))
-        if ficha["tipo"] == "reparto":
+        if ficha["tipo"] == "reparto" and _es_manual(p):
+            # MODO MANUAL: las hojas de personaje solo sirven para adjuntarlas
+            # al generador, y aqui no hay generador. Se da por hecha sin
+            # imagen, para que la unidad no se quede pendiente para siempre.
+            resultados[uid] = {"tipo": "reparto", "origen": "manual",
+                               "coste": 0.0}
+        elif ficha["tipo"] == "reparto":
             destino = os.path.join(dirs["reparto"], f"{ficha['nombre']}.png")
             if pedido(uid) or not os.path.exists(destino):
                 prompt = _prompt_reparto(ficha, p["estilo"])
@@ -4821,8 +4973,10 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_assets=False,
         # que sus prompts salieron identicos y la cache devolvio el mismo fichero.
         # En el modo explicito 'adoptar' es lo esperado, porque se esta repartiendo
         # un fondo de arte limitado entre mas planos de los que hay.
-        if p["motor_imagen"] == "adoptar":
-            avisar(None, f"AVISO: planos con la misma imagen adoptada: {detalle}")
+        if p["motor_imagen"] == "adoptar" or _es_manual(p):
+            # en manual la imagen la elige una persona, y repetirla puede ser
+            # a proposito: se avisa y no se tumba la tanda
+            avisar(None, f"AVISO: planos con la misma imagen: {detalle}")
             plan.setdefault("informe", {})["planos_repetidos"] = repetidos
         else:
             raise RuntimeError(

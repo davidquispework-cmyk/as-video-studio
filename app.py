@@ -4964,6 +4964,174 @@ async def subir_imagenes_repaso(pid: str, peticion: Request):
     return {"imagenes": guardadas, "avisos": avisos}
 
 
+# ============================================ LAS IMAGENES QUE SUBES TU (manual)
+#
+# El modo de imagen «manual» (Configuracion) no llama a OpenAI: el estudio deja
+# el prompt de cada plano para copiarlo y la persona sube la imagen. Estas rutas
+# son esa pantalla. Las imagenes viven en `<proyecto>/subidas/<plano>.png`, ya
+# normalizadas al tamano del plano (ver `pasos/subidas.py`), y el paso de assets
+# las coloca en su sitio la proxima vez que se pulse «Generar imagenes».
+
+def _subidas():
+    if PASOS_MODULOS is None:
+        raise ErrorApi(503, f"los pasos no se han podido cargar: {ERROR_PASOS}")
+    return PASOS_MODULOS.p6_assets.subidas
+
+
+def _tamano_de_plano(ctx):
+    """'apaisado' o 'vertical', segun el formato del video."""
+    p6 = PASOS_MODULOS.p6_assets
+    plan = p6.plan_actual(ctx.proyecto) or {}
+    formato = plan.get("formato") or (ctx.estado.params("brief") or {}).get("formato")
+    try:
+        return p6.p2_brief.comun.ficha_formato(formato)["tamano_imagen"]
+    except Exception:                                   # noqa: BLE001
+        return "apaisado"
+
+
+def _ficha_subidas(ctx):
+    p6 = PASOS_MODULOS.p6_assets
+    planos = p6.prompts_para_subir(ctx.proyecto, ctx.estado.params("assets") or {})
+    hechas = sum(1 for f in planos if f["subida"])
+    return {"modo": AJUSTES.modo_imagen(), "planos": planos,
+            "total": len(planos), "subidas": hechas,
+            "faltan": [f["id"] for f in planos if not f["subida"]],
+            "tamano": _tamano_de_plano(ctx)}
+
+
+@app.get("/api/proyectos/{pid}/subidas")
+def listar_subidas(pid: str):
+    """Los planos que necesitan imagen, con su prompt y si ya tienen una.
+
+    Necesita el corte en planos: antes de «Generar imagenes» por primera vez
+    la lista sale vacia y la pantalla lo dice.
+    """
+    return _ficha_subidas(contexto(pid))
+
+
+@app.get("/api/proyectos/{pid}/subidas/prompts.txt")
+def descargar_prompts(pid: str, solo_faltan: bool = Query(default=False)):
+    """Todos los prompts en un .txt, para trabajar fuera del estudio."""
+    ctx = contexto(pid)
+    ficha = _ficha_subidas(ctx)
+    lineas = [f"PROMPTS DE LAS IMÁGENES — {ficha['total']} planos "
+              f"({ficha['subidas']} ya subidos)",
+              "Guarda cada imagen con el número de su plano (S001.png, "
+              "S002.png...) y súbelas todas juntas, o en un .zip.", ""]
+    for plano in ficha["planos"]:
+        if solo_faltan and plano["subida"]:
+            continue
+        lineas += ["=" * 70,
+                   f"{plano['id']}  ({plano['t_in']:.1f}s – {plano['t_out']:.1f}s)"
+                   + ("   [ya subida]" if plano["subida"] else ""),
+                   "=" * 70, plano["prompt"], ""]
+    texto = "\n".join(lineas)
+    nombre = f"prompts_{ctx.id}.txt"
+    return PlainTextResponse(texto, headers={
+        "Content-Disposition": f'attachment; filename="{nombre}"'})
+
+
+@app.get("/api/proyectos/{pid}/subidas/imagen/{sid}")
+def servir_subida(pid: str, sid: str, peticion: Request):
+    """La imagen subida de un plano."""
+    ctx = contexto(pid)
+    try:
+        ruta = _subidas().ruta_de(ctx.proyecto.raiz, sid)
+    except ValueError as fallo:
+        raise ErrorApi(400, str(fallo))
+    if not os.path.isfile(ruta):
+        raise ErrorApi(404, f"{sid} no tiene imagen subida")
+    return servir_fichero(peticion, ruta)
+
+
+@app.post("/api/proyectos/{pid}/subidas", status_code=201)
+async def subir_imagenes_planos(pid: str, peticion: Request,
+                                plano: str = Query(default="")):
+    """Sube imagenes de planos: una, varias o un .zip.
+
+    Con `?plano=S007` el (unico) fichero va a ese plano, se llame como se
+    llame. Sin el, cada fichero va al plano que diga su nombre (S007.png,
+    7.jpg, S007_mercado.webp) y un .zip se abre y se reparte igual.
+    """
+    ctx = contexto(pid)
+    mod = _subidas()
+    tipo = (peticion.headers.get("content-type") or "").lower()
+    if not tipo.startswith("multipart/"):
+        raise ErrorApi(400, "manda las imágenes como multipart")
+    try:
+        formulario = await peticion.form()
+    except Exception as fallo:                              # noqa: BLE001
+        raise ErrorApi(400, f"multipart ilegible: {fallo}")
+    tamano = _tamano_de_plano(ctx)
+    validos = {f["id"] for f in PASOS_MODULOS.p6_assets.prompts_para_subir(
+        ctx.proyecto, ctx.estado.params("assets") or {})}
+    destino_fijo = ""
+    if plano:
+        try:
+            destino_fijo = mod.validar_id(plano)
+        except ValueError as fallo:
+            raise ErrorApi(400, str(fallo))
+    guardados, ignorados = [], []
+    ficheros = [v for _k, v in formulario.multi_items() if hasattr(v, "read")]
+    if destino_fijo and len(ficheros) != 1:
+        raise ErrorApi(400, "para un plano concreto se sube una sola imagen")
+    for valor in ficheros:
+        origen = os.path.basename(str(getattr(valor, "filename", "") or ""))
+        extension = os.path.splitext(origen)[1].lower()
+        contenido = await valor.read()
+        if extension == ".zip" and not destino_fijo:
+            try:
+                hecho = await asyncio.to_thread(
+                    mod.importar_zip, ctx.proyecto.raiz, contenido, validos, tamano)
+            except ValueError as fallo:
+                ignorados.append({"fichero": origen, "motivo": str(fallo)})
+                continue
+            guardados += hecho["guardados"]
+            ignorados += hecho["ignorados"]
+            continue
+        if extension not in mod.EXTENSIONES:
+            ignorados.append({"fichero": origen, "motivo": "no es una imagen"})
+            continue
+        sid = destino_fijo or mod.id_desde_nombre(origen)
+        if not sid:
+            ignorados.append({"fichero": origen,
+                              "motivo": "el nombre no dice de qué plano es "
+                                        "(llámalo S001.png, S002.png...)"})
+            continue
+        if validos and sid not in validos:
+            ignorados.append({"fichero": origen,
+                              "motivo": f"{sid} no es un plano con imagen en "
+                                        f"este vídeo"})
+            continue
+        try:
+            await asyncio.to_thread(mod.guardar, ctx.proyecto.raiz, sid,
+                                    contenido, tamano)
+        except ValueError as fallo:
+            ignorados.append({"fichero": origen, "motivo": str(fallo)})
+            continue
+        guardados.append(sid)
+    if not guardados and ignorados:
+        raise ErrorApi(400, "no se ha guardado ninguna: " + "; ".join(
+            f"{i['fichero']}: {i['motivo']}" for i in ignorados[:8]))
+    ctx.bitacora.anotar("imagenes_subidas", "assets",
+                        {"planos": sorted(set(guardados))})
+    ficha = _ficha_subidas(ctx)
+    ficha.update({"guardados": sorted(set(guardados)), "ignorados": ignorados})
+    return ficha
+
+
+@app.delete("/api/proyectos/{pid}/subidas/{sid}")
+def borrar_subida(pid: str, sid: str):
+    """Quita la imagen subida de un plano (la ya colocada en el video se queda
+    hasta que se suba otra)."""
+    ctx = contexto(pid)
+    try:
+        _subidas().borrar(ctx.proyecto.raiz, sid)
+    except ValueError as fallo:
+        raise ErrorApi(400, str(fallo))
+    return _ficha_subidas(ctx)
+
+
 @app.get("/api/proyectos/{pid}/repaso/imagenes/{nombre}")
 def servir_imagen_repaso(pid: str, nombre: str, peticion: Request):
     """Una imagen de referencia de una nota."""
@@ -7531,6 +7699,40 @@ def _correr_light_guia(avisar, ctx, encargo):
     return guia
 
 
+def _referencias_manuales(avisar, ctx):
+    """MODO MANUAL: las referencias del estilo son TUS imagenes, sin dibujar.
+
+    En vez de pagar seis laminas a gpt-image, las imagenes de ejemplo que se
+    subieron al crear el estilo se copian tal cual a `estilo/dibujadas` (la
+    carpeta que `_esta_al_dia` reconoce como «referencias hechas»). Son las que
+    salen en la tarjeta del estilo y sobre las que se ponen las muestras.
+    """
+    bloque = dict((ctx.estado.params("assets") or {}).get("estilo") or {})
+    fuentes = _aportadas_del_taller(ctx) or [
+        r for r in PASOS_MODULOS.medios.reubicar_todas(bloque.get("referencias"))
+        if r and os.path.isfile(r) and "dibujadas" not in str(r)]
+    if not fuentes:
+        raise ErrorApi(400, "En modo de imágenes manual el estilo se hace con "
+                            "TUS imágenes de ejemplo: sube al menos una (mejor "
+                            "3 o 4) al crear el estilo. No se dibuja nada ni "
+                            "se paga nada.")
+    destino = os.path.join(ctx.proyecto.raiz, "estilo", "dibujadas")
+    os.makedirs(destino, exist_ok=True)
+    rutas = []
+    for indice, fuente in enumerate(fuentes[:8]):
+        if avisar:
+            avisar(indice / max(1, len(fuentes)), "colocando tus imágenes")
+        nombre = f"manual_{indice:02d}{os.path.splitext(fuente)[1].lower() or '.png'}"
+        ruta = os.path.join(destino, nombre)
+        shutil.copyfile(fuente, ruta)
+        rutas.append(ruta)
+    bloque["referencias"] = rutas
+    ctx.estado.actualizar_params("assets", {"estilo": bloque})
+    ctx.bitacora.anotar("estilo_dibujado", "assets", {
+        "ejes": [], "coste_usd": 0.0, "pedidos": "manual"})
+    return {"rutas": rutas, "ejes": [], "coste_usd": 0.0}
+
+
 def _correr_light_referencias(avisar, ctx, encargo):
     """Las laminas dibujadas, que SON las referencias del estilo.
 
@@ -7553,6 +7755,8 @@ def _correr_light_referencias(avisar, ctx, encargo):
     se escribio para cuando derivan unos ejes y otros salen clavados. Lo que
     faltaba era que alguien se lo pidiera.
     """
+    if AJUSTES.imagenes_manuales():
+        return _referencias_manuales(avisar, ctx)
     mod = _moodboard()
     calidad = str((ctx.estado.params("assets") or {}).get("calidad") or "medium")
     bloque = dict((ctx.estado.params("assets") or {}).get("estilo") or {})
