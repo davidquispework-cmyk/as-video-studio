@@ -93,9 +93,18 @@ Todo gratis; lo de pago, preparado y apagado (ver «Decisión de dinero»).
    Cambiarlo en un vídeo hecho solo pide volver a montar (gratis). Prueba:
    `pasos/prueba_marioneta.py`. Pendiente: que la boca siga la voz de verdad; elegir
    el gesto por plano desde la pantalla (va bien con la etapa 2).
-2. **Botón de efectos por plano**: en la tarjeta del plano elegir/quitar efectos de
-   ambiente (fuego, lluvia, agua, nubes, rayos, luz, ninguno). Ya existe
-   `"ambiente": [...]` por escena en plan.json: falta la pantalla.
+2. **Botón de efectos por plano — HECHA (6-nov-2026)**.
+   Cómo se usa: pestaña Imágenes → tarjeta del plano → «🎇 Efectos: …» (dice cuáles
+   salen y si son automáticos). Tocar un efecto lo pone o lo quita (fuego/luz, polvo,
+   agua, nubes, lluvia, rayos, haces de luz); «🚫 Ninguno» los quita todos;
+   «↺ Automático» vuelve a que los elija el estudio. Luego volver a montar el vídeo
+   (gratis, solo se rehace ese plano).
+   Cómo quedó: ruta `PUT /api/proyectos/{pid}/ambiente/{plano}` en `app.py` (cuerpo
+   `{"efectos": [...]}`, `null` = automático) que lo guarda en los params de ESA
+   unidad del render (`unidades["escena:S007"]["ambiente"]`, como el clip); la ficha de
+   subidas trae `ambiente` y `ambiente_auto` por plano; `p8_render` lo aplica encima
+   del plan.json y de "auto". Pantalla: `bloqueEfectos` en `web/app.js`.
+   Pendiente: elegir también el gesto de los muñecos por plano desde ahí.
 3. **Gancho de 3 s automático**: «¿Sabías…?» con letras grandes + efecto fuerte al
    inicio; subtítulos palabra a palabra con la palabra clave resaltada; cifras grandes.
 4. **Plantilla TikTok**: vertical 9:16, ~1:05 (Creator Rewards), barra de progreso,

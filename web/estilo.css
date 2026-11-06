@@ -2525,3 +2525,6 @@ button.avisa:hover:not(:disabled) { border-color: var(--aviso); }
   border-radius: 6px; background: #000; }
 .subida-clip pre { white-space: pre-wrap; font-size: 11px; max-height: 120px;
   overflow: auto; margin: 6px 0; }
+.subida-efectos { margin-top: 6px; font-size: 12px; }
+.subida-efectos summary { cursor: pointer; color: var(--tenue); }
+.subida-efectos .subida-mandos { flex-wrap: wrap; }

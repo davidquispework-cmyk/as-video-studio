@@ -5043,6 +5043,7 @@ def _ficha_subidas(ctx):
     plan = PASOS_MODULOS.p6_assets.plan_actual(ctx.proyecto) or {}
     escenas = {e.get("id"): e for e in plan.get("escenas") or []}
     munecos = bool((ctx.estado.params("render") or {}).get("marioneta"))
+    unidades_render = (ctx.estado.params("render") or {}).get("unidades") or {}
     for f in planos:
         info = con_clip.get(f["id"])
         f["clip"] = bool(info)
@@ -5054,8 +5055,19 @@ def _ficha_subidas(ctx):
         # render encima (pasos/marioneta.py); si vinieran dibujados, saldrian dos veces.
         if munecos and f.get("prompt"):
             f["prompt"] = PASOS_MODULOS.marioneta.solo_fondo(f["prompt"])
+        # LOS EFECTOS DE AMBIENTE: los que saldrian solos y, si la persona
+        # eligio otros en la tarjeta, esos (None = automatico).
+        escena = escenas.get(f["id"]) or {}
+        try:
+            f["ambiente_auto"] = _efectos_auto(escena)
+        except Exception:                                   # noqa: BLE001
+            f["ambiente_auto"] = []
+        f["ambiente"] = ((unidades_render.get(f"escena:{f['id']}") or {})
+                         .get("ambiente"))
     auto, motivo = CLIPS.automatico_disponible()
     return {"modo": AJUSTES.modo_imagen(), "planos": planos,
+            "efectos": ["luz", "particulas", "agua", "nubes", "lluvia",
+                        "rayos", "gloria"],   # = ambiente.EFECTOS
             "modo_clip": AJUSTES.leer().get("modo_clip", "manual"),
             "clips": len(con_clip), "clip_auto": auto, "clip_auto_motivo": motivo,
             "total": len(planos), "subidas": hechas,
@@ -5272,6 +5284,53 @@ def borrar_clip(pid: str, sid: str):
     except ValueError as fallo:
         raise ErrorApi(400, str(fallo))
     _marcar_clip_en_render(ctx, sid)
+    return _ficha_subidas(ctx)
+
+
+def _ambiente():
+    """pasos/ambiente.py, cargado al usarse: trae numpy y PIL, y los imports
+    sueltos de arriba son solo de la biblioteca estandar a proposito."""
+    import ambiente
+    return ambiente
+
+
+def _efectos_auto(escena):
+    """Los efectos que el render elegiria solo para esta escena del plan."""
+    AMBIENTE = _ambiente()
+    forzados = escena.get("ambiente")
+    texto = " ".join(str(escena.get(k) or "") for k in
+                     ("narracion", "texto", "prompt", "descripcion", "titulo"))
+    return AMBIENTE.elegir(texto, forzados if isinstance(forzados, list) else None)
+
+
+# EL BOTON DE EFECTOS POR PLANO (hoja de ruta, etapa 2). La eleccion va a los
+# params de ESA unidad del render (`unidades["escena:S007"]["ambiente"]`), como
+# el clip: solo ese plano queda por volver a montar, gratis. `efectos: null`
+# vuelve a lo automatico; `[]` es «ninguno».
+@app.put("/api/proyectos/{pid}/ambiente/{sid}")
+async def elegir_ambiente(pid: str, sid: str, peticion: Request):
+    ctx = contexto(pid)
+    sid = _plano_con_imagen(ctx, sid)
+    try:
+        cuerpo = await peticion.json()
+    except Exception:                                       # noqa: BLE001
+        raise ErrorApi(400, "manda un JSON con «efectos»")
+    efectos = (cuerpo or {}).get("efectos") if isinstance(cuerpo, dict) else None
+    AMBIENTE = _ambiente()
+    if efectos is not None:
+        if not isinstance(efectos, list) or any(
+                e not in AMBIENTE.EFECTOS for e in efectos):
+            raise ErrorApi(400, "efectos validos: " + ", ".join(AMBIENTE.EFECTOS))
+        efectos = [e for e in AMBIENTE.EFECTOS if e in efectos]
+    uid = f"escena:{sid}"
+    previos = ((ctx.estado.params("render") or {}).get("unidades") or {})
+    ficha = dict(previos.get(uid) or {})
+    if ficha.get("ambiente") != efectos:
+        if efectos is None:
+            ficha.pop("ambiente", None)
+        else:
+            ficha["ambiente"] = efectos
+        ctx.estado.actualizar_params("render", {"unidades": {uid: ficha}})
     return _ficha_subidas(ctx)
 
 

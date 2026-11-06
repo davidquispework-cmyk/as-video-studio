@@ -1447,6 +1447,12 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
         # EL CLIP (etapa 2): si la persona subio un video para este plano, sale
         # en lugar de la imagen quieta. Sin recorte de figura ni balanceo: el
         # clip ya trae su propio movimiento; las particulas y la luz si.
+        # LOS EFECTOS ELEGIDOS A MANO en la tarjeta del plano (boton de
+        # efectos): viven en los params de ESA unidad del render, asi elegirlos
+        # solo deja por montar ese plano. Mandan sobre el plan y sobre "auto".
+        elegidos = ((p.get("unidades") or {}).get(uid) or {}).get("ambiente")
+        if isinstance(elegidos, list):
+            escena = dict(escena, ambiente=elegidos)
         ruta_clip = clips_video.ruta_de(proyecto.raiz, sid)
         con_clip = os.path.isfile(ruta_clip) and p.get("clips", True)
         amb = None

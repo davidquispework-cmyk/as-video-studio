@@ -8390,6 +8390,47 @@ async function clipAutomatico(sid) {
   repintarVideo();
 }
 
+/* LOS EFECTOS DE AMBIENTE DE UN PLANO (hoja de ruta, etapa 2). null = que los
+   elija el estudio leyendo la narración; [] = ninguno. Solo pide volver a montar
+   ese plano. */
+const NOMBRE_EFECTO = {
+  luz: '🔥 Fuego / luz', particulas: '✨ Polvo', agua: '🌊 Agua', nubes: '☁️ Nubes',
+  lluvia: '🌧️ Lluvia', rayos: '⚡ Rayos', gloria: '🌟 Haces de luz',
+};
+async function elegirEfectos(sid, efectos) {
+  const v = videoAbierto();
+  try {
+    SUBIDAS.datos = await pedir(`${API.proyecto(v.pid)}/ambiente/${encodeURIComponent(sid)}`,
+      { method: 'PUT', cuerpo: { efectos } });
+    toast(`Efectos de ${sid} guardados. Vuelve a montar el vídeo para verlos.`);
+  } catch (e) { toast(e.message, true); }
+  repintarVideo();
+}
+
+function bloqueEfectos(plano) {
+  const todos = (SUBIDAS.datos && SUBIDAS.datos.efectos) || Object.keys(NOMBRE_EFECTO);
+  const elegidos = Array.isArray(plano.ambiente) ? plano.ambiente : null;
+  const activos = elegidos || plano.ambiente_auto || [];
+  const resumen = activos.length
+    ? activos.map(e => NOMBRE_EFECTO[e] || e).join(' · ') : 'ninguno';
+  const alternar = (e) => {
+    const base = new Set(activos);
+    if (base.has(e)) base.delete(e); else base.add(e);
+    elegirEfectos(plano.id, todos.filter(x => base.has(x)));
+  };
+  return h('details', { clase: 'subida-efectos' },
+    h('summary', {}, `🎇 Efectos: ${resumen}${elegidos ? '' : ' (automático)'}`),
+    h('div', { clase: 'meta' }, 'Toca un efecto para ponerlo o quitarlo en este plano.'),
+    h('div', { clase: 'subida-mandos' },
+      ...todos.map(e => h('button', {
+        clase: 'mini' + (activos.includes(e) ? ' primario' : ''),
+        onclick: () => alternar(e) }, NOMBRE_EFECTO[e] || e)),
+      h('button', { clase: 'mini fantasma' + (elegidos && !elegidos.length ? ' primario' : ''),
+        onclick: () => elegirEfectos(plano.id, []) }, '🚫 Ninguno'),
+      elegidos ? h('button', { clase: 'mini fantasma',
+        onclick: () => elegirEfectos(plano.id, null) }, '↺ Automático') : null));
+}
+
 async function quitarSubida(sid) {
   const v = videoAbierto();
   if (!window.confirm(`¿Quitar la imagen subida de ${sid}?`)) return;
@@ -8504,6 +8545,7 @@ function tarjetaSubida(plano) {
         files => subirAPlanos(files, plano.id)),
       plano.subida ? h('button', { clase: 'mini fantasma peligro',
         onclick: () => quitarSubida(plano.id) }, 'Quitar') : null),
+    bloqueEfectos(plano),
     /* EL CLIP (opcional): para los 1-3 momentos clave que piden movimiento */
     h('details', { clase: 'subida-clip', open: plano.clip ? true : null },
       h('summary', {}, plano.clip
