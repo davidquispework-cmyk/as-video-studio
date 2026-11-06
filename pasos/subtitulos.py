@@ -346,7 +346,7 @@ def repartir_escrito(dibujados, texto):
 
 
 def de_escena(escena, cap_linea=CAP_LINEA, idioma=None, texto="",
-              cap_trozo=None):
+              cap_trozo=None, con_palabras=False):
     """[{"texto", "desde", "hasta"}] en el reloj DEL PLANO, o [] si no cuadra.
 
     `desde`/`hasta` salen de la primera y la ultima marca del rango, menos el
@@ -358,6 +358,11 @@ def de_escena(escena, cap_linea=CAP_LINEA, idioma=None, texto="",
     y vuelve a grabar la voz -- para cambiar «un uno por 100» por «1%», eso es
     absurdo. Entra AQUI y no antes de trocear, que es lo unico que importa:
     despues del troceo el texto puede encoger sin que nada se mueva.
+
+    Con `con_palabras` cada trozo trae ademas "palabras": [(desde, hasta)] de
+    cada palabra DIBUJADA (subtitulos palabra a palabra, pasos/gancho.py). Si
+    lo dibujado no tiene las mismas palabras que lo dicho (una cifra junta
+    varias), se reparten a partes iguales dentro del trozo.
     """
     escena = escena if isinstance(escena, dict) else {}
     palabras = str(escena.get("narracion") or "").split()
@@ -386,8 +391,24 @@ def de_escena(escena, cap_linea=CAP_LINEA, idioma=None, texto="",
             # un trozo que se queda sin texto no se dibuja: el override puede
             # ser mas corto que lo que sustituye
             continue
-        salida.append({"texto": escrito,
-                       "desde": round(desde, 3), "hasta": round(hasta, 3)})
+        trozo = {"texto": escrito,
+                 "desde": round(desde, 3), "hasta": round(hasta, 3)}
+        if con_palabras:
+            dibujadas = escrito.split()
+            try:
+                if len(dibujadas) == b - a:
+                    trozo["palabras"] = [
+                        (round(float(marcas[i][0]) - t_in, 3),
+                         round(float(marcas[i][1]) - t_in, 3))
+                        for i in range(a, b)]
+                else:
+                    raise ValueError
+            except (TypeError, ValueError, IndexError):
+                paso = (hasta - desde) / max(1, len(dibujadas))
+                trozo["palabras"] = [
+                    (round(desde + paso * i, 3), round(desde + paso * (i + 1), 3))
+                    for i in range(len(dibujadas))]
+        salida.append(trozo)
     # los huecos cortos se cierran: ver HUECO_SIN_SUBTITULO
     for anterior, siguiente in zip(salida, salida[1:]):
         if 0 <= siguiente["desde"] - anterior["hasta"] < HUECO_SIN_SUBTITULO:

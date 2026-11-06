@@ -10161,6 +10161,10 @@ def _sembrar_video_light(ctx, datos):
     # se escribe si lo pidieron: el realista es la falta del param.
     if datos.get("marioneta"):
         ctx.estado.actualizar_params("render", {"marioneta": True})
+    # EL GANCHO (pasos/gancho.py): cartel «¿Sabías…?» y subtitulos palabra a
+    # palabra. Param del paso callouts, y tambien solo si lo pidieron.
+    if datos.get("gancho"):
+        ctx.estado.actualizar_params("callouts", {"gancho": True})
     return avisos
 
 

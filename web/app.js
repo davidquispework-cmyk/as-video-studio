@@ -6308,7 +6308,8 @@ function vistaElegidoLight() {
         + 'lo que el guionista lee como «de qué va este vídeo».' }),
     duracionLight(e, undefined, () => pintarCosteDelEncargoLight(e, aviso)),
     selectorFormato(e.formato, v => { e.formato = v; }),
-    selectorDibujo(e.marioneta, v => { e.marioneta = v; })));
+    selectorDibujo(e.marioneta, v => { e.marioneta = v; }),
+    selectorGancho(e.gancho, v => { e.gancho = v; })));
 
   caja.appendChild(bloqueLight('El material',
     'de dónde salen los hechos que se van a contar',
@@ -6369,6 +6370,29 @@ function selectorDibujo(valor, alCambiar) {
   });
   return h('div', { clase: 'campo' }, h('label', {}, 'Dibujo'), tira,
     h('div', { clase: 'pista' }, 'Con muñecos, el prompt de cada imagen pide SOLO EL FONDO (sin personas).'));
+}
+
+/* EL GANCHO (pasos/gancho.py): cartel grande «¿Sabías…?» con destello en los
+   primeros 3 s y subtítulos que se encienden palabra a palabra, con la palabra
+   clave y las cifras resaltadas. Va al param `gancho` del paso callouts y solo
+   se escribe si alguien lo toca; cambiarlo solo pide volver a montar. */
+function selectorGancho(valor, alCambiar) {
+  const tira = h('div', { clase: 'tira-modos formatos' });
+  [
+    { id: false, nombre: 'Subtítulos normales', pista: 'Como siempre' },
+    { id: true, nombre: '⚡ Gancho + palabra a palabra', pista: '«¿Sabías…?» grande al empezar; subtítulos palabra a palabra con la clave resaltada y cifras grandes' },
+  ].forEach(op => {
+    tira.appendChild(h('button', {
+      clase: 'mini' + (!!valor === op.id ? ' activo' : ''), title: op.pista,
+      'data-id': String(op.id),
+      onclick: () => {
+        tira.querySelectorAll('button').forEach(b => b.classList.toggle('activo', b.dataset.id === String(op.id)));
+        alCambiar(op.id);
+      },
+    }, op.nombre));
+  });
+  return h('div', { clase: 'campo' }, h('label', {}, 'Gancho'), tira,
+    h('div', { clase: 'pista' }, 'Estilo TikTok: el texto grande sale de la primera frase del guion. Cambiarlo es gratis (solo se vuelve a montar).'));
 }
 
 function selectorFormato(valor, alCambiar) {
@@ -6571,6 +6595,7 @@ async function crearYGenerarLight(estilo) {
         indicaciones: e.indicaciones,
         cta: e.cta,
         marioneta: !!e.marioneta,
+        gancho: !!e.gancho,
       },
     });
     const pid = (datos.proyecto || {}).id;
@@ -6633,6 +6658,7 @@ const CAMPOS_ENCARGO = [
   { clave: 'indicaciones', paso: 'guion', param: 'prompt_general' },
   { clave: 'cta', paso: 'guion', param: 'cta' },
   { clave: 'marioneta', paso: 'render', param: 'marioneta' },
+  { clave: 'gancho', paso: 'callouts', param: 'gancho' },
 ];
 
 /* Las tres ranuras completas a partir de lo guardado, que puede faltar entero
@@ -6667,6 +6693,7 @@ function pedidoDelVideoLight() {
     indicaciones: String(params('guion').prompt_general || ''),
     cta: ctaLeida(params('guion').cta),
     marioneta: !!params('render').marioneta,
+    gancho: !!params('callouts').gancho,
   };
   v.pedido = {
     pid: v.pid,
@@ -6718,7 +6745,8 @@ function vistaEncargoVideoLight() {
     nombre,
     duracionLight(e, estilo),
     selectorFormato(e.formato, valor => { e.formato = valor; programarGuardadoEncargo(); }),
-    selectorDibujo(e.marioneta, valor => { e.marioneta = valor; programarGuardadoEncargo(); })));
+    selectorDibujo(e.marioneta, valor => { e.marioneta = valor; programarGuardadoEncargo(); }),
+    selectorGancho(e.gancho, valor => { e.gancho = valor; programarGuardadoEncargo(); })));
 
   caja.appendChild(bloqueLight('El material',
     'de dónde salen los hechos que se van a contar',

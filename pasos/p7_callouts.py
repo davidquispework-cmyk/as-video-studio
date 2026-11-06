@@ -48,6 +48,7 @@ import cartelas  # noqa: E402
 import comun  # noqa: E402
 import estadisticas  # noqa: E402
 import subtitulos  # noqa: E402
+import gancho  # noqa: E402
 import medios  # noqa: E402
 import tipografia  # noqa: E402
 
@@ -689,7 +690,7 @@ def bloque_subtitulo(trozo, banda, tam, paleta, diseno, opacidad=None,
     return f'<g opacity="0">{"".join(piezas)}{entrada}</g>'
 
 
-def capa_fija_de(escena, p, banda=None, salida=SALIDA):
+def capa_fija_de(escena, p, banda=None, salida=SALIDA, primera=False):
     """La capa QUIETA de un plano: sus subtitulos. -> (svg, fichas)
 
     Vive aparte de `capa_de_escena` porque la necesitan las tres clases de plano
@@ -714,6 +715,9 @@ def capa_fija_de(escena, p, banda=None, salida=SALIDA):
     """
     if cartelas.es_cartela(escena) or escena.get("capitulo_svg"):
         return _envoltorio_fijo("", salida), []
+    # EL GANCHO (pasos/gancho.py): param `gancho` de este paso. Sin el, todo
+    # sale como siempre.
+    con_gancho = bool(p.get("gancho"))
     banda = banda or banda_subtitulo(salida)
     paleta = paleta_de_guia((p.get("estilo") or {}).get("guia"), p.get("paleta"))
     # `diseno_de` devuelve (nombre, ficha): aqui interesa la ficha, que trae la
@@ -726,17 +730,60 @@ def capa_fija_de(escena, p, banda=None, salida=SALIDA):
         cap_trozo=cap_trozo_subtitulo(cap_subtitulo(tam, banda), salida),
         texto=texto_subtitulo_de(p, f"escena:{escena.get('id')}"))
     tapa = opacidad_de_caja(p)
-    # en vertical sin fundidos: cada trozo dura poco y se lee entero
-    piezas = [bloque_subtitulo(x, banda, tam, paleta, diseno, tapa,
-                               fundido=not es_vertical(salida))
-              for x in trozos]
+    if con_gancho:
+        piezas = _subtitulos_gancho(escena, p, banda, tam, paleta, diseno,
+                                    tapa, salida, primera)
+    else:
+        # en vertical sin fundidos: cada trozo dura poco y se lee entero
+        piezas = [bloque_subtitulo(x, banda, tam, paleta, diseno, tapa,
+                                   fundido=not es_vertical(salida))
+                  for x in trozos]
     fichas = [{"tipo": "subtitulo", "texto": x["texto"],
                "desde": x["desde"], "hasta": x["hasta"]} for x in trozos]
     return _envoltorio_fijo("".join(x for x in piezas if x), salida), fichas
 
 
+def _subtitulos_gancho(escena, p, banda, tam, paleta, diseno, tapa, salida,
+                       primera):
+    """Subtitulos palabra a palabra y, en el primer plano, el cartel grande.
+
+    En vertical los trozos van mas cortos (dos a cuatro palabras), como en el
+    formato TikTok; en horizontal se respeta el troceo de siempre.
+    """
+    fuente_nombre = (diseno or {}).get("fuente") or "Verdana"
+    acento = (paleta or {}).get("acento") or gancho.AMARILLO
+    if str(acento).lower() in ("#ffffff", "#fff", "#000000", "#000"):
+        acento = gancho.AMARILLO
+    cap = cap_subtitulo(tam, banda)
+    trozos = subtitulos.de_escena(
+        escena, idioma=p.get("idioma"), cap_linea=cap,
+        cap_trozo=cap_trozo_subtitulo(cap, salida),
+        texto=texto_subtitulo_de(p, f"escena:{escena.get('id')}"),
+        con_palabras=True)
+    medir = _medidor(fuente_nombre, tam, negrita=SUB_PESO >= 600)
+    radio = min(float((diseno or {}).get("radio") or 0), tam * 0.5)
+    piezas = [gancho.bloque_palabras(
+        x, banda, tam, medir, fuente=fuente_nombre, peso=SUB_PESO,
+        color=(paleta or {}).get("texto") or "#ffffff", acento=acento,
+        opacidad=tapa, radio=radio, partir=subtitulos.dos_lineas)
+        for x in trozos]
+    propio = escena.get("gancho", p.get("gancho"))
+    if primera and propio is not False:
+        texto = gancho.texto_de(escena.get("narracion"),
+                                propio if isinstance(propio, str) else None)
+        try:
+            dur = float(escena.get("t_out")) - float(escena.get("t_in") or 0)
+        except (TypeError, ValueError):
+            dur = gancho.DURACION_S
+        piezas.append(gancho.svg_cartel(
+            texto, salida, lambda t: _medidor(fuente_nombre, t, negrita=True),
+            fuente=fuente_nombre, acento=acento,
+            duracion=min(gancho.DURACION_S, dur)))
+    return piezas
+
+
 def capa_de_escena(escena, p, mov=None, banda=None, aspecto=16 / 9,
-                   lienzo=TAMANO, salida=SALIDA):
+                   lienzo=TAMANO, salida=SALIDA, primera=False):
     """Las DOS capas de un plano y sus fichas. -> (svg_movil, svg_fijo, fichas)
 
     DOS Y NO UNA, y esa es la firma del cambio del 23-08 (PENDIENTE 38):
@@ -765,7 +812,7 @@ def capa_de_escena(escena, p, mov=None, banda=None, aspecto=16 / 9,
     que se podria deducir aqui; entra igual por parametro para que quien componga
     fuera (la vista previa, el repaso) use exactamente la misma.
     """
-    fija, fichas = capa_fija_de(escena, p, banda, salida)
+    fija, fichas = capa_fija_de(escena, p, banda, salida, primera=primera)
     if escena.get("capitulo_svg"):
         # Una cabecera de capitulo es una portada a cuadro completo: se incrusta
         # tal cual y va CON la imagen. Su subtitulo, como el de cualquier otro
@@ -1506,7 +1553,8 @@ def ejecutar(proyecto, params, avisar=None, unidades=None):
             svg, fija, fichas = capa_vacia(lienzo), capa_fija_vacia(salida), []
         else:
             svg, fija, fichas = capa_de_escena(escena, p, entrada, banda, aspecto,
-                                               lienzo, salida)
+                                               lienzo, salida,
+                                               primera=(indice == 0))
         medios.escribir_texto(svg_ruta, svg)
         medios.escribir_texto(fija_ruta, fija)
         entrada["capa"] = os.path.relpath(svg_ruta, trabajo)

@@ -105,8 +105,24 @@ Todo gratis; lo de pago, preparado y apagado (ver «Decisión de dinero»).
    subidas trae `ambiente` y `ambiente_auto` por plano; `p8_render` lo aplica encima
    del plan.json y de "auto". Pantalla: `bloqueEfectos` en `web/app.js`.
    Pendiente: elegir también el gesto de los muñecos por plano desde ahí.
-3. **Gancho de 3 s automático**: «¿Sabías…?» con letras grandes + efecto fuerte al
-   inicio; subtítulos palabra a palabra con la palabra clave resaltada; cifras grandes.
+3. **Gancho de 3 s automático — HECHA (6-nov-2026)**.
+   Cómo se usa: al crear el vídeo (o en «El encargo») → «Gancho» → «⚡ Gancho +
+   palabra a palabra». Luego volver a montar (gratis: ni una imagen). Sale: destello
+   blanco + cartel GRANDE en mayúsculas los 3 primeros segundos (palabra clave en el
+   color de acento del estilo) y, en todo el vídeo, subtítulos que se encienden
+   palabra a palabra (las aún no dichas, apagadas), con la palabra clave resaltada
+   y las cifras más grandes. El texto del cartel sale de la primera frase del guion:
+   si empieza por pregunta «¿…?», esa; si es corta, entera; si es larga, «¿Sabías
+   esto? …» + sus primeras palabras (consejo: empezar el guion con «¿Sabías que…?»).
+   Cómo quedó: `pasos/gancho.py` + `p7_callouts.capa_fija_de(..., primera=)` (capa
+   QUIETA, SVG con SMIL; el render no cambia) + `subtitulos.de_escena(con_palabras=True)`
+   (tiempo de cada palabra). Param del paso callouts `gancho`: `true` o un texto propio;
+   no va en los defectos (no mueve firmas). En plan.json la 1.ª escena puede llevar
+   `"gancho": "texto"` o `"gancho": false` (sin cartel). Pantalla: `selectorGancho`
+   en `web/app.js`; al crear lo escribe `_sembrar_video_light` en `app.py`.
+   Prueba: `pasos/prueba_gancho.py` (`--foto` pide Playwright de Python).
+   Pendiente: escribir el texto del cartel desde la pantalla; un golpe de sonido
+   al empezar.
 4. **Plantilla TikTok**: vertical 9:16, ~1:05 (Creator Rewards), barra de progreso,
    llamada a seguir al final.
 5. **Un solo prompt para todas las imágenes**: un texto con todas las escenas y la
