@@ -202,23 +202,17 @@ COMPLETA y pulida, calidad profesional, no en versión mínima; pero con ahorro-
 (leer solo lo necesario, una prueba corta final). Innovar y contextualizar cada vez más:
 cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
 
-<<<<<<< HEAD
-PLAN INMEDIATO (6-nov): David saca la clave de YouTube (gratis), busca el nicho en
-«💡 Ideas», pide ideas y crea un vídeo con «Crear este vídeo» (plantilla TikTok). Lo
-publica y apunta sus cifras en «Mis vídeos». Luego chat nuevo para la etapa 6 (un
-solo prompt para todas las imágenes).
-=======
-PLAN INMEDIATO (6-nov): David prueba un vídeo con la plantilla TikTok (gancho + 2-3
-clips), lo publica en TikTok/YouTube Shorts (para tener datos reales), y luego chat
-nuevo: primero los puntos A-F de «OPINIÓN DE DAVID» (abajo), luego la etapa 5.
->>>>>>> 0fb827a (Notas: opinión de David tras su primer vídeo y orden de mejoras (A-F))
+PLAN INMEDIATO (6-nov): primero los puntos A-F de «OPINIÓN DE DAVID» (abajo), un chat
+por punto, empezando por A (Modo ahorro). Mientras: David saca la clave de YouTube
+(gratis), prueba «💡 Ideas» y publica para tener datos («Mis vídeos»). Después,
+etapa 6 de la hoja de ruta (un solo prompt para todas las imágenes).
 
 Mensaje que David pega en cada chat nuevo (con el repo as-video-studio elegido):
 «Lee NOTAS-DAVID.md y la skill ahorro-claude. Haz la siguiente etapa de la HOJA DE
 RUTA. Pruebas ligeras. Súbelo a main, dame el comando para Hostinger y actualiza mis
 notas.»
 
-## OPINIÓN DE DAVID TRAS SU PRIMER VÍDEO (6-nov-2026) — hacer ANTES de la etapa 5
+## OPINIÓN DE DAVID TRAS SU PRIMER VÍDEO (6-nov-2026) — hacer ANTES de la etapa 6
 Orden decidido, un chat por punto (cada uno completo y pulido):
 A. **Modo ahorro de Claude** (lo primero): el estudio corre TODO en Opus/xhigh
    (`cli_claude.MODELO_POR_DEFECTO`/`por_defecto_de`) con la misma cuenta Pro de
@@ -242,7 +236,7 @@ E. **Guion y voz con intención**: nada de muletillas («o sea»); ritmo para
    con SSML (velocidad, tono, pausas) por frase; decidirlo en el guion.
 F. **Movimiento de imágenes y transiciones**: mejor movimiento de cámara, cortes al
    ritmo de la voz, transiciones con intención y cosas que otros no hacen.
-Luego seguir la HOJA DE RUTA por la etapa 5.
+Luego seguir la HOJA DE RUTA por la etapa 6.
 
 ## Pendiente / ideas
 1. Catálogo de la mamá: faltan nombre de tienda, WhatsApp, prendas y fotos.
