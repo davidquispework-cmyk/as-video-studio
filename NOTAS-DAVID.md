@@ -72,6 +72,33 @@ pero apagado (como el modo de imagen OpenAI), para activarlo más adelante con u
 recarga única pequeña (~10 $, fal.ai o Replicate; nada de suscripciones). Lo que más
 tiempo ahorraría al pagar: imágenes automáticas baratas (~0,5-1 $ por vídeo de 1 min).
 
+## HOJA DE RUTA DEL ESTUDIO (decidida 6-nov-2026) — una mejora por chat, en orden
+Regla: cada chat nuevo hace SOLO la siguiente etapa sin hacer, pruebas ligeras, sube a
+main, da `asvs actualizar` y marca aquí la etapa como HECHA (con fecha y cómo quedó).
+Todo gratis; lo de pago, preparado y apagado (ver «Decisión de dinero»).
+1. **Muñecos que gesticulan** (= etapa 3 de animación): personajes marioneta SVG por
+   piezas (cabeza, torso, brazos articulados) con gestos (señalar, levantar brazos,
+   girar cabeza), como ESTILO OPCIONAL al crear un vídeo; el realista (imágenes +
+   clips) se queda igual. Inspiración: muñecos geométricos con túnica.
+2. **Botón de efectos por plano**: en la tarjeta del plano elegir/quitar efectos de
+   ambiente (fuego, lluvia, agua, nubes, rayos, luz, ninguno). Ya existe
+   `"ambiente": [...]` por escena en plan.json: falta la pantalla.
+3. **Gancho de 3 s automático**: «¿Sabías…?» con letras grandes + efecto fuerte al
+   inicio; subtítulos palabra a palabra con la palabra clave resaltada; cifras grandes.
+4. **Plantilla TikTok**: vertical 9:16, ~1:05 (Creator Rewards), barra de progreso,
+   llamada a seguir al final.
+5. **Un solo prompt para todas las imágenes**: un texto con todas las escenas y la
+   ficha fija de cada personaje para pedirle a Gemini las imágenes de una vez.
+6. **Subir el MP4 terminado a Google Drive** al acabar (David tiene el conector).
+7. **Ideas de vídeos desde tendencias** (skill tendencias-redes) → Shaddai Studio.
+8. (De pago, apagado) imágenes automáticas baratas (~0,5-1 $/vídeo, fal.ai/Replicate).
+9. (De pago, ya preparado y apagado) clips automáticos fal.ai (`modo_clip=auto`).
+
+Mensaje que David pega en cada chat nuevo (con el repo as-video-studio elegido):
+«Lee NOTAS-DAVID.md y la skill ahorro-claude. Haz la siguiente etapa de la HOJA DE
+RUTA. Pruebas ligeras. Súbelo a main, dame el comando para Hostinger y actualiza mis
+notas.»
+
 ## Pendiente / ideas
 1. Catálogo de la mamá: faltan nombre de tienda, WhatsApp, prendas y fotos.
 2. Web del negocio.
