@@ -6991,28 +6991,72 @@ function selectorDibujo(valor, alCambiar) {
 /* EL MOTION GRAPHICS (pasos/motion.py, punto G). El vídeo es un solo mundo
    dibujado por el que viaja la cámara, sin cortes; cada plano explica su frase
    con una pieza animada (versículo RVR1960, mapa con distancia, línea de
-   tiempo, reloj) o enseña su imagen como lámina. Va al param `motion` del
-   render (false, 'papel' o 'noche') y solo se escribe si alguien lo toca:
-   cambiarlo es gratis, solo pide volver a montar. */
+   tiempo, reloj, barras, antes/ahora, árbol...) o enseña su imagen como lámina,
+   con los personajes como MUÑECOS PLANOS dentro del mundo (pasos/motion_mas.py).
+   Va al param `motion` del render: false o {tema, storyboard, munecos,
+   sonidos} (un texto 'papel'/'noche' de antes se sigue leyendo) y solo se
+   escribe si alguien lo toca: cambiarlo es gratis, solo pide volver a montar
+   (el storyboard de Claude es una llamada a Sonnet por vídeo, con caché). */
+function motionLeido(valor) {
+  if (!valor) return null;
+  if (valor === true || typeof valor === 'string') return { tema: valor === 'noche' ? 'noche' : 'papel' };
+  if (typeof valor === 'object' && valor.activo !== false) return Object.assign({ tema: 'papel' }, valor);
+  return null;
+}
 function selectorMotion(valor, alCambiar) {
-  const actual = valor === true ? 'papel' : (valor || false);
-  const tira = h('div', { clase: 'tira-modos formatos' });
-  [
-    { id: false, nombre: '🖼 Imagen con zoom', pista: 'Como siempre: la imagen de cada plano con su movimiento de cámara' },
-    { id: 'papel', nombre: '✏️ Motion graphics (papel)', pista: 'Todo dibujado: piezas que entran con rebote al ritmo de la voz y cámara que viaja sin cortes. Fondo claro' },
-    { id: 'noche', nombre: '🌙 Motion graphics (noche)', pista: 'Lo mismo con fondo oscuro, para historias tensas o de noche' },
-  ].forEach(op => {
-    tira.appendChild(h('button', {
-      clase: 'mini' + (actual === op.id ? ' activo' : ''), title: op.pista,
-      'data-id': String(op.id),
-      onclick: () => {
-        tira.querySelectorAll('button').forEach(b => b.classList.toggle('activo', b.dataset.id === String(op.id)));
-        alCambiar(op.id);
-      },
-    }, op.nombre));
-  });
-  return h('div', { clase: 'campo' }, h('label', {}, 'Animación'), tira,
-    h('div', { clase: 'pista' }, 'Con motion graphics, si la frase cita un versículo, nombra lugares, años u horas, sale explicado con su pieza (tarjeta del versículo, mapa con la distancia, línea de tiempo, reloj); si no, la imagen del plano como lámina. Gratis: solo se vuelve a montar.'));
+  let actual = motionLeido(valor);
+  const caja = h('div', { clase: 'campo' });
+  const pintar = () => {
+    vaciar(caja);
+    const tira = h('div', { clase: 'tira-modos formatos' });
+    [
+      { id: false, nombre: '🖼 Imagen con zoom', pista: 'Como siempre: la imagen de cada plano con su movimiento de cámara' },
+      { id: 'papel', nombre: '✏️ Motion graphics (papel)', pista: 'Todo dibujado: piezas que entran con rebote al ritmo de la voz, muñecos planos y cámara que viaja sin cortes. Fondo claro' },
+      { id: 'noche', nombre: '🌙 Motion graphics (noche)', pista: 'Lo mismo con fondo oscuro, para historias tensas o de noche' },
+    ].forEach(op => {
+      const activo = op.id === false ? !actual : !!actual && actual.tema === op.id;
+      tira.appendChild(h('button', {
+        clase: 'mini' + (activo ? ' activo' : ''), title: op.pista,
+        onclick: () => {
+          // al encender por primera vez: storyboard de Claude, muñecos y sonidos
+          actual = op.id === false ? null
+            : Object.assign({ storyboard: 'claude', munecos: true, sonidos: true }, actual || {}, { tema: op.id });
+          alCambiar(actual ? Object.assign({}, actual) : false);
+          pintar();
+        },
+      }, op.nombre));
+    });
+    caja.append(h('label', {}, 'Animación'), tira);
+    if (actual) {
+      const fila = (titulo, clave, opciones) => {
+        const t = h('div', { clase: 'tira-modos formatos' });
+        opciones.forEach(op => {
+          const puesto = clave === 'storyboard' ? (actual.storyboard === 'claude') === (op.id === 'claude')
+            : (actual[clave] !== false) === op.id;
+          t.appendChild(h('button', {
+            clase: 'mini' + (puesto ? ' activo' : ''), title: op.pista,
+            onclick: () => { actual = Object.assign({}, actual, { [clave]: op.id }); alCambiar(Object.assign({}, actual)); pintar(); },
+          }, op.nombre));
+        });
+        caja.append(h('div', { clase: 'pista' }, titulo), t);
+      };
+      fila('Quién elige las piezas de cada plano', 'storyboard', [
+        { id: 'claude', nombre: '🧠 Claude, con metáforas', pista: 'Claude lee el guion y decide cada plano: metáforas (el pecado = bola con cadena), muñecos con su gesto y su cara, flechas, barras… Una llamada a Sonnet por vídeo; volver a montar no gasta' },
+        { id: 'auto', nombre: '⚙️ Automático (no gasta Claude)', pista: 'El estudio pone solo lo que puede medir: versículo, mapa, años, horas, barras, antes/ahora, árbol, lista, contador; si no, la lámina' },
+      ]);
+      fila('Muñecos planos dentro del mundo', 'munecos', [
+        { id: true, nombre: '🧍 Sí', pista: 'Los personajes del plano como muñecos planos con caras muy expresivas; la boca sigue la voz cuando hablan' },
+        { id: false, nombre: 'No', pista: 'Solo piezas e imágenes' },
+      ]);
+      fila('Sonidos de la animación', 'sonidos', [
+        { id: true, nombre: '🔊 Whoosh y pop', pista: '«Whoosh» en cada viaje de la cámara y «pop» cuando aterriza cada pieza' },
+        { id: false, nombre: '🔇 Sin ellos', pista: 'Solo voz, música y efectos de siempre' },
+      ]);
+    }
+    caja.appendChild(h('div', { clase: 'pista' }, 'Con motion graphics cada plano se explica solo: versículo, mapa con la distancia, línea de tiempo, reloj, barras, antes/ahora, árbol genealógico, lista o contador; si no, la imagen del plano como lámina con los muñecos delante. Gratis: solo se vuelve a montar.'));
+  };
+  pintar();
+  return caja;
 }
 
 /* EL GANCHO (pasos/gancho.py): cartel grande «¿Sabías…?» con destello en los

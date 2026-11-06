@@ -48,8 +48,9 @@ from datetime import date
 
 try:
     import fidelidad
+    import motion_mas
 except ImportError:  # importado como paquete (pasos.motion)
-    from . import fidelidad
+    from . import fidelidad, motion_mas
 
 TEMAS = {
     # DISEÑO PROPIO: papel claro con tinta índigo (no negra) y acentos vivos
@@ -65,15 +66,17 @@ TEMAS = {
 }
 FUENTES = {"titulo": "Shaddai Montserrat", "verso": "Shaddai Playfair"}
 TIPOS = ("versiculo", "reloj", "mapa", "linea", "lamina", "texto", "icono",
-         "contador", "comparacion", "lista")
-ENTRADAS = ("abajo", "arriba", "izquierda", "derecha", "pop")
+         "contador", "comparacion", "lista",
+         # segunda parte (pasos/motion_mas.py)
+         "barras", "antes", "arbol", "flecha", "circulo", "personajes")
+ENTRADAS = ("abajo", "arriba", "izquierda", "derecha", "pop", "nada")
 ICONOS = ("cruz", "corazon", "biblia", "moneda", "celular", "corona", "paloma",
           "casa", "vela", "estrella", "pan", "cadena", "pergamino", "reloj",
           "ojo", "mano", "llave", "puerta", "montana", "sol", "luna", "nube",
           "gota", "fuego", "arbol", "pez", "barca", "oveja", "espada", "escudo",
           "trompeta", "tablas", "templo", "tumba", "lupa", "balanza", "ancla",
           "copa", "persona", "chincheta", "arena", "pregunta", "check", "equis",
-          "flecha", "punto")
+          "flecha", "punto") + motion_mas.ICONOS_MAS
 
 # palabra (plegada, principio) -> icono que salta junto a la lamina
 PALABRAS_ICONO = (
@@ -756,18 +759,261 @@ def pieza_lista(voz, items, W, H):
             "en": round(max(voz.t_in, voz.t(items[0][1]) - 0.3), 3), "entra": "pop"}
 
 
+# ------------------------------------------------------------ segunda parte:
+# barras, antes/despues, arbol genealogico, flechas, circulos y MUÑECOS
+
+def barras_de(voz):
+    """«el 70 % ... y el 30 %» o «cinco panes y dos peces» -> [{t, v, i, pct}]"""
+    salida = []
+    for k, cruda in enumerate(voz.crudas):
+        m = re.match(r"^(\d{1,3}(?:[.,]\d+)?)(%?)", cruda.strip("(«\""))
+        if not m:
+            continue
+        siguiente = voz.crudas[k + 1] if k + 1 < len(voz.crudas) else ""
+        desp = 2 if voz.plegadas[k + 1:k + 3] == ["por", "ciento"] else (
+            1 if siguiente.startswith("%") else 0)
+        if not (m.group(2) or desp):
+            continue
+        valor = float(m.group(1).replace(",", "."))
+        # la etiqueta: lo que viene detras de «de» (el 70 % DE LOS JUDIOS)
+        etq = ""
+        if voz.plegadas[k + 1 + desp:k + 2 + desp] in (["de"], ["del"]):
+            palabras = [w.strip(",.;:¿?¡!«»\"()") for w in voz.crudas[k + 2 + desp:k + 6 + desp]]
+            limpias = []
+            for w in palabras:
+                pl = fidelidad.plegar(w)
+                if pl in ("y", "e", "o", "u", "que", "en", "con", "por", "mientras"):
+                    break
+                if w and pl not in ("los", "las", "la", "el", "lo"):
+                    limpias.append(w)
+            etq = " ".join(limpias[:2])
+        salida.append({"t": etq, "v": valor, "txt": f"{m.group(1)} %", "i": k, "pct": True})
+    if salida:
+        return salida[:4]
+    patron = re.compile(r"\b" + _NUM + r"( mil)? ([a-zñ]{3,})\b")
+    vistos = set()
+    for m in patron.finditer(voz.texto):
+        n = _n(m.group(1))
+        cosa = m.group(3)
+        if not n or cosa in VACIAS or cosa in NO_CONTABLES or cosa in vistos:
+            continue
+        if m.group(2):
+            n *= 1000
+        vistos.add(cosa)
+        fin = voz.indice_de(m.start(3))
+        salida.append({"t": voz.crudas[fin].strip(",.;:¿?¡!«»\"()"), "v": float(n),
+                       "txt": f"{n:,}".replace(",", "."), "i": voz.indice_de(m.start()),
+                       "pct": False})
+    if len(salida) >= 2:
+        vals = [b["v"] for b in salida]
+        if max(vals) / max(1.0, min(vals)) <= 25:
+            return salida[:4]
+    return None
+
+
+def antes_de(voz):
+    """«antes era perseguidor, ahora es apostol» -> {"a", "b", "i_a", "i_b"}"""
+    t = voz.texto
+    patrones = (
+        r"\bantes (?:era|eras|eran|fue|fuimos|eramos|estaba|estabas|tenia|vivia)? ?"
+        r"(?P<x>[a-zñ0-9 ]{3,50}?) (?:pero |y )?(?:ahora|hoy|despues|luego) "
+        r"(?:es|eres|son|somos|esta|estas|tiene|vive|fue)? ?(?P<y>[a-zñ0-9 ]{3,50})",
+        r"\b(?:era|eras|eran|fue) (?P<x>[a-zñ0-9 ]{3,40}?) (?:pero |y )?(?:ahora|hoy) "
+        r"(?:es|eres|son|somos) (?P<y>[a-zñ0-9 ]{3,40})",
+    )
+    for patron in patrones:
+        m = re.search(patron, t)
+        if not m:
+            continue
+        ia, fa = voz.indice_de(m.start("x")), voz.indice_de(m.end("x") - 1)
+        ib, fb = voz.indice_de(m.start("y")), voz.indice_de(m.end("y") - 1)
+        for k in range(ia, min(fa + 1, len(voz.crudas))):
+            if voz.crudas[k][-1:] in ",.;:?!":
+                fa = k
+                break
+        for k in range(ib, min(fb + 1, len(voz.crudas))):
+            if voz.crudas[k][-1:] in ",.;:?!":
+                fb = k
+                break
+        a, b = _trozo(voz, ia, fa, 5), _trozo(voz, ib, fb, 5)
+        if a and b:
+            return {"a": a, "b": b, "i_a": ia, "i_b": ib}
+    return None
+
+
+_PARENTESCO = (("hijo de", "sube"), ("hija de", "sube"), ("nieto de", "sube"),
+               ("padre de", "baja"), ("madre de", "baja"), ("engendro a", "baja"),
+               ("engendro", "baja"), ("abuelo de", "baja"))
+
+
+def _nombre_en(voz, k):
+    w = voz.crudas[k].strip(",.;:¿?¡!«»\"()") if 0 <= k < len(voz.crudas) else ""
+    return w if w[:1].isupper() and len(w) > 1 and w.isalpha() else None
+
+
+def arbol_de(voz):
+    """«Isaac, hijo de Abraham» / «Abraham engendró a Isaac» -> [(nombre, i)]
+    del mas antiguo al mas joven (una linea de generaciones)."""
+    padres, previa = {}, None
+    for k in range(len(voz.plegadas)):
+        for frase, sentido in _PARENTESCO:
+            partes = frase.split()
+            if voz.plegadas[k:k + len(partes)] != partes:
+                continue
+            antes = None
+            for j in range(k - 1, max(-1, k - 4), -1):
+                antes = _nombre_en(voz, j)
+                if antes:
+                    break
+            despues, j_desp = None, None
+            for j in range(k + len(partes), min(len(voz.crudas), k + len(partes) + 3)):
+                despues = _nombre_en(voz, j)
+                if despues:
+                    j_desp = j
+                    break
+            # «Isaac, hijo de Abraham, fue padre de Jacob»: lo de entre comas
+            # es un inciso y el sujeto sigue siendo Isaac
+            if previa and antes == previa[1] and previa[2]:
+                antes = previa[0]
+            if antes and despues:
+                previa = (antes, despues, voz.crudas[j_desp].endswith(","))
+            if antes and despues and antes != despues:
+                hijo, padre = (antes, despues) if sentido == "sube" else (despues, antes)
+                padres.setdefault(hijo, padre)
+            break
+    if not padres:
+        return None
+    hijos = set(padres)
+    raices = [p for p in padres.values() if p not in hijos]
+    if not raices:
+        return None
+    hijo_de = {}
+    for h, p in padres.items():
+        hijo_de.setdefault(p, h)
+    cadena, actual = [raices[0]], raices[0]
+    while actual in hijo_de and len(cadena) < 6:
+        actual = hijo_de[actual]
+        if actual in cadena:
+            break
+        cadena.append(actual)
+    if len(cadena) < 2:
+        return None
+    salida = []
+    for nombre in cadena:
+        i = voz.buscar(nombre)
+        salida.append((nombre, i if i is not None else 0))
+    return salida
+
+
+def pieza_barras(voz, barras, W, H):
+    vertical = H > W
+    w = W * (0.84 if vertical else 0.62)
+    h = H * (0.36 if vertical else 0.5)
+    return {"tipo": "barras", "w": round(w, 1), "h": round(h, 1),
+            "tam": round(W * (0.06 if vertical else 0.032), 1),
+            "pct": bool(barras[0].get("pct")),
+            "barras": [{"t": b["t"], "v": b["v"], "txt": b["txt"],
+                        "en": round(max(voz.t_in + 0.2, voz.t(b["i"])), 3)} for b in barras],
+            "en": round(max(voz.t_in, voz.t(barras[0]["i"]) - 0.5), 3), "entra": "pop"}
+
+
+def pieza_antes(voz, datos, W, H):
+    vertical = H > W
+    w = W * (0.86 if vertical else 0.78)
+    h = H * (0.5 if vertical else 0.48)
+    return {"tipo": "antes", "a": datos["a"], "b": datos["b"],
+            "a_en": round(voz.t(datos["i_a"]), 3),
+            "b_en": round(max(voz.t(datos["i_b"]), voz.t(datos["i_a"]) + 0.8), 3),
+            "w": round(w, 1), "h": round(h, 1), "vertical": vertical,
+            "tam": round(W * (0.07 if vertical else 0.036), 1),
+            "en": round(max(voz.t_in, voz.t(datos["i_a"]) - 0.4), 3), "entra": "pop"}
+
+
+def pieza_arbol(voz, nombres, W, H):
+    vertical = H > W
+    n = len(nombres)
+    largo = H * (0.5 if vertical else 0.0) or W * 0.7
+    paso = min(largo / max(1, n - 1), (H * 0.14 if vertical else W * 0.2))
+    return {"tipo": "arbol", "vertical": vertical, "paso": round(paso, 1),
+            "r": round(min(W, H) * (0.075 if vertical else 0.07), 1),
+            "tam": round(W * (0.05 if vertical else 0.026), 1),
+            "nodos": [{"t": t, "en": round(max(voz.t_in + 0.15, voz.t(i)), 3)}
+                      for t, i in nombres],
+            "en": round(max(voz.t_in, min(voz.t(i) for _, i in nombres) - 0.3), 3),
+            "entra": "pop"}
+
+
+def pieza_personajes(voz, nombres, fichas, W, H, alto, gesto=None, expresion=None,
+                     mira=1, sep=None):
+    """Las figuras planas del plano (pasos/motion_mas.py), de pie sobre (0, 0)."""
+    figs = motion_mas.figuras(voz, nombres, fichas or {}, gesto=gesto,
+                                  expresion=expresion, mira=mira)
+    if not figs:
+        return None
+    sep = alto * 0.62 if sep is None else sep
+    n = len(figs)
+    for k, f in enumerate(figs):
+        f["dx"] = round((k - (n - 1) / 2) * sep, 1)
+        f["en"] = round(max(voz.t_in + 0.1, voz.t_in + 0.12 + 0.18 * k), 3)
+    return {"tipo": "personajes", "alto": round(alto, 1), "figuras": figs,
+            "en": figs[0]["en"], "entra": "abajo"}
+
+
+def _lamina(escena, voz, lamina, W, H, cx, cy):
+    vertical = H > W
+    lw = W * (0.8 if vertical else 0.56)
+    lh = lw * lamina["alto"] / lamina["ancho"]
+    if lh > H * (0.56 if vertical else 0.66):
+        lh = H * (0.56 if vertical else 0.66)
+        lw = lh * lamina["ancho"] / lamina["alto"]
+    gira = -1.6 if _par(escena) else 1.4
+    return {"tipo": "lamina", "href": lamina["href"], "x": cx, "y": cy,
+            "w": round(lw, 1), "h": round(lh, 1), "rot": gira,
+            "en": round(voz.t_in + 0.05, 3), "entra": "abajo",
+            "fin": round(voz.t_out, 3)}
+
+
 def storyboard(escena, ancho, alto, lamina=None, laminas=True, hoy=None,
-               mapeados=None):
+               mapeados=None, fichas=None, munecos=True, claude=None):
     """Las piezas de UN plano en coordenadas del cuadro (px, origen arriba a la
-    izquierda) y tiempos del video. -> [pieza]"""
+    izquierda) y tiempos del video. -> [pieza]
+
+    Manda, por este orden: el storyboard escrito a mano en plan.json
+    (`escena["motion"]`), el que escribio Claude (`claude`, ver
+    pasos/motion_storyboard.py; `{"tipo": "auto"}` dentro mete lo automatico)
+    y lo automatico. Un storyboard que no deja ninguna pieza valida cae a lo
+    automatico: el plano nunca sale vacio por un JSON torcido.
+    """
     voz = Voz(escena)
     W, H = float(ancho), float(alto)
+    ctx = {"lamina": lamina if laminas else None, "fichas": fichas or {},
+           "personajes": [n for n in (escena.get("personajes") or []) if n],
+           "escena": escena}
+    propio = escena.get("motion")
+    if isinstance(propio, list):
+        return [p for p in (_normalizar(x, voz, W, H, ctx) for x in propio) if p]
+    if isinstance(claude, list) and claude and propio is not False:
+        piezas = []
+        for x in claude:
+            if isinstance(x, dict) and x.get("tipo") == "auto":
+                piezas += _automatico(escena, voz, W, H, lamina, laminas, hoy,
+                                      mapeados, fichas, munecos)
+            else:
+                q = _normalizar(x, voz, W, H, ctx)
+                if q:
+                    piezas.append(q)
+        if piezas:
+            return piezas
+    return _automatico(escena, voz, W, H, lamina, laminas, hoy, mapeados, fichas,
+                       munecos)
+
+
+def _automatico(escena, voz, W, H, lamina, laminas, hoy, mapeados, fichas, munecos):
+    """Lo que el estudio pone solo (gratis, sin Claude) en un plano."""
     vertical = H > W
     cx = W / 2
     cy = H * (0.37 if vertical else 0.42)     # el subtitulo vive abajo
     propio = escena.get("motion")
-    if isinstance(propio, list):
-        return [p for p in (_normalizar(x, voz, W, H) for x in propio) if p]
     piezas = []
     if propio is not False:
         cita = cita_de(voz)
@@ -775,6 +1021,8 @@ def storyboard(escena, ancho, alto, lamina=None, laminas=True, hoy=None,
         fechas = fechas_de(voz, hoy=hoy)
         reloj = reloj_de(voz)
         comparacion = None if cita else comparacion_de(voz)
+        antes = None if (cita or comparacion) else antes_de(voz)
+        arbol = None if (cita or comparacion or antes) else arbol_de(voz)
         if cita:
             ancho_txt = W * (0.88 if vertical else 0.72)
             tam = W * 0.1 if vertical else min(W * 0.05, H * 0.07)
@@ -788,6 +1036,10 @@ def storyboard(escena, ancho, alto, lamina=None, laminas=True, hoy=None,
             pass
         elif comparacion:
             piezas.append(dict(pieza_comparacion(voz, comparacion, W, H), x=cx, y=cy))
+        elif antes:
+            piezas.append(dict(pieza_antes(voz, antes, W, H), x=cx, y=cy))
+        elif arbol:
+            piezas.append(dict(pieza_arbol(voz, arbol, W, H), x=cx, y=cy))
         elif fechas:
             # la fecha manda sobre el mapa: «en el año 70 Roma destruyo
             # Jerusalen» cuenta CUANDO, no cuanto hay de Roma a Jerusalen
@@ -803,35 +1055,57 @@ def storyboard(escena, ancho, alto, lamina=None, laminas=True, hoy=None,
             piezas.append(dict(pieza_reloj(voz, reloj, r), x=cx, y=cy + r * 0.1))
         else:
             lista = lista_de(voz)
-            contador = None if lista else contador_de(voz)
+            barras = None if lista else barras_de(voz)
+            contador = None if (lista or barras) else contador_de(voz)
             if lista:
                 piezas.append(dict(pieza_lista(voz, lista, W, H), x=cx, y=cy))
+            elif barras:
+                piezas.append(dict(pieza_barras(voz, barras, W, H), x=cx, y=cy))
             elif contador:
                 piezas.append(dict(pieza_contador(voz, contador, W, H), x=cx,
                                    y=cy - H * (0.08 if vertical else 0.06)))
     if not piezas:
         iconos = iconos_de(voz)
+        # LOS MUÑECOS PLANOS (pasos/motion_mas.py): los personajes del plano
+        # dentro del mundo. Con lamina, pequeños delante de ella (como quien
+        # la presenta); sin lamina, grandes en el centro.
+        nombres = [n for n in (escena.get("personajes") or []) if n] if munecos else []
+        figs = None
         if lamina and laminas:
-            lw = W * (0.8 if vertical else 0.56)
-            lh = lw * lamina["alto"] / lamina["ancho"]
-            if lh > H * (0.56 if vertical else 0.66):
-                lh = H * (0.56 if vertical else 0.66)
-                lw = lh * lamina["ancho"] / lamina["alto"]
-            gira = -1.6 if _par(escena) else 1.4
-            piezas.append({"tipo": "lamina", "href": lamina["href"], "x": cx, "y": cy,
-                           "w": round(lw, 1), "h": round(lh, 1), "rot": gira,
-                           "en": round(voz.t_in + 0.05, 3), "entra": "abajo",
-                           "fin": round(voz.t_out, 3)})
+            lam = _lamina(escena, voz, lamina, W, H, cx, cy)
+            lw, lh = lam["w"], lam["h"]
+            piezas.append(lam)
+            if nombres:
+                alto = H * (0.2 if vertical else 0.3)
+                figs = pieza_personajes(voz, nombres, fichas, W, H, alto,
+                                        mira=1 if _par(escena) else -1)
+                if figs:
+                    lado = -1 if _par(escena) else 1
+                    figs.update(x=round(cx + lado * lw * 0.3, 1),
+                                y=round(min(cy + lh / 2 + alto * 0.12,
+                                            H * (0.7 if vertical else 0.86)), 1))
             sitios = ((cx + lw * 0.46, cy - lh * 0.46), (cx - lw * 0.46, cy + lh * 0.44),
                       (cx + lw * 0.44, cy + lh * 0.46))
             tam = W * (0.15 if vertical else 0.085)
         else:
             sitios = ((cx, cy), (cx - W * 0.27, cy + H * 0.08), (cx + W * 0.27, cy + H * 0.08))
             tam = W * (0.3 if vertical else 0.16)
+            ty = cy
+            if nombres:
+                alto = H * (0.32 if vertical else 0.5)
+                figs = pieza_personajes(voz, nombres, fichas, W, H, alto,
+                                        mira=1 if _par(escena) else -1)
+                if figs:
+                    figs.update(x=round(cx, 1), y=round(cy + alto * 0.58, 1))
+                    # los iconos y la palabra van encima y a los lados
+                    sitios = ((cx + W * 0.3, cy - alto * 0.55), (cx - W * 0.3, cy - alto * 0.5),
+                              (cx + W * 0.32, cy + alto * 0.05))
+                    tam = W * (0.17 if vertical else 0.1)
+                    ty = cy - alto * 0.62
             if not iconos:
                 clave = _palabra_fuerte(voz)
                 if clave:
-                    piezas.append({"tipo": "texto", "x": cx, "y": cy, "w": W * 0.84,
+                    piezas.append({"tipo": "texto", "x": cx, "y": ty, "w": W * 0.84,
                                    "tam": W * (0.13 if vertical else 0.08),
                                    "palabras": [{"t": clave[0].upper(), "c": 1,
                                                  "en": round(voz.t(clave[1]), 3)}],
@@ -842,6 +1116,8 @@ def storyboard(escena, ancho, alto, lamina=None, laminas=True, hoy=None,
                            "y": round(y, 1), "tam": round(tam * (1 if n == 0 or lamina else 0.7), 1),
                            "en": round(max(voz.t_in + 0.25, voz.t(i)), 3),
                            "entra": "arriba" if n % 2 == 0 else "abajo"})
+        if figs:
+            piezas.append(figs)
     return piezas
 
 
@@ -859,13 +1135,45 @@ def _palabra_fuerte(voz):
     return mejor[:2] if mejor else None
 
 
-def _normalizar(pieza, voz, W, H):
-    """Una pieza escrita a mano (fracciones del cuadro, `en` en palabras)."""
+def _indice(voz, spec, defecto=0):
+    """`en` (palabra, «#N» o segundos del plano) -> indice de palabra."""
+    if spec is None or not voz.crudas:
+        return defecto
+    if isinstance(spec, (int, float)):
+        t = voz.t_in + float(spec)
+        for k, (a, b) in enumerate(voz.tiempos):
+            if b >= t:
+                return k
+        return len(voz.crudas) - 1
+    spec = str(spec).strip()
+    if spec.startswith("#") and spec[1:].isdigit():
+        return min(len(voz.crudas) - 1, int(spec[1:]))
+    i = voz.buscar(spec)
+    if i is None and spec.split():
+        i = voz.buscar(spec.split()[0])
+    return defecto if i is None else i
+
+
+def _normalizar(pieza, voz, W, H, ctx=None):
+    """Una pieza escrita a mano o por Claude (fracciones del cuadro, `en` en
+    palabras). -> pieza lista para el render, o None si no se entiende."""
     if not isinstance(pieza, dict) or pieza.get("tipo") not in TIPOS:
         return None
+    ctx = ctx or {}
+    try:
+        return _normalizar_de_verdad(pieza, voz, W, H, ctx)
+    except (KeyError, TypeError, ValueError, IndexError, ZeroDivisionError) as e:
+        print(f"[motion] pieza {pieza.get('tipo')} descartada ({e})", flush=True)
+        return None
+
+
+def _normalizar_de_verdad(pieza, voz, W, H, ctx):
     p = dict(pieza)
     for k, total in (("x", W), ("y", H), ("w", W), ("h", H)):
         if isinstance(p.get(k), (int, float)) and 0 <= p[k] <= 1.5:
+            p[k] = round(p[k] * total, 1)
+    for k, total in (("tam", W), ("alto", H), ("r", min(W, H))):
+        if isinstance(p.get(k), (int, float)) and 0 < p[k] <= 1.5:
             p[k] = round(p[k] * total, 1)
     p.setdefault("x", W / 2)
     p.setdefault("y", H * 0.4)
@@ -886,6 +1194,130 @@ def _normalizar(pieza, voz, W, H):
             q["y"] = round(q["y"] * H, 1)
         luego.append(q)
     p["luego"] = luego
+    vertical = H > W
+    t = p["tipo"]
+    if t == "lamina":
+        lam = ctx.get("lamina")
+        if not lam:
+            return None
+        q = _lamina(ctx.get("escena") or {}, voz, lam, W, H, p["x"], p["y"])
+        q.update({k: p[k] for k in ("luego", "sale") if p.get(k)})
+        if pieza.get("entra") in ENTRADAS:
+            q["entra"] = pieza["entra"]
+        return q
+    if t == "personajes":
+        nombres = p.get("nombres") or ctx.get("personajes") or []
+        if isinstance(nombres, str):
+            nombres = [nombres]
+        mira = p.get("mira")
+        mira = -1 if mira in ("izquierda", -1) else 1
+        q = pieza_personajes(voz, nombres, ctx.get("fichas"), W, H,
+                             p.get("alto") or H * (0.26 if vertical else 0.4),
+                             gesto=p.get("gesto"), expresion=p.get("expresion"),
+                             mira=mira)
+        if not q:
+            return None
+        if pieza.get("en") is not None:
+            for k, f in enumerate(q["figuras"]):
+                f["en"] = round(p["en"] + 0.18 * k, 3)
+            q["en"] = p["en"]
+        q.update({k: p[k] for k in ("x", "y", "luego", "sale") if k in p})
+        if pieza.get("entra") in ENTRADAS:
+            q["entra"] = pieza["entra"]
+        return q
+    if t == "flecha":
+        de, a = p.get("de"), p.get("a")
+        if not (isinstance(de, (list, tuple)) and isinstance(a, (list, tuple))):
+            return None
+        de = [float(de[0]) * W if abs(de[0]) <= 1.5 else float(de[0]),
+              float(de[1]) * H if abs(de[1]) <= 1.5 else float(de[1])]
+        a = [float(a[0]) * W if abs(a[0]) <= 1.5 else float(a[0]),
+             float(a[1]) * H if abs(a[1]) <= 1.5 else float(a[1])]
+        p.update(x=round(de[0], 1), y=round(de[1], 1), dx=round(a[0] - de[0], 1),
+                 dy=round(a[1] - de[1], 1), texto=str(p.get("texto") or "")[:30],
+                 curva=float(p.get("curva", 0.25)), entra="nada",
+                 grosor=round(W * (0.014 if vertical else 0.008), 1))
+        p.setdefault("tam", W * (0.06 if vertical else 0.032))
+        return p
+    if t == "circulo":
+        p.setdefault("w", W * 0.3)
+        p.setdefault("h", p["w"] * 0.6)
+        p.update(texto=str(p.get("texto") or "")[:30], entra="nada",
+                 grosor=round(W * (0.012 if vertical else 0.007), 1))
+        p.setdefault("tam", W * (0.06 if vertical else 0.032))
+        return p
+    if t == "comparacion":
+        if not (p.get("a") and p.get("b")):
+            return None
+        ia = _indice(voz, pieza.get("en"), 0)
+        ib = _indice(voz, pieza.get("en_b"), max(ia, min(len(voz.crudas) - 1, ia + 3)))
+        q = pieza_comparacion(voz, {"a": str(p["a"])[:60], "b": str(p["b"])[:60],
+                                    "i_a": ia, "i_b": ib}, W, H)
+        q.update({k: p[k] for k in ("x", "y", "luego", "sale") if k in p})
+        return q
+    if t == "antes":
+        a, b = p.get("antes") or p.get("a"), p.get("despues") or p.get("b")
+        if not (a and b):
+            return None
+        ia = _indice(voz, pieza.get("en"), 0)
+        defecto_b = next((k for k, pl in enumerate(voz.plegadas)
+                          if pl in ("ahora", "hoy", "despues", "luego") and k > ia),
+                         max(ia, min(len(voz.crudas) - 1, ia + 3)))
+        ib = _indice(voz, pieza.get("en_b") or pieza.get("en_despues"), defecto_b)
+        q = pieza_antes(voz, {"a": str(a)[:50], "b": str(b)[:50], "i_a": ia, "i_b": ib}, W, H)
+        q.update({k: p[k] for k in ("x", "y", "luego", "sale") if k in p})
+        return q
+    if t == "lista":
+        items = [str(x)[:40] for x in (p.get("items") or []) if str(x).strip()][:5]
+        if len(items) < 2:
+            return None
+        base = _indice(voz, pieza.get("en"), 0)
+        resto = len(voz.crudas) - base
+        pares = []
+        for k, it in enumerate(items):
+            i = voz.buscar(it.split()[0], base) if it.split() else None
+            pares.append((it, i if i is not None else
+                          min(len(voz.crudas) - 1, base + k * max(1, resto // len(items)))))
+        q = pieza_lista(voz, pares, W, H)
+        q.update({k: p[k] for k in ("x", "y", "luego", "sale") if k in p})
+        return q
+    if t == "contador":
+        n = int(float(p.get("n") or 0))
+        if n < 2:
+            return None
+        cosa = str(p.get("cosa") or "").strip()[:20]
+        i = _indice(voz, pieza.get("en"), 0)
+        q = pieza_contador(voz, {"n": n, "cosa": cosa or "veces", "plegada": fidelidad.plegar(cosa),
+                                 "i": i, "fin": min(len(voz.crudas) - 1, i + 2)}, W, H)
+        q.update({k: p[k] for k in ("x", "y", "luego", "sale") if k in p})
+        return q
+    if t == "barras":
+        crudas = [b for b in (p.get("barras") or []) if isinstance(b, dict)][:4]
+        pct = str(p.get("unidad") or "").strip() == "%"
+        barras = []
+        for k, b in enumerate(crudas):
+            v = float(b.get("v") or 0)
+            if v <= 0:
+                continue
+            txt = f"{v:g} %" if pct else f"{int(v):,}".replace(",", ".")
+            i = _indice(voz, b.get("en"), min(len(voz.crudas) - 1, k * 2))
+            barras.append({"t": str(b.get("t") or "")[:24], "v": v, "txt": txt, "i": i, "pct": pct})
+        if not barras:
+            return None
+        q = pieza_barras(voz, barras, W, H)
+        q.update({k: p[k] for k in ("x", "y", "luego", "sale") if k in p})
+        return q
+    if t == "arbol":
+        nombres = [str(x)[:20] for x in (p.get("nombres") or []) if str(x).strip()][:6]
+        if len(nombres) < 2:
+            return None
+        pares = []
+        for k, nombre in enumerate(nombres):
+            i = voz.buscar(nombre)
+            pares.append((nombre, i if i is not None else min(len(voz.crudas) - 1, k)))
+        q = pieza_arbol(voz, pares, W, H)
+        q.update({k: p[k] for k in ("x", "y", "luego", "sale") if k in p})
+        return q
     if p["tipo"] == "texto":
         texto = str(p.get("texto") or "")
         palabras, desde = [], 0
@@ -1053,6 +1485,31 @@ def focos_de(pz, W, H):
         f.append((pz["items"][-1]["en"] + 0.9, x, y, 1.0))
     elif t == "texto":
         f.append((pz["en"], x, y, 1.12))
+    elif t == "barras":
+        n = len(pz["barras"])
+        for k, b in enumerate(pz["barras"]):
+            f.append((b["en"], x - pz["w"] / 2 + pz["w"] / n * (k + 0.5), y, 1.12))
+        f.append((pz["barras"][-1]["en"] + 1.0, x, y, 1.0))
+    elif t == "antes":
+        f.append((pz["a_en"], x, y, 1.06))
+        f.append((pz["b_en"] + 0.5, x, y, 1.16))
+        f.append((pz["b_en"] + 1.5, x, y, 1.0))
+    elif t == "arbol":
+        n = len(pz["nodos"])
+        for k, nd in enumerate(pz["nodos"]):
+            if pz["vertical"]:
+                px_, py_ = (1 if k % 2 else -1) * pz["r"] * 0.9, (k - (n - 1) / 2) * pz["paso"]
+            else:
+                px_, py_ = (k - (n - 1) / 2) * pz["paso"], (1 if k % 2 else -1) * pz["r"] * 0.5
+            f.append((nd["en"], x + px_, y + py_, 1.18))
+        f.append((pz["nodos"][-1]["en"] + 0.9, x, y, 1.0))
+    elif t == "personajes":
+        if pz["alto"] > H * 0.24:
+            f.append((pz["en"] + 0.1, x, y - pz["alto"] * 0.62, 1.1))
+    elif t == "flecha":
+        f.append((pz["en"] + 0.4, x + pz["dx"], y + pz["dy"], 1.1))
+    elif t == "circulo":
+        f.append((pz["en"] + 0.3, x, y, 1.15))
     return f
 
 
@@ -1075,7 +1532,10 @@ def ventana_de(piezas, a, b, W, H, sy):
 
 ICONO_PUENTE = {"versiculo": "biblia", "mapa": "chincheta", "linea": "arena",
                 "reloj": "reloj", "contador": "estrella", "comparacion": "balanza",
-                "lista": "pergamino", "texto": "estrella", "lamina": "estrella"}
+                "lista": "pergamino", "texto": "estrella", "lamina": "estrella",
+                "barras": "lupa", "antes": "arena", "arbol": "arbol",
+                "personajes": "persona", "flecha": "flecha", "circulo": "lupa"}
+SUPERPUESTAS = ("flecha", "circulo")   # señalan otra cosa: no son la pieza principal
 
 
 def impactos_de(pz):
@@ -1084,7 +1544,8 @@ def impactos_de(pz):
     t = pz["tipo"]
     sale = {"abajo": 0.2, "arriba": 0.2, "izquierda": 0.2, "derecha": 0.2}.get(
         pz.get("entra"), 0.12)
-    fuerza = {"icono": 0.5, "lamina": 0.8, "texto": 0.7}.get(t, 1.0)
+    fuerza = {"icono": 0.5, "lamina": 0.8, "texto": 0.7, "personajes": 0.6,
+              "flecha": 0.3, "circulo": 0.3}.get(t, 1.0)
     salida = [(pz["en"] + sale, fuerza)]
     if t == "mapa":
         salida += [(pin["en"] + 0.2, 0.35) for pin in pz["lugares"]]
@@ -1094,22 +1555,35 @@ def impactos_de(pz):
         salida.append((pz["b_en"] + 0.2, 0.9))
     elif t == "lista":
         salida += [(it["en"] + 0.2, 0.4) for it in pz["items"]]
+    elif t == "barras":
+        salida += [(b["en"] + 0.25, 0.4) for b in pz["barras"][1:]]
+    elif t == "antes":
+        salida.append((pz["b_en"] + 0.6, 0.9))
+    elif t == "arbol":
+        salida += [(nd["en"] + 0.2, 0.4) for nd in pz["nodos"][1:]]
+    elif t == "personajes":
+        salida += [(fg["en"] + 0.25, 0.4) for fg in pz["figuras"][1:]]
+    elif t == "flecha":
+        salida.append((pz["en"] + 0.45, 0.3))
     return [{"t": round(a, 3), "f": f, "id": pz.get("id"), "x": pz["x"], "y": pz["y"]}
             for a, f in salida]
 
 
-def preparar(escenas, p, laminas_px, ancho, alto, hoy=None):
+def preparar(escenas, p, laminas_px, ancho, alto, hoy=None, fichas=None, claude=None):
     """La configuracion de motion de CADA plano. -> {sid: conf}
 
     `laminas_px`: {sid: {"href", "ancho", "alto"}} con la imagen de cada plano
     (o nada). Cada conf lleva su plano y los dos anteriores (lo que se puede
     ver durante el viaje) con coordenadas del MUNDO.
+    `fichas`: {nombre: descripcion} del reparto, para vestir a los muñecos.
+    `claude`: {sid: [piezas]}, el storyboard de pasos/motion_storyboard.py.
     """
     tema = tema_de(p)
     if not tema:
         return {}
     opciones = _opciones(p)
     laminas = opciones.get("laminas", True) is not False
+    munecos = opciones.get("munecos", True) is not False
     W, H = float(ancho), float(alto)
     puntos = paradas(len(escenas), W, H)
     tramos = camara(escenas, puntos)
@@ -1117,7 +1591,9 @@ def preparar(escenas, p, laminas_px, ancho, alto, hoy=None):
     for i, e in enumerate(escenas):
         ox, oy = puntos[i][0] - W / 2, puntos[i][1] - H / 2
         piezas = storyboard(e, W, H, (laminas_px or {}).get(e.get("id")),
-                            laminas=laminas, hoy=hoy, mapeados=mapeados)
+                            laminas=laminas, hoy=hoy, mapeados=mapeados,
+                            fichas=fichas, munecos=munecos,
+                            claude=(claude or {}).get(e.get("id")))
         for pz in piezas:
             pz["x"] = round(float(pz.get("x", W / 2)) + ox, 1)
             pz["y"] = round(float(pz.get("y", H / 2)) + oy, 1)
@@ -1137,7 +1613,8 @@ def preparar(escenas, p, laminas_px, ancho, alto, hoy=None):
         if not por_plano[i] or not por_plano[i + 1]:
             puentes.append(None)
             continue
-        a, b = por_plano[i][0], por_plano[i + 1][0]
+        principal = (lambda ps: next((q for q in ps if q["tipo"] not in SUPERPUESTAS), ps[0]))
+        a, b = principal(por_plano[i]), principal(por_plano[i + 1])
         viaje = tramos[2 * (i + 1)]
         t_out = float(escenas[i]["t_out"])
         sale = max(float(escenas[i]["t_in"]) + 0.3, t_out - 0.55)
@@ -1448,7 +1925,8 @@ function icono(nombre, padre){
     case 'flecha':
       mk('path', a({d: 'M-44,-10 H10 V-30 L44,0 L10,30 V10 H-44z', fill: MGT.acento}), g); break;
     default:
-      mk('circle', a({r: 30, fill: MGT.acento}), g);
+      if (typeof iconoMas === 'function') iconoMas(nombre, g, a);
+      else mk('circle', a({r: 30, fill: MGT.acento}), g);
   }
   return g;
 }
@@ -2080,7 +2558,7 @@ function mgPieza(q, T){
   const d = p.entra || 'abajo', dist = MG.H*0.75;
   if (d === 'pop'){
     esc *= Math.max(0.001, r);
-  } else {
+  } else if (d !== 'nada'){
     const k = 1 - r;
     if (d === 'abajo') oy = k*dist;
     if (d === 'arriba') oy = -k*dist;
@@ -2193,3 +2671,27 @@ function motionPintar(t){
   });
 }
 """
+
+# la segunda parte (muñecos planos, barras, antes/despues, arbol, flecha,
+# circulo e iconos de metafora) se suma al final: CONSTRUCTORES ya existe
+MOTION_JS += motion_mas.MOTION_MAS_JS
+
+
+def tipos_auto(escenas, ancho, alto, laminas_px=None, hoy=None):
+    """{sid: "mapa" | "lamina, icono"...}: lo que pondria lo automatico en cada
+    plano (para contarselo a Claude al pedirle el storyboard)."""
+    mapeados, salida = set(), {}
+    for e in escenas:
+        piezas = storyboard(e, ancho, alto, (laminas_px or {}).get(e.get("id")),
+                            hoy=hoy, mapeados=mapeados, munecos=False)
+        salida[e.get("id")] = ", ".join(dict.fromkeys(p["tipo"] for p in piezas)) or "nada"
+    return salida
+
+
+def resumen_opciones(p):
+    """Para el registro: que se pidio del motion."""
+    o = _opciones(p)
+    return (f"tema {tema_de(p)}, storyboard "
+            f"{'de Claude' if o.get('storyboard') == 'claude' else 'automatico'}, "
+            f"muñecos {'no' if o.get('munecos') is False else 'si'}, "
+            f"sonidos {'no' if o.get('sonidos') is False else 'si'}")

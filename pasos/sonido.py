@@ -1448,6 +1448,29 @@ def anadir_golpe(pista, duracion_s, destino, muestra, ganancia_db=-3.0):
     return _escribir(destino, bus)
 
 
+def anadir_muestras(pista, duracion_s, destino, muestras):
+    """Suma varias muestras en su momento: [(t, float32 (n, 2), dB)]. -> ruta
+
+    Como `anadir_golpe` pero en cualquier instante (los whoosh y pop del
+    motion, pasos/motion_mas.py). Sin pista, crea una del largo del video.
+    """
+    total = int(max(1, round(float(duracion_s) * FRECUENCIA)))
+    if pista and os.path.exists(pista):
+        bus = _leer(pista).copy()
+    else:
+        bus = np.zeros((total, 2), dtype=np.float32)
+    for t, muestra, db in muestras:
+        i = int(max(0.0, float(t)) * FRECUENCIA)
+        if i >= len(bus):
+            continue
+        trozo = muestra[:len(bus) - i] * (10.0 ** (db / 20.0))
+        bus[i:i + len(trozo)] += trozo
+    pico = float(np.max(np.abs(bus))) if len(bus) else 0.0
+    if pico > 0.98:
+        bus *= 0.98 / pico
+    return _escribir(destino, bus)
+
+
 def filtro_de_mezcla(con_musica, con_efectos, duracion_s, lufs=MUSICA_LUFS,
                      ya_normalizada=False, ajuste_db=0.0, master=False,
                      medida=None, efectos_db=0.0):

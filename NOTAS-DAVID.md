@@ -204,8 +204,8 @@ COMPLETA y pulida, calidad profesional, no en versión mínima; pero con ahorro-
 cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
 
 PLAN INMEDIATO (orden cambiado el 6-nov): primero los puntos de «OPINIÓN DE DAVID»
-(abajo), un chat por punto. A, B+B+ y C HECHOS. Nuevo orden: **G con D** (primera
-parte HECHA el 6-nov; falta la segunda parte de G), luego **E**, luego **F**. Mientras: David saca la clave de YouTube
+(abajo), un chat por punto. A, B+B+, C y **G con D** HECHOS (G completo el 6-nov).
+Siguen **E** (guion y voz con intención) y luego **F** (movimiento y transiciones). Mientras: David saca la clave de YouTube
 (gratis), prueba «💡 Ideas» y publica para tener datos («Mis vídeos»). Después,
 etapa 6 de la hoja de ruta (un solo prompt para todas las imágenes).
 
@@ -363,11 +363,54 @@ G. **FIGURAS PLANAS PROPIAS (decidido 6-nov)**: personajes de colores lisos como
    `"motion": [piezas]` (storyboard a mano: texto, icono, versículo, mapa,
    línea, reloj, lámina, con `en`, `entra` y `luego`) o `"motion": false`.
    Prueba: `pasos/prueba_motion.py` (`--foto` pinta y comprueba que no hay corte).
-   **SEGUNDA PARTE (siguiente chat)**: que Claude escriba el storyboard de cada
-   plano con metáforas (y elija piezas e iconos con intención); figuras planas
-   propias (muñecos) dentro del mundo; más piezas (flechas que señalan, gráfico
-   de barras, antes/después, árbol genealógico); sonido «whoosh» en los viajes y
-   «pop» en cada pieza.
+   **SEGUNDA PARTE — HECHA (6-nov-2026)**: G y D completos.
+   Cómo se usa: al crear el vídeo (o en «El encargo») → «Animación» → «✏️ papel»
+   o «🌙 noche». Debajo salen tres filas nuevas:
+   - **Quién elige las piezas**: «🧠 Claude, con metáforas» (por defecto) o
+     «⚙️ Automático (no gasta Claude)». Con Claude, al montar el vídeo Claude
+     lee el guion ENTERO y decide cada plano: metáforas (el pecado = bola con
+     cadena que cae; la duda = «?» que crece; la fe = semilla; la salvación =
+     candado que se abre), los muñecos con su gesto y su cara, flechas, círculos,
+     barras… Donde lo automático ya explica (versículo, mapa, años, horas…) lo
+     deja y como mucho añade un acento. UNA llamada a Sonnet por vídeo y se
+     guarda: volver a montar NO gasta; si cambias la frase de un plano, solo
+     pregunta por ese plano. Si Claude falla, sale lo automático (no se para).
+   - **Muñecos planos dentro del mundo** (Sí por defecto): los personajes del
+     plano (del reparto: color de túnica, velo si es mujer, barba, canas, alas
+     si es ángel) como figuras planas de cabeza grande y ojos grandes, con caras
+     MUY expresivas (alegría con mejillas, sorpresa con rayitas, miedo con gota
+     de sudor y temblor, tristeza con lágrima, enfado). Gestos: presentar,
+     hablar, señalar, levantar los brazos, caminar, escuchar (asiente),
+     arrodillarse (orar), saltar (alegría), asustarse, girar, pensar. **La boca
+     sigue la voz**: quien habla («Pedro dijo: …») abre la boca en cada palabra,
+     una vez por sílaba. Parpadean, respiran y entran saltando; el nombre sale
+     en una etiqueta si la frase lo dice. Con la imagen del plano salen
+     pequeños delante de la lámina; sin imagen, grandes en el centro.
+   - **Sonidos**: «whoosh» en cada viaje de cámara y «pop» cada vez que una pieza
+     aterriza (sintéticos: suenan aunque no haya clave de FreeSound).
+   **Piezas automáticas nuevas** (gratis, sin Claude): **barras** («el 70 % de
+   la iglesia y el 30 % del mundo», «cinco panes y dos peces»: cada barra crece
+   y cuenta cuando se dice su cifra), **antes/ahora** («antes era perseguidor,
+   ahora es apóstol»: una cortina barre lo gris de antes y descubre lo nuevo con
+   destellos), **árbol genealógico** («Isaac, hijo de Abraham, fue padre de
+   Jacob»: cada generación cae al decir su nombre y la rama se dibuja). Y para
+   Claude/a mano: **flecha** que se dibuja y señala (con rótulo) y **círculo a
+   mano** que rodea algo. 10 iconos más para metáforas: bola con cadena,
+   corazón roto, bombilla, rayo, semilla, candado, regalo, mundo, escalera, muro.
+   Cómo quedó: `pasos/motion_mas.py` (muñecos, piezas nuevas en JS, iconos y
+   sonidos) + `pasos/motion_storyboard.py` (Claude, caché en
+   `<proyecto>/motion/storyboard.json`) + `motion.py` (detección, `_normalizar`
+   de todas las piezas, `_automatico`, `tipos_auto`) + `p8_render` (fichas del
+   reparto, storyboard, `sonido.anadir_muestras`) + `selectorMotion` en
+   `web/app.js` + `app.py` al crear. Param del render `motion`:
+   `{"tema": "papel", "storyboard": "claude", "munecos": false, "sonidos": false}`
+   (lo que falta = sí; `"papel"` a secas, de antes, sigue valiendo = automático
+   con muñecos y sonidos). No mueve firmas; cambiarlo pide volver a montar.
+   Para no llamar a Claude nunca: variable `ESTUDIO_STORYBOARD=no`.
+   Prueba: `pasos/prueba_motion.py` (`--foto` pinta los planos; con
+   `ESTUDIO_CHROMIUM=<ruta de chrome>` si Playwright no encuentra el navegador).
+   Pendiente: ver y corregir el storyboard de Claude desde la pantalla; estilo
+   PALITOS para reflexión; que el muñeco camine de un sitio a otro del mundo.
 B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Cómo se usa: al crear el vídeo (o en «El encargo») → «Gancho» → «⚡ Gancho +
    textos TikTok». Debajo salen dos filas nuevas: «Letra de los textos»

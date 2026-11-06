@@ -33,7 +33,31 @@ ESCENAS = [
     _escena("S007", "No fueron tres reyes, sino unos magos de oriente.", 24.0, 28.0),
     _escena("S008", "Jesús alimentó a cinco mil hombres con cinco panes", 28.0, 32.0),
     _escena("S009", "Haz tres cosas: orar, leer la Biblia y servir.", 32.0, 36.0),
+    # segunda parte (pasos/motion_mas.py y pasos/motion_storyboard.py)
+    _escena("S010", "Antes era perseguidor, ahora es apóstol de Cristo", 36.0, 40.0),
+    _escena("S011", "Isaac, hijo de Abraham, fue padre de Jacob", 40.0, 44.0),
+    _escena("S012", "El 70% de la iglesia y el 30 % del mundo", 44.0, 48.0),
+    dict(_escena("S013", "Pedro dijo: yo no conozco a ese hombre", 48.0, 52.0),
+         personajes=["Pedro", "María"]),
+    dict(_escena("S014", "María tuvo miedo y tembló en la noche", 52.0, 56.0),
+         personajes=["María"]),
+    _escena("S015", "El pecado te ata, pero Cristo te hace libre", 56.0, 61.0),
 ]
+FICHAS = {"Pedro": "pescador, túnica azul, barba negra", "María": "mujer joven, manto azul"}
+# lo que devolveria Claude para S015 (la metafora: el pecado = bola con cadena)
+RESPUESTA = """Aqui va:
+```json
+{"S015": [
+  {"tipo": "texto", "texto": "El *PECADO*", "x": .5, "y": .16, "en": "pecado", "entra": "pop"},
+  {"tipo": "icono", "nombre": "bola", "x": .5, "y": .4, "tam": .34, "en": "ata",
+   "entra": "arriba", "luego": [{"en": "libre", "y": 1.4, "rot": 40}]},
+  {"tipo": "personajes", "nombres": ["Pedro"], "gesto": "saltar", "expresion": "alegria",
+   "x": .3, "y": .66, "alto": .22, "en": "libre"},
+  {"tipo": "flecha", "de": [.75, .62], "a": [.58, .45], "texto": "¡suelta!", "en": "Cristo"},
+  {"tipo": "inventada", "x": 1},
+  {"tipo": "circulo", "x": .5, "y": .16, "w": .6, "h": .1, "en": "libre"},
+]}
+```"""
 
 
 def main():
@@ -52,8 +76,31 @@ def main():
     assert motion.fechas_de(motion.Voz(_escena("X", "En el 586 a. C. cayó", 0, 2)))[0]["anio"] == -586
     W, H = 608, 1080
     lam = {"href": "file:///no/existe.png", "ancho": 1024, "alto": 1536}
+    import motion_storyboard
+    import motion_mas
+    d = tempfile.mkdtemp(prefix="prueba_storyboard_")
+    pedidos = []
+
+    def falso(instr):
+        pedidos.append(instr)
+        return RESPUESTA
+    p = {"motion": {"tema": "papel", "storyboard": "claude"}}
+    assert motion_storyboard.pedido(p) and not motion_storyboard.pedido({"motion": "papel"})
+    guion = motion_storyboard.obtener(d, ESCENAS, W, H, FICHAS, ejecutar=falso,
+                                      autos=motion.tipos_auto(ESCENAS, W, H), iconos=motion.ICONOS)
+    assert len(pedidos) == 1 and "S015 (" in pedidos[0] and "bola" in pedidos[0], pedidos[0][:300]
+    assert list(guion) == ["S015"] and len(guion["S015"]) == 6, guion
+    # la cache: volver a montar no vuelve a preguntar
+    otra = motion_storyboard.obtener(d, ESCENAS, W, H, FICHAS, ejecutar=falso)
+    assert len(pedidos) == 1 and otra == guion
+    # cambiar la frase de UN plano solo pregunta por ese
+    cambiada = [dict(e, narracion=e["narracion"] + " hoy") if e["id"] == "S006" else e
+                for e in ESCENAS]
+    motion_storyboard.obtener(d, cambiada, W, H, FICHAS, ejecutar=falso)
+    assert len(pedidos) == 2 and pedidos[1].count("<- ESCRIBE ESTE") == 1, pedidos[1][-200:]
     confs = motion.preparar(ESCENAS, {"motion": True},
-                            {e["id"]: lam for e in ESCENAS}, W, H, hoy=2026)
+                            {e["id"]: lam for e in ESCENAS if e["id"] != "S013"}, W, H,
+                            hoy=2026, fichas=FICHAS, claude=guion)
     tipos = [[p["tipo"] for p in confs[e["id"]]["piezas"] if p["en"] >= e["t_in"] - 0.8]
              for e in ESCENAS]
     assert tipos[0] == ["versiculo"], tipos
@@ -86,6 +133,42 @@ def main():
     propio = dict(ESCENAS[5], motion=[{"tipo": "texto", "texto": "Sin *hambre*",
                                        "x": .5, "y": .3, "en": "hambre",
                                        "luego": [{"en": "Dios", "y": .2, "escala": .8}]}])
+    # segunda parte: piezas automaticas nuevas
+    tipos = {e["id"]: [p["tipo"] for p in confs[e["id"]]["piezas"]
+                       if p["id"].startswith(e["id"] + "-")] for e in ESCENAS}
+    assert tipos["S010"] == ["antes"] and tipos["S011"] == ["arbol"], tipos
+    assert tipos["S012"] == ["barras"], tipos
+    def pieza(sid, tipo):
+        return next(p for p in confs[sid]["piezas"]
+                    if p["tipo"] == tipo and p["id"].startswith(sid + "-"))
+    bar = pieza("S012", "barras")
+    assert [b["v"] for b in bar["barras"]] == [70, 30] and bar["barras"][0]["t"] == "iglesia" and bar["barras"][1]["t"] == "mundo", bar
+    arb = pieza("S011", "arbol")
+    assert [n["t"] for n in arb["nodos"]] == ["Abraham", "Isaac", "Jacob"], arb
+    # muñecos: sin lamina, grandes en el centro; quien habla mueve la boca con la voz
+    figs = pieza("S013", "personajes")
+    pedro, maria = figs["figuras"]
+    assert pedro["gesto"] == "hablar" and len(pedro["habla"]) == 6 and pedro["etiqueta"], pedro
+    assert maria["gesto"] == "escuchar" and maria["mujer"] and not maria["habla"], maria
+    assert pedro["tunica"] == "#3d5f9e" or pedro["tunica"].startswith("#"), pedro
+    # con lamina, pequeños delante; el miedo se ve en la cara y en el cuerpo
+    assert tipos["S014"][0] == "lamina" and tipos["S014"][-1] == "personajes", tipos
+    m14 = pieza("S014", "personajes")["figuras"][0]
+    assert m14["expr"] == "miedo" and m14["gesto"] == "asustarse", m14
+    # el storyboard de Claude manda en S015; la pieza inventada se descarta (y la coma
+    # antes de cerrar del JSON no lo rompe)
+    assert tipos["S015"] == ["texto", "icono", "personajes", "flecha", "circulo"], tipos
+    f15 = pieza("S015", "personajes")
+    assert f15["figuras"][0]["gesto"] == "saltar" and f15["figuras"][0]["expr"] == "alegria"
+    # el puente no aterriza en la flecha ni en el circulo
+    assert all(q["icono"] != "flecha" for q in confs["S015"]["puentes"])
+    # sonidos: un whoosh por viaje y pops que no se amontonan
+    ev = motion_mas.eventos_sonido(confs)
+    assert sum(1 for e in ev if e[1] == "whoosh") == len(ESCENAS) - 1, ev[:5]
+    pops = [e[0] for e in ev if e[1] == "pop"]
+    assert pops and all(b - a >= 0.14 for a, b in zip(pops, pops[1:])), pops
+    muestras = motion_mas.pista(ev[:3])
+    assert all(m.shape[1] == 2 and abs(m).max() <= 1.0 for _, m, _ in muestras)
     piezas = motion.storyboard(propio, W, H)
     assert piezas[0]["tipo"] == "texto" and piezas[0]["palabras"][1]["c"] == 1
     assert piezas[0]["en"] > propio["t_in"] and piezas[0]["luego"][0]["y"] == round(.2 * H, 1)
@@ -114,7 +197,7 @@ def foto(confs, W, H):
                 p["href"] = url
     fotos = []
     with sync_playwright() as pw:
-        nav = pw.chromium.launch()
+        nav = pw.chromium.launch(executable_path=os.environ.get("ESTUDIO_CHROMIUM") or None)
         hoja = nav.new_page(viewport={"width": W, "height": H})
         errores = []
         hoja.on("pageerror", lambda e: errores.append(str(e)))

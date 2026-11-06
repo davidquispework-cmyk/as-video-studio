@@ -80,11 +80,29 @@ Leer antes NOTAS-DAVID.md (punto G y etapa 1 «Muñecos que gesticulan») y segu
   `entra: "pop"` y `en` = llegada.
 - Prueba: `pasos/prueba_motion.py` (`--foto` pinta y comprueba que no hay corte).
 
-## Lo siguiente (segunda parte)
-Que Claude escriba el storyboard por plano (`"motion": [...]` en plan.json) con
-metáforas; muñecos/figuras planas DENTRO del mundo (hoy, con motion, no hay muñecos
-ni ambiente); más piezas (flechas que señalan, barras, antes/después); sonido
-«whoosh» en cada viaje de cámara y «pop» en cada pieza.
+## Segunda parte — HECHA (6-nov-2026)
+- `pasos/motion_mas.py`: MUÑECOS PLANOS (`figuras`, `hazFigura` en JS; aspecto de
+  `marioneta.aspecto`; gestos `GESTOS`, caras `EXPRESIONES`; la boca sigue la voz con
+  `habla` = [[t0, t1, silabas]] de las palabras tras «dijo/habló…»), piezas `barras`,
+  `antes`, `arbol`, `flecha`, `circulo` (`Object.assign(CONSTRUCTORES, …)` al final del
+  JS), `iconoMas` (10 iconos de metáfora) y sonidos (`eventos_sonido`: whoosh por viaje
+  de cámara, pop por impacto, sin amontonar; `sonido.anadir_muestras`).
+- `pasos/motion_storyboard.py`: Claude (sonnet/medium, una llamada) escribe
+  `{sid: [piezas]}`; caché POR PLANO con huella de la narración en
+  `<proyecto>/motion/storyboard.json` (un plano que Claude no escribió se guarda con
+  `piezas: null` = automático, para no volver a preguntar). `{"tipo": "auto"}` dentro
+  del storyboard mete lo automático. Falla → automático, nunca para el montaje.
+- `motion.storyboard`: manda plan.json (`"motion": [...]`) > Claude > `_automatico`.
+  `_normalizar` acepta TODAS las piezas (fracciones del cuadro, `en` = palabra) y
+  descarta lo que no entiende. Entrada `"nada"` para flecha/círculo; el objeto puente
+  nunca aterriza en una pieza `SUPERPUESTAS`.
+- Prioridad automática: versículo > comparación > antes/ahora > árbol > línea > mapa >
+  reloj > lista > barras > contador > lámina (+ muñecos delante) o muñecos grandes.
+- Opciones del param: `storyboard: "claude"`, `munecos: false`, `sonidos: false`.
+
+## Lo siguiente
+Ver/corregir el storyboard de Claude desde la pantalla; estilo PALITOS; que un
+muñeco camine de una parada a otra; más metáforas animadas (cadena que se rompe).
 
 ## Ideas para más adelante
 3D low-poly como el vídeo viral (lejano); mapas antiguos animados (viajes de

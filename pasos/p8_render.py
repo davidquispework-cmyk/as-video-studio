@@ -54,6 +54,8 @@ import estadisticas  # noqa: E402
 import letras  # noqa: E402
 import marioneta  # noqa: E402
 import motion  # noqa: E402
+import motion_mas  # noqa: E402
+import motion_storyboard  # noqa: E402
 import medios  # noqa: E402
 import plantilla_tiktok  # noqa: E402
 import sonido  # noqa: E402
@@ -1445,8 +1447,23 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
             if m_.get("hyperframe") and os.path.exists(hy):
                 px = m_.get("hyperframe_px") or [3072, 2048]
                 laminas[e["id"]] = {"href": _url_local(hy), "ancho": px[0], "alto": px[1]}
-        confs_motion = motion.preparar(escenas, p, laminas, ancho, alto)
-    fichas_reparto = _fichas_reparto(proyecto) if con_munecos else {}
+        # los muñecos planos del mundo se visten con las fichas del reparto, y
+        # el storyboard de Claude (si se pidio) se lee de su cache o se pide
+        fichas_reparto = _fichas_reparto(proyecto)
+        print(f"[render] motion: {motion.resumen_opciones(p)}", flush=True)
+        guion_claude = {}
+        if motion_storyboard.pedido(p):
+            guion_claude = motion_storyboard.obtener(
+                proyecto.raiz, escenas, ancho, alto, fichas_reparto, avisar,
+                tema=motion.tema_de(p),
+                autos=motion.tipos_auto(escenas, ancho, alto, laminas),
+                iconos=motion.ICONOS)
+        confs_motion = motion.preparar(escenas, p, laminas, ancho, alto,
+                                       fichas=fichas_reparto, claude=guion_claude)
+    else:
+        fichas_reparto = {}
+    if con_munecos:
+        fichas_reparto = _fichas_reparto(proyecto)
     for indice, escena in enumerate(escenas):
         sid = escena["id"]
         uid = f"escena:{sid}"
@@ -1639,6 +1656,17 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
             pista_efectos, largo, os.path.join(trabajo, "efectos.wav"),
             plantilla_tiktok.golpe(sonido.FRECUENCIA))
         sonidos += 1
+    # LOS SONIDOS DEL MOTION (pasos/motion_mas.py): «whoosh» en cada viaje de
+    # camara y «pop» en cada pieza que aterriza. Sinteticos, sin clave.
+    if (confs_motion and p.get("sonido", True) and escenas
+            and motion._opciones(p).get("sonidos") is not False):
+        muestras = motion_mas.pista(motion_mas.eventos_sonido(confs_motion),
+                                    sonido.FRECUENCIA)
+        if muestras:
+            pista_efectos = sonido.anadir_muestras(
+                pista_efectos, largo, os.path.join(trabajo, "efectos.wav"), muestras)
+            sonidos += len(muestras)
+            print(f"[render] motion: {len(muestras)} sonidos (whoosh y pop)", flush=True)
     pista_musica, faltan_temas, cama = None, [], False
     ficha_musica = (p.get("musica") or {}) if p.get("sonido", True) else {}
     if ficha_musica.get("tramos"):

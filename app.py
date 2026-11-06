@@ -10283,8 +10283,19 @@ def _sembrar_video_light(ctx, datos):
         ctx.estado.actualizar_params("render", {"marioneta": True})
     # EL MOTION GRAPHICS (pasos/motion.py): param `motion` del render, y
     # tambien solo si lo pidieron (sin el, la imagen con zoom de siempre).
-    if datos.get("motion") in (True, "papel", "noche"):
-        ctx.estado.actualizar_params("render", {"motion": datos["motion"]})
+    # Puede llegar como texto de antes ("papel"/"noche") o como la ficha de la
+    # segunda parte {tema, storyboard, munecos, sonidos}; se limpia aqui.
+    motion_pedido = datos.get("motion")
+    if motion_pedido in (True, "papel", "noche"):
+        ctx.estado.actualizar_params("render", {"motion": motion_pedido})
+    elif isinstance(motion_pedido, dict) and motion_pedido.get("tema") in ("papel", "noche"):
+        limpio = {"tema": motion_pedido["tema"]}
+        if motion_pedido.get("storyboard") in ("claude", "auto"):
+            limpio["storyboard"] = motion_pedido["storyboard"]
+        for clave in ("munecos", "sonidos", "laminas"):
+            if motion_pedido.get(clave) is False:
+                limpio[clave] = False
+        ctx.estado.actualizar_params("render", {"motion": limpio})
     # EL GANCHO (pasos/gancho.py): cartel «¿Sabías…?» y subtitulos palabra a
     # palabra. Param del paso callouts, y tambien solo si lo pidieron.
     if datos.get("gancho"):
