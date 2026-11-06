@@ -249,6 +249,16 @@ G. **FIGURAS PLANAS PROPIAS (decidido 6-nov)**: personajes de colores lisos como
    grandes, sorpresa, miedo, alegría exagerados), algo que cambia cada 2-3 s
    (zoom de golpe, objeto que entra, texto que salta), efectos de sonido al ritmo,
    metáforas visuales sorprendentes.
+   ACLARADO: lo que quiere es MOTION GRAPHICS de nivel profesional, no imágenes:
+   TODO son elementos gráficos vectoriales (fondo, personajes, objetos, textos) que
+   ENTRAN y SALEN animados (pop con rebote, deslizar, crecer, escalonados), con
+   curvas de animación profesionales (anticipación, overshoot, squash & stretch),
+   cámara que se mueve por la escena y todo sincronizado con las palabras.
+   Arquitectura pensada: el guion (Claude) devuelve por plano un STORYBOARD en JSON
+   (qué elementos, dónde, cuándo entran/salen, qué hace cada personaje) y el render
+   lo anima con SVG; biblioteca de elementos reutilizables (altar, velas, cruz,
+   casas, palmeras, pergamino, mapa, cadena…) que crece con cada vídeo. Gemini
+   sobra (como mucho, un fondo). Objetivo de David: «lo mejor del mercado».
    (El 3D low-poly del vídeo viral queda como idea lejana.)
 B+. **Textos estilo TikTok** (van con B): fuentes con estilo (Google Fonts tipo
    Montserrat Black, Bebas Neue, Lilita One), palabra marcada en rojo (subrayado o
