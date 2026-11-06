@@ -52,6 +52,8 @@ from . import conservar, voz_descrita  # noqa: E402,F401
 # Los muñecos que gesticulan (estilo opcional del video): app.py usa su
 # `solo_fondo` para el prompt de imagen de un video con muñecos.
 from . import marioneta  # noqa: E402,F401
+# La plantilla TikTok: app.py lee su minimo y su duracion propuesta al crear.
+from . import plantilla_tiktok  # noqa: E402,F401
 from . import marcas_tts  # noqa: E402,F401
 from . import p1_ingesta, p2_brief, p3_guion  # noqa: E402,F401
 from . import p4_voz, p5_revision_audio, presets_voz  # noqa: E402,F401

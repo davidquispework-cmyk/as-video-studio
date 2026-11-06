@@ -1428,6 +1428,26 @@ def pista_de_efectos(lista, duracion_s, destino, igualar=True):
     return destino, usados
 
 
+def anadir_golpe(pista, duracion_s, destino, muestra, ganancia_db=-3.0):
+    """Suma `muestra` (float32 (n, 2)) en t = 0 a la pista de efectos. -> ruta
+
+    Sin pista (estudio sin claves de sonido) crea una solo con el golpe, del
+    largo del video. Lo usa la plantilla TikTok (pasos/plantilla_tiktok.py).
+    """
+    total = int(max(1, round(float(duracion_s) * FRECUENCIA)))
+    if pista and os.path.exists(pista):
+        bus = _leer(pista)
+    else:
+        bus = np.zeros((total, 2), dtype=np.float32)
+    trozo = muestra[:len(bus)] * (10.0 ** (ganancia_db / 20.0))
+    bus = bus.copy()
+    bus[:len(trozo)] += trozo
+    pico = float(np.max(np.abs(bus))) if len(bus) else 0.0
+    if pico > 0.98:
+        bus *= 0.98 / pico
+    return _escribir(destino, bus)
+
+
 def filtro_de_mezcla(con_musica, con_efectos, duracion_s, lufs=MUSICA_LUFS,
                      ya_normalizada=False, ajuste_db=0.0, master=False,
                      medida=None, efectos_db=0.0):

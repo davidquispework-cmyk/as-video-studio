@@ -123,10 +123,30 @@ Todo gratis; lo de pago, preparado y apagado (ver «Decisión de dinero»).
    Prueba: `pasos/prueba_gancho.py` (`--foto` pide Playwright de Python).
    Pendiente: escribir el texto del cartel desde la pantalla; un golpe de sonido
    al empezar.
-4. **Plantilla TikTok**: vertical 9:16, barra de progreso, llamada a seguir al final y
-   golpe de sonido al empezar. DURACIÓN FLEXIBLE: NO fija en 1:05. Siempre algo más de
-   1:00 (Creator Rewards exige >1 min), pero David elige la duración objetivo al crear
-   el vídeo (1:10, 1:30, 2-3 min…) y el guion se ajusta a ella.
+4. **Plantilla TikTok — HECHA (6-nov-2026)**.
+   Cómo se usa: al crear el vídeo → «Plantilla» → «📱 TikTok / Shorts». Eso pone solo:
+   Vertical 9:16, gancho, la llamada a la acción del final («que me sigan…») y, si la
+   duración era de 1:00 o menos, 70 s. La duración la eliges tú con los botones
+   rápidos de debajo de la barra (1:10, 1:30, 2:00, 3:00, 5:00, 8:00) o escribiendo
+   los segundos; el guion se ajusta a ella. Puedes cambiar el texto de debajo de
+   «SÍGUEME». En un vídeo ya hecho («El encargo») solo enciende la plantilla y el
+   gancho (gratis, volver a montar); el formato y la duración no se tocan solos
+   (rehacen imágenes / guion) y la pantalla avisa si faltan.
+   Sale: barra de progreso arriba (color de acento, crece sin saltos de plano a
+   plano), «SÍGUEME» con botón rosa «+» que late los últimos 3,5 s, y un golpe de
+   sonido al empezar (sintético: suena aunque no haya clave de FreeSound). Si el
+   MP4 dura 1:00 o menos, el montaje avisa (Creator Rewards).
+   Cómo quedó: `pasos/plantilla_tiktok.py` + `p7_callouts` (lo mete en la capa quieta
+   de cada plano y deja `plantilla` en movimiento.json) + `p8_render` (golpe con
+   `sonido.anadir_golpe` y aviso de duración). Un solo param: `tiktok` de callouts
+   (`true`, el texto de debajo de «SÍGUEME», o `{"seguir": false|"…", "barra":
+   false, "golpe": false}`); no va en los defectos (no mueve firmas). Al crear lo
+   escribe `_sembrar_video_light`. Pantalla: `selectorPlantilla` y duraciones rápidas
+   en `duracionLight` (`web/app.js`). Prueba: `pasos/prueba_plantilla_tiktok.py`.
+   Arreglado de paso: en «El encargo», cambiar «Muñecos» o «Gancho» NO se guardaba
+   (`volcarEncargoLight` solo guardaba ingesta/brief/guion; ahora también callouts y
+   render). Pendiente: que el guion de TikTok tenga un ritmo propio (frases más
+   cortas) y que el golpe pueda elegirse entre varios.
 5. **Agente analista + ideas** (pestaña nueva «📊 Análisis / 💡 Ideas» DENTRO de Shaddai
    Studio, no otra plataforma): (a) qué pega en el nicho (Biblia, historia, «¿sabías
    que…?») en YouTube (API oficial gratis) y TikTok (enlaces/capturas que pase David):
@@ -153,8 +173,9 @@ COMPLETA y pulida, calidad profesional, no en versión mínima; pero con ahorro-
 (leer solo lo necesario, una prueba corta final). Innovar y contextualizar cada vez más:
 cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
 
-PLAN INMEDIATO (6-nov): David prueba el vídeo de Jesús con gancho + 2-3 clips, lo publica
-en TikTok/YouTube Shorts (para tener datos reales), y luego chat nuevo para la etapa 4.
+PLAN INMEDIATO (6-nov): David prueba un vídeo con la plantilla TikTok (gancho + 2-3
+clips), lo publica en TikTok/YouTube Shorts (para tener datos reales), y luego chat
+nuevo para la etapa 5 (Agente analista + ideas).
 
 Mensaje que David pega en cada chat nuevo (con el repo as-video-studio elegido):
 «Lee NOTAS-DAVID.md y la skill ahorro-claude. Haz la siguiente etapa de la HOJA DE

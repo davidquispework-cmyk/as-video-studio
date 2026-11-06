@@ -10107,6 +10107,19 @@ def _sembrar_video_light(ctx, datos):
     brief, guion = {}, {}
     if datos.get("duracion_objetivo_s") is not None:
         brief["duracion_objetivo_s"] = datos["duracion_objetivo_s"]
+    # LA PLANTILLA TIKTOK pide MAS de un minuto (Creator Rewards): si llega
+    # por debajo, se sube a la propuesta y se dice.
+    if datos.get("tiktok"):
+        try:
+            pedida = float(brief.get("duracion_objetivo_s") or 0)
+        except (TypeError, ValueError):
+            pedida = 0
+        minimo = PASOS_MODULOS.plantilla_tiktok.MINIMO_S
+        if pedida <= minimo:
+            brief["duracion_objetivo_s"] = PASOS_MODULOS.plantilla_tiktok.PROPUESTA_S
+            avisos.append(f"TikTok paga vídeos de más de 1:00: la duración objetivo "
+                          f"se ha puesto en "
+                          f"{PASOS_MODULOS.plantilla_tiktok.PROPUESTA_S} s")
     # EL FORMATO, junto a la duracion: horizontal o vertical.
     # Es una decision del video y va al brief, de donde la leen los pasos.
     if datos.get("formato") is not None:
@@ -10165,6 +10178,13 @@ def _sembrar_video_light(ctx, datos):
     # palabra. Param del paso callouts, y tambien solo si lo pidieron.
     if datos.get("gancho"):
         ctx.estado.actualizar_params("callouts", {"gancho": True})
+    # LA PLANTILLA TIKTOK (pasos/plantilla_tiktok.py): barra de progreso,
+    # «Sígueme» al final y golpe de sonido. `true` o el texto de debajo de
+    # «SÍGUEME». Param de callouts, solo si lo pidieron.
+    if datos.get("tiktok"):
+        valor = datos["tiktok"]
+        valor = (" ".join(valor.split())[:80] or True) if isinstance(valor, str) else True
+        ctx.estado.actualizar_params("callouts", {"tiktok": valor})
     return avisos
 
 

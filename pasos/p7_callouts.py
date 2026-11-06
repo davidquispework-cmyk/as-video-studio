@@ -49,6 +49,7 @@ import comun  # noqa: E402
 import estadisticas  # noqa: E402
 import subtitulos  # noqa: E402
 import gancho  # noqa: E402
+import plantilla_tiktok  # noqa: E402
 import medios  # noqa: E402
 import tipografia  # noqa: E402
 
@@ -1462,6 +1463,22 @@ def ejecutar(proyecto, params, avisar=None, unidades=None):
     # renderizado.
     banda = banda_subtitulo(salida)
 
+    # LA PLANTILLA TIKTOK (pasos/plantilla_tiktok.py): barra de progreso y
+    # «Sígueme» al final, en la capa quieta de cada plano. La barra necesita
+    # saber donde empieza y acaba el VIDEO, no el plano: se calcula una vez.
+    tiktok = plantilla_tiktok.normalizar(p.get("tiktok"))
+    inicio_video = float(escenas[0].get("t_in") or 0) if escenas else 0.0
+    fin_video = float(escenas[-1].get("t_out") or 0) if escenas else 0.0
+    acento_tiktok = (paleta_video or {}).get("acento") or plantilla_tiktok.AMARILLO
+    if str(acento_tiktok).lower() in ("#ffffff", "#fff", "#000000", "#000"):
+        acento_tiktok = plantilla_tiktok.AMARILLO
+    fuente_tiktok = (ficha_diseno or {}).get("fuente") or "Verdana"
+
+    def con_plantilla(fija_svg, escena):
+        return plantilla_tiktok.incrustar(fija_svg, plantilla_tiktok.piezas_de_plano(
+            escena, tiktok, salida, inicio_video, fin_video,
+            acento=acento_tiktok, fuente=fuente_tiktok))
+
     for indice, escena in enumerate(escenas):
         sid = escena["id"]
         uid = f"escena:{sid}"
@@ -1498,7 +1515,8 @@ def ejecutar(proyecto, params, avisar=None, unidades=None):
             resultados[uid] = _capa_de_cartela(
                 escena, paleta_video, ficha_diseno, dirs, trabajo, svg_ruta,
                 mov_ruta, ficha_ruta, plan, fija_ruta,
-                capa_fija_vacia(salida), [], lienzo=lienzo, salida=salida)
+                con_plantilla(capa_fija_vacia(salida), escena), [],
+                lienzo=lienzo, salida=salida)
             continue
 
         png = os.path.join(dir_escenas, f"{sid}.png")
@@ -1555,6 +1573,7 @@ def ejecutar(proyecto, params, avisar=None, unidades=None):
             svg, fija, fichas = capa_de_escena(escena, p, entrada, banda, aspecto,
                                                lienzo, salida,
                                                primera=(indice == 0))
+        fija = con_plantilla(fija, escena)
         medios.escribir_texto(svg_ruta, svg)
         medios.escribir_texto(fija_ruta, fija)
         entrada["capa"] = os.path.relpath(svg_ruta, trabajo)
@@ -1609,6 +1628,9 @@ def ejecutar(proyecto, params, avisar=None, unidades=None):
                 # video. p8 no puede derivarla -- la guia esta en los params de
                 # assets-- y quien la tiene resuelta es este paso.
                 "paleta": paleta_video,
+                # la plantilla TikTok, para el render: el golpe de sonido y el
+                # aviso de duracion. Un solo param, en este paso.
+                "plantilla": {"tiktok": tiktok} if tiktok else {},
                 "movimientos": [medios.leer_json(
                     os.path.join(dirs["movimiento"], f"{e['id']}.json"), {})
                     for e in escenas]}

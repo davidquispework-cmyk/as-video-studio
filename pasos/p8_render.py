@@ -53,6 +53,7 @@ import clips as clips_video  # noqa: E402
 import estadisticas  # noqa: E402
 import marioneta  # noqa: E402
 import medios  # noqa: E402
+import plantilla_tiktok  # noqa: E402
 import sonido  # noqa: E402
 import transiciones  # noqa: E402
 
@@ -1574,6 +1575,15 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
         if lista_eventos:
             pista_efectos, sonidos = sonido.pista_de_efectos(
                 lista_eventos, largo, os.path.join(trabajo, "efectos.wav"))
+    # EL GOLPE DE LA PLANTILLA TIKTOK (pasos/plantilla_tiktok.py): sintetico,
+    # en t = 0, encima de los efectos (o solo, si no hay). Lo pide callouts.
+    tiktok = plantilla_tiktok.normalizar(
+        ((medios.leer_json(ruta_mov, {}) or {}).get("plantilla") or {}).get("tiktok"))
+    if tiktok and tiktok.get("golpe") and p.get("sonido", True) and escenas:
+        pista_efectos = sonido.anadir_golpe(
+            pista_efectos, largo, os.path.join(trabajo, "efectos.wav"),
+            plantilla_tiktok.golpe(sonido.FRECUENCIA))
+        sonidos += 1
     pista_musica, faltan_temas, cama = None, [], False
     ficha_musica = (p.get("musica") or {}) if p.get("sonido", True) else {}
     if ficha_musica.get("tramos"):
@@ -1637,6 +1647,10 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
         avisos.append(f"el tema «{ficha_musica.get('titulo') or ficha_musica['id']}» "
                       f"no está en el banco: el vídeo va sin música. Vuelve a "
                       f"elegirlo en «Música y efectos».")
+    if tiktok:
+        corto = plantilla_tiktok.aviso_duracion(duracion)
+        if corto:
+            avisos.append(corto)
     salidas = {"mp4": "video.mp4",
                "duracion": round(duracion, 3),
                "clips": {e["id"]: f"clips/{e['id']}.mp4" for e in escenas},

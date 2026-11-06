@@ -5899,6 +5899,9 @@ function encargoVideoLight() {
       // estilo, porque un video puede querer mandar a la web y el siguiente
       // solo pedir un comentario.
       cta: ctaPorDefecto(),
+      // LA PLANTILLA TIKTOK (pasos/plantilla_tiktok.py): false, true o el
+      // texto de debajo de «SÍGUEME». Va al param `tiktok` de callouts.
+      tiktok: false,
     };
   }
   return v.encargo;
@@ -6309,7 +6312,8 @@ function vistaElegidoLight() {
     duracionLight(e, undefined, () => pintarCosteDelEncargoLight(e, aviso)),
     selectorFormato(e.formato, v => { e.formato = v; }),
     selectorDibujo(e.marioneta, v => { e.marioneta = v; }),
-    selectorGancho(e.gancho, v => { e.gancho = v; })));
+    selectorGancho(e.gancho, v => { e.gancho = v; }),
+    selectorPlantilla(e, true, pintarLight)));
 
   caja.appendChild(bloqueLight('El material',
     'de dónde salen los hechos que se van a contar',
@@ -6395,6 +6399,66 @@ function selectorGancho(valor, alCambiar) {
     h('div', { clase: 'pista' }, 'Estilo TikTok: el texto grande sale de la primera frase del guion. Cambiarlo es gratis (solo se vuelve a montar).'));
 }
 
+/* LA PLANTILLA TIKTOK / SHORTS (pasos/plantilla_tiktok.py): barra de progreso
+   arriba, «SÍGUEME» con botón al final y golpe de sonido al empezar. Va al
+   param `tiktok` de callouts y solo se escribe si alguien lo toca; cambiarlo
+   solo pide volver a montar (gratis).
+
+   Al ELEGIRLA en un vídeo NUEVO también pone lo que la acompaña: vertical,
+   gancho, más de un minuto (Creator Rewards) y la llamada del cierre pidiendo
+   que te sigan. En un vídeo YA HECHO no toca el formato (rehace todas las
+   imágenes) ni la duración (rehace el guion): solo enciende el gancho, que es
+   gratis, y lo demás se dice. `repintar` vuelve a dibujar el formulario. */
+function selectorPlantilla(e, nuevo, repintar) {
+  const activa = !!e.tiktok;
+  const tira = h('div', { clase: 'tira-modos formatos' });
+  [
+    { id: false, nombre: 'Normal', pista: 'Sin barra ni llamada a seguir' },
+    { id: true, nombre: '📱 TikTok / Shorts', pista: 'Barra de progreso, «Sígueme» al final y golpe de sonido al empezar' },
+  ].forEach(op => {
+    tira.appendChild(h('button', {
+      clase: 'mini' + (activa === op.id ? ' activo' : ''), title: op.pista,
+      onclick: () => {
+        if (activa === op.id) return;
+        e.tiktok = op.id;
+        if (op.id) {
+          e.gancho = true;
+          if (nuevo) {
+            e.formato = 'vertical';
+            if (!(Number(e.duracion_objetivo_s) > 60)) e.duracion_objetivo_s = 70;
+            if (!e.cta) e.cta = ctaPorDefecto();
+            if (!e.cta.cta_final.puesto) {
+              e.cta.cta_final = { puesto: true, texto: e.cta.cta_final.texto
+                || 'que me sigan para no perderse la próxima historia' };
+            }
+          }
+        }
+        repintar();
+      },
+    }, op.nombre));
+  });
+  const piezas = [h('label', {}, 'Plantilla'), tira];
+  if (activa) {
+    piezas.push(campoTexto('Texto debajo de «SÍGUEME»',
+      typeof e.tiktok === 'string' ? e.tiktok : '',
+      v => { e.tiktok = String(v || '').trim() ? v : true; },
+      { pista: 'para más historias como esta' }));
+    const avisos = [];
+    if (e.formato !== 'vertical') {
+      avisos.push(nuevo ? 'Pon el formato en Vertical 9:16.'
+        : 'Este vídeo es horizontal: para TikTok cambia el formato a Vertical (rehace TODAS las imágenes).');
+    }
+    if (!(Number(e.duracion_objetivo_s) > 60)) {
+      avisos.push('TikTok solo paga (Creator Rewards) vídeos de MÁS de 1:00: sube la duración.');
+    }
+    piezas.push(h('div', { clase: avisos.length ? 'pista aviso' : 'pista' },
+      avisos.length ? avisos.join(' ')
+        : 'Barra de progreso arriba, «SÍGUEME» los últimos 3,5 s y golpe de sonido al empezar. '
+          + 'Elige la duración arriba (1:10, 1:30, 2-3 min…): el guion se ajusta a ella.'));
+  }
+  return h('div', { clase: 'campo' }, ...piezas);
+}
+
 function selectorFormato(valor, alCambiar) {
   const actual = valor === 'vertical' ? 'vertical' : 'horizontal';
   const tira = h('div', { clase: 'tira-modos formatos' });
@@ -6445,9 +6509,19 @@ function duracionLight(e, estilo, alCambiar) {
   barra.addEventListener('input', () => mover(barra.value));
   numero.addEventListener('input', () => mover(numero.value));
   refrescarEstimacionLight(e, linea, estilo);
+  /* LAS DURACIONES DE UN TOQUE: las de TikTok / Shorts (siempre algo más de
+     1:00, que es lo que paga Creator Rewards) y las de YouTube. Mueven el
+     número como si se hubiera escrito, así que el encargo se guarda igual. */
+  const rapidas = h('div', { clase: 'duraciones-rapidas' });
+  [[70, '1:10'], [90, '1:30'], [120, '2:00'], [180, '3:00'], [300, '5:00'], [480, '8:00']]
+    .forEach(([s, txt]) => rapidas.appendChild(h('button', {
+      clase: 'mini fantasma', title: `${s} segundos`,
+      onclick: () => { numero.value = s; numero.dispatchEvent(new Event('input', { bubbles: true })); },
+    }, txt)));
   return h('div', { clase: 'campo' },
     h('label', {}, 'Duración objetivo'),
     h('div', { clase: 'fila' }, barra, numero, h('span', { clase: 'meta' }, 'segundos')),
+    rapidas,
     linea);
 }
 
@@ -6596,6 +6670,7 @@ async function crearYGenerarLight(estilo) {
         cta: e.cta,
         marioneta: !!e.marioneta,
         gancho: !!e.gancho,
+        tiktok: e.tiktok || false,
       },
     });
     const pid = (datos.proyecto || {}).id;
@@ -6659,6 +6734,7 @@ const CAMPOS_ENCARGO = [
   { clave: 'cta', paso: 'guion', param: 'cta' },
   { clave: 'marioneta', paso: 'render', param: 'marioneta' },
   { clave: 'gancho', paso: 'callouts', param: 'gancho' },
+  { clave: 'tiktok', paso: 'callouts', param: 'tiktok' },
 ];
 
 /* Las tres ranuras completas a partir de lo guardado, que puede faltar entero
@@ -6694,6 +6770,7 @@ function pedidoDelVideoLight() {
     cta: ctaLeida(params('guion').cta),
     marioneta: !!params('render').marioneta,
     gancho: !!params('callouts').gancho,
+    tiktok: params('callouts').tiktok || false,
   };
   v.pedido = {
     pid: v.pid,
@@ -6746,7 +6823,8 @@ function vistaEncargoVideoLight() {
     duracionLight(e, estilo),
     selectorFormato(e.formato, valor => { e.formato = valor; programarGuardadoEncargo(); }),
     selectorDibujo(e.marioneta, valor => { e.marioneta = valor; programarGuardadoEncargo(); }),
-    selectorGancho(e.gancho, valor => { e.gancho = valor; programarGuardadoEncargo(); })));
+    selectorGancho(e.gancho, valor => { e.gancho = valor; programarGuardadoEncargo(); }),
+    selectorPlantilla(e, false, () => { programarGuardadoEncargo(); pintarLight(); })));
 
   caja.appendChild(bloqueLight('El material',
     'de dónde salen los hechos que se van a contar',
@@ -6851,7 +6929,10 @@ async function volcarEncargoLight(pedido) {
   const renombrar = !!nombre && nombre !== guardado.nombre;
   if (!Object.keys(porPaso).length && !renombrar) return;
   try {
-    for (const paso of ['ingesta', 'brief', 'guion']) {
+    /* EN EL ORDEN DEL GRAFO, y con callouts y render: aquí solo estaban los
+       tres primeros y «Muñecos» o «Gancho» cambiados desde el encargo no se
+       guardaban nunca. */
+    for (const paso of ['ingesta', 'brief', 'guion', 'callouts', 'render']) {
       if (!porPaso[paso]) continue;
       await pedir(API.params(pid, paso),
         { method: 'PUT', cuerpo: { params: porPaso[paso] } });

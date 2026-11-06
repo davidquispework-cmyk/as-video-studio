@@ -2528,3 +2528,7 @@ button.avisa:hover:not(:disabled) { border-color: var(--aviso); }
 .subida-efectos { margin-top: 6px; font-size: 12px; }
 .subida-efectos summary { cursor: pointer; color: var(--tenue); }
 .subida-efectos .subida-mandos { flex-wrap: wrap; }
+
+/* Plantilla TikTok: lo que falta para que cuente (vertical, más de 1:00) */
+.pista.aviso { color: var(--aviso); }
+.duraciones-rapidas { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
