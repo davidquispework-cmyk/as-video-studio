@@ -64,10 +64,16 @@ TEMAS = {
               "tierra": "#3A3270", "suave": "#8D84C6", "puntos": "#3E3680"},
 }
 FUENTES = {"titulo": "Shaddai Montserrat", "verso": "Shaddai Playfair"}
-TIPOS = ("versiculo", "reloj", "mapa", "linea", "lamina", "texto", "icono")
+TIPOS = ("versiculo", "reloj", "mapa", "linea", "lamina", "texto", "icono",
+         "contador", "comparacion", "lista")
 ENTRADAS = ("abajo", "arriba", "izquierda", "derecha", "pop")
 ICONOS = ("cruz", "corazon", "biblia", "moneda", "celular", "corona", "paloma",
-          "casa", "vela", "estrella", "pan", "cadena", "pergamino", "reloj")
+          "casa", "vela", "estrella", "pan", "cadena", "pergamino", "reloj",
+          "ojo", "mano", "llave", "puerta", "montana", "sol", "luna", "nube",
+          "gota", "fuego", "arbol", "pez", "barca", "oveja", "espada", "escudo",
+          "trompeta", "tablas", "templo", "tumba", "lupa", "balanza", "ancla",
+          "copa", "persona", "chincheta", "arena", "pregunta", "check", "equis",
+          "flecha", "punto")
 
 # palabra (plegada, principio) -> icono que salta junto a la lamina
 PALABRAS_ICONO = (
@@ -84,8 +90,33 @@ PALABRAS_ICONO = (
     ("estrella", ("estrella", "magos", "cielo")),
     ("pan", ("pan ", "panes", "comida", "hambre", "cena")),
     ("cadena", ("pecado", "cadena", "esclav", "carcel", "preso")),
-    ("pergamino", ("profec", "ley ", "carta", "rollo", "pergamino")),
-    ("reloj", ("tiempo", "hora", "pronto", "tarde")),
+    ("tablas", ("mandamiento", "ley ", "tablas", "moises")),
+    ("pergamino", ("profec", "carta", "rollo", "pergamino", "escrib")),
+    ("reloj", ("tiempo", "pronto", "tarde")),
+    ("ojo", ("ojo", "mirar", "miro", "vio ", "ver ", "ciego", "vista")),
+    ("mano", ("mano", "manos", "toco", "tocar", "sano")),
+    ("llave", ("llave", "abrir", "abrio", "secreto")),
+    ("puerta", ("puerta", "entrar", "entro")),
+    ("montana", ("monte", "montana", "cerro", "sinai")),
+    ("sol", ("sol ", "amanec", "manana", "luz del dia")),
+    ("luna", ("luna", "noche", "oscur", "tiniebla")),
+    ("nube", ("nube", "tormenta", "viento")),
+    ("gota", ("agua", "lluvia", "rio ", "bautiz", "llor", "lagrima", "sed ")),
+    ("fuego", ("fuego", "llama", "ardi", "infierno", "zarza")),
+    ("arbol", ("arbol", "higuera", "olivo", "vid ", "fruto", "semilla", "jardin")),
+    ("pez", ("pez ", "peces", "pesca", "red ", "redes de")),
+    ("barca", ("barca", "barco", "mar ", "naveg", "arca")),
+    ("oveja", ("oveja", "pastor", "cordero", "rebano")),
+    ("espada", ("espada", "guerra", "batalla", "pelea", "lucha")),
+    ("escudo", ("escudo", "proteg", "fe ", "armadura")),
+    ("trompeta", ("trompeta", "anunci", "alarma")),
+    ("templo", ("templo", "sinagoga", "iglesia", "altar")),
+    ("tumba", ("tumba", "sepulcro", "muerte", "muri", "resucit")),
+    ("lupa", ("buscar", "busca", "investig", "descubr", "detalle")),
+    ("balanza", ("justicia", "juicio", "juez", "justo")),
+    ("ancla", ("esperanza", "ancla", "firme")),
+    ("copa", ("copa", "vino", "caliz", "beber")),
+    ("pregunta", ("por que", "pregunta", "duda")),
 )
 
 LIBROS = (
@@ -454,6 +485,101 @@ def iconos_de(voz, maximo=3):
     return salida[:maximo]
 
 
+GENTE = ("hombre", "mujer", "persona", "discipulo", "apostol", "nino", "hijo",
+         "tribu", "familia", "soldado", "profeta", "sacerdote", "rey", "pastor",
+         "hermano", "fariseo", "levita", "anciano", "creyente", "pueblo")
+ICONO_DE_COSA = (("pan", "pan"), ("pez", "pez"), ("peces", "pez"), ("oveja", "oveja"),
+                 ("moneda", "moneda"), ("denario", "moneda"), ("siclo", "moneda"),
+                 ("talento", "moneda"), ("dia", "sol"), ("noche", "luna"),
+                 ("ano", "arena"), ("estrella", "estrella"), ("cantaro", "copa"),
+                 ("tinaja", "copa"), ("piedra", "tumba"), ("rollo", "pergamino"),
+                 ("trompeta", "trompeta"), ("lampara", "vela"), ("barca", "barca"))
+NO_CONTABLES = ("hora", "horas", "km", "kilometros", "por", "veces", "de", "mas",
+                "anos", "ano", "siglos", "siglo")
+
+
+def contador_de(voz):
+    """«5000 hombres», «40 días», «doce apóstoles» -> {"n", "cosa", "i", "fin"}"""
+    patron = re.compile(r"\b" + _NUM + r"( mil)? ([a-zñ]{3,})\b")
+    for m in patron.finditer(voz.texto):
+        n = _n(m.group(1))
+        cosa = m.group(3)
+        if n and m.group(2):
+            n *= 1000
+        if n and n >= 2 and cosa not in VACIAS and cosa not in NO_CONTABLES:
+            fin = voz.indice_de(m.start(3))
+            return {"n": n, "cosa": voz.crudas[fin].strip(",.;:¿?¡!«»\"()"),
+                    "plegada": cosa, "i": voz.indice_de(m.start()), "fin": fin}
+    return None
+
+
+def _icono_de_cosa(cosa):
+    if any(cosa.startswith(g) for g in GENTE):
+        return "persona"
+    for raiz, icono in ICONO_DE_COSA:
+        if cosa.startswith(raiz):
+            return icono
+    return "punto"
+
+
+def _trozo(voz, a, b, maximo=7):
+    palabras = [w.strip(",.;:¿?¡!«»\"()") for w in voz.crudas[a:b + 1]]
+    palabras = [w for w in palabras if w][:maximo]
+    return " ".join(palabras)
+
+
+def comparacion_de(voz):
+    """«no fue X, sino Y» / «no es X, es Y» -> {"a", "b", "i_a", "i_b"}"""
+    t = voz.texto
+    patrones = (
+        r"\bno (?:fue|fueron|es|era|son|eran|somos|eres|estaba|esta|vino|vine) (?P<x>[a-zñ0-9 ]{3,60}?) "
+        r"sino (?:que )?(?P<y>[a-zñ0-9 ]{3,60})",
+        r"\bno (?P<x>[a-zñ0-9 ]{3,50}?) sino (?:que )?(?P<y>[a-zñ0-9 ]{3,50})",
+        r"\bno (?:fue|es|era) (?P<x>[a-zñ0-9 ]{3,40}?) (?:fue|es|era) (?P<y>[a-zñ0-9 ]{3,40})",
+    )
+    for patron in patrones:
+        m = re.search(patron, t)
+        if not m:
+            continue
+        ia, fa = voz.indice_de(m.start("x")), voz.indice_de(m.end("x") - 1)
+        ib, fb = voz.indice_de(m.start("y")), voz.indice_de(m.end("y") - 1)
+        # la Y acaba donde acaba la frase en la voz (coma o punto)
+        for k in range(ib, min(fb + 1, len(voz.crudas))):
+            if voz.crudas[k][-1:] in ",.;:?!":
+                fb = k
+                break
+        a, b = _trozo(voz, ia, fa), _trozo(voz, ib, fb)
+        if a and b:
+            return {"a": a, "b": b, "i_a": ia, "i_b": ib}
+    return None
+
+
+def lista_de(voz):
+    """«tres cosas: orar, leer y servir» -> [(texto, indice)] (3 a 5 cosas)"""
+    for k, w in enumerate(voz.crudas):
+        if not w.endswith(":"):
+            continue
+        items, actual, inicio = [], [], k + 1
+        for j in range(k + 1, len(voz.crudas)):
+            limpia = voz.crudas[j].strip(",.;:¿?¡!«»\"()")
+            if voz.plegadas[j] in ("y", "e") and actual and len(items) >= 1:
+                items.append((" ".join(actual), inicio))
+                actual, inicio = [], j + 1
+                continue
+            actual.append(limpia)
+            if voz.crudas[j][-1:] in ",;":
+                items.append((" ".join(actual), inicio))
+                actual, inicio = [], j + 1
+            elif voz.crudas[j][-1:] in ".!?":
+                break
+        if actual:
+            items.append((" ".join(actual), inicio))
+        items = [(t, i) for t, i in items if t]
+        if 3 <= len(items) <= 5 and all(len(t.split()) <= 6 for t, _ in items):
+            return items
+    return None
+
+
 # ------------------------------------------------------------ las piezas
 
 # La costa del Levante, en (lat, lon): el mar va al oeste. Esquematica, para
@@ -595,6 +721,41 @@ def pieza_versiculo(voz, cita, w, tam):
             "en": round(en, 3), "entra": "pop"}
 
 
+def pieza_contador(voz, datos, W, H):
+    vertical = H > W
+    tam = W * 0.24 if vertical else H * 0.26
+    en = voz.t(datos["i"])
+    fin = max(en + 0.6, voz.t(datos["fin"], True) + 0.15)
+    return {"tipo": "contador", "n": datos["n"], "etq": datos["cosa"].upper(),
+            "icono": _icono_de_cosa(datos["plegada"]), "tam": round(tam, 1),
+            "w": round(W * (0.84 if vertical else 0.6), 1),
+            "en": round(max(voz.t_in, en - 0.1), 3),
+            "fin": round(min(fin, voz.t_out - 0.3), 3), "entra": "pop"}
+
+
+def pieza_comparacion(voz, datos, W, H):
+    vertical = H > W
+    w = W * (0.86 if vertical else 0.84)
+    h = H * (0.5 if vertical else 0.5)
+    return {"tipo": "comparacion", "a": datos["a"], "b": datos["b"],
+            "a_en": round(voz.t(datos["i_a"]), 3),
+            "b_en": round(max(voz.t(datos["i_b"]), voz.t(datos["i_a"]) + 0.7), 3),
+            "w": round(w, 1), "h": round(h, 1), "vertical": vertical,
+            "sep": round(h * 0.27 if vertical else w * 0.25, 1),
+            "tam": round(W * (0.075 if vertical else 0.038), 1),
+            "en": round(max(voz.t_in, voz.t(datos["i_a"]) - 0.15), 3), "entra": "pop"}
+
+
+def pieza_lista(voz, items, W, H):
+    vertical = H > W
+    tam = W * (0.072 if vertical else 0.036)
+    paso = tam * 2.1
+    return {"tipo": "lista", "w": round(W * (0.84 if vertical else 0.56), 1),
+            "tam": round(tam, 1), "paso": round(paso, 1),
+            "items": [{"t": t, "en": round(voz.t(i), 3)} for t, i in items],
+            "en": round(max(voz.t_in, voz.t(items[0][1]) - 0.3), 3), "entra": "pop"}
+
+
 def storyboard(escena, ancho, alto, lamina=None, laminas=True, hoy=None,
                mapeados=None):
     """Las piezas de UN plano en coordenadas del cuadro (px, origen arriba a la
@@ -613,6 +774,7 @@ def storyboard(escena, ancho, alto, lamina=None, laminas=True, hoy=None,
         lugares = lugares_de(voz)
         fechas = fechas_de(voz, hoy=hoy)
         reloj = reloj_de(voz)
+        comparacion = None if cita else comparacion_de(voz)
         if cita:
             ancho_txt = W * (0.88 if vertical else 0.72)
             tam = W * 0.1 if vertical else min(W * 0.05, H * 0.07)
@@ -624,6 +786,8 @@ def storyboard(escena, ancho, alto, lamina=None, laminas=True, hoy=None,
             repetido = True       # Jerusalen sola no explica nada
         if cita:
             pass
+        elif comparacion:
+            piezas.append(dict(pieza_comparacion(voz, comparacion, W, H), x=cx, y=cy))
         elif fechas:
             # la fecha manda sobre el mapa: «en el año 70 Roma destruyo
             # Jerusalen» cuenta CUANDO, no cuanto hay de Roma a Jerusalen
@@ -637,6 +801,14 @@ def storyboard(escena, ancho, alto, lamina=None, laminas=True, hoy=None,
         elif reloj:
             r = min(W * 0.34, H * 0.22) if vertical else H * 0.27
             piezas.append(dict(pieza_reloj(voz, reloj, r), x=cx, y=cy + r * 0.1))
+        else:
+            lista = lista_de(voz)
+            contador = None if lista else contador_de(voz)
+            if lista:
+                piezas.append(dict(pieza_lista(voz, lista, W, H), x=cx, y=cy))
+            elif contador:
+                piezas.append(dict(pieza_contador(voz, contador, W, H), x=cx,
+                                   y=cy - H * (0.08 if vertical else 0.06)))
     if not piezas:
         iconos = iconos_de(voz)
         if lamina and laminas:
@@ -834,6 +1006,98 @@ def camara(escenas, puntos):
     return tramos
 
 
+def _angulo(h, modo):
+    return (h / 24.0 if modo == 24 else (h % 12) / 12.0) * math.pi * 2
+
+
+def focos_de(pz, W, H):
+    """A donde mira la camara mientras se dice cada cosa: [(t, x, y, z)] (mundo)."""
+    x, y, t = pz["x"], pz["y"], pz["tipo"]
+    f = []
+    if t == "mapa":
+        for pin in pz["lugares"]:
+            if not pin.get("ref"):
+                f.append((pin["en"], x + pin["x"], y + pin["y"] - pz["w"] * 0.05, 1.25))
+        for tr in pz["tramos"]:
+            f.append((tr["en"] + 0.1, x, y, 1.0))
+    elif t == "linea":
+        for ev in pz["eventos"]:
+            f.append((ev["en"], x + ev["x"] * 0.7, y, 1.16))
+        f.append((pz["tramo"]["en"], x, y, 1.0))
+    elif t == "reloj":
+        for por in pz["porciones"]:
+            a0 = _angulo(por["desde"], pz["modo"])
+            a1 = a0 + (por["hasta"] - por["desde"]) / pz["modo"] * math.pi * 2
+            mid = (a0 + a1) / 2
+            f.append((por["en"] + 0.15, x + math.sin(mid) * pz["r"] * 0.35,
+                      y - math.cos(mid) * pz["r"] * 0.35, 1.2))
+        if pz.get("pie"):
+            f.append((pz["pie_en"], x, y + pz["r"] * 0.3, 0.97))
+    elif t == "versiculo":
+        f.append((pz["palabras"][0]["en"], x, y - H * 0.04, 1.1))
+        f.append((pz["ref_en"], x, y, 1.0))
+    elif t == "contador":
+        f.append((pz["en"] + 0.1, x, y - pz["tam"] * 0.2, 1.18))
+        f.append((pz["fin"] + 0.2, x, y + pz["tam"] * 0.4, 1.0))
+    elif t == "comparacion":
+        sep = pz["sep"]
+        ax, ay = (x, y - sep) if pz["vertical"] else (x - sep, y)
+        bx, by = (x, y + sep) if pz["vertical"] else (x + sep, y)
+        f.append((pz["a_en"], ax, ay, 1.15))
+        f.append((pz["b_en"], bx, by, 1.15))
+        f.append((pz["b_en"] + 1.1, x, y, 1.0))
+    elif t == "lista":
+        n = len(pz["items"])
+        for k, it in enumerate(pz["items"]):
+            f.append((it["en"], x, y + (k - (n - 1) / 2) * pz["paso"], 1.1))
+        f.append((pz["items"][-1]["en"] + 0.9, x, y, 1.0))
+    elif t == "texto":
+        f.append((pz["en"], x, y, 1.12))
+    return f
+
+
+def ventana_de(piezas, a, b, W, H, sy):
+    """Los focos de un plano, ya como CENTRO DE CAMARA y limpios."""
+    crudos = sorted(fo for pz in piezas for fo in focos_de(pz, W, H))
+    salida = []
+    for t, fx, fy, z in crudos:
+        t = max(t, a + 0.05)
+        if t > b - 1.3:
+            continue
+        z = min(1.3, max(0.9, z))
+        cam = [round(fx, 1), round(fy + (H / 2 - sy) / z, 1), round(z, 3)]
+        if salida and t - salida[-1]["t"] < 0.45:
+            salida[-1] = {"t": salida[-1]["t"], "x": cam[0], "y": cam[1], "z": cam[2]}
+            continue
+        salida.append({"t": round(t, 3), "x": cam[0], "y": cam[1], "z": cam[2]})
+    return {"a": round(a, 3), "b": round(b, 3), "focos": salida}
+
+
+ICONO_PUENTE = {"versiculo": "biblia", "mapa": "chincheta", "linea": "arena",
+                "reloj": "reloj", "contador": "estrella", "comparacion": "balanza",
+                "lista": "pergamino", "texto": "estrella", "lamina": "estrella"}
+
+
+def impactos_de(pz):
+    """Cuando una pieza «aterriza»: la camara da un golpecito y las vecinas
+    reaccionan (movimientos encadenados)."""
+    t = pz["tipo"]
+    sale = {"abajo": 0.2, "arriba": 0.2, "izquierda": 0.2, "derecha": 0.2}.get(
+        pz.get("entra"), 0.12)
+    fuerza = {"icono": 0.5, "lamina": 0.8, "texto": 0.7}.get(t, 1.0)
+    salida = [(pz["en"] + sale, fuerza)]
+    if t == "mapa":
+        salida += [(pin["en"] + 0.2, 0.35) for pin in pz["lugares"]]
+    elif t == "contador":
+        salida.append((pz["fin"], 0.8))
+    elif t == "comparacion":
+        salida.append((pz["b_en"] + 0.2, 0.9))
+    elif t == "lista":
+        salida += [(it["en"] + 0.2, 0.4) for it in pz["items"]]
+    return [{"t": round(a, 3), "f": f, "id": pz.get("id"), "x": pz["x"], "y": pz["y"]}
+            for a, f in salida]
+
+
 def preparar(escenas, p, laminas_px, ancho, alto, hoy=None):
     """La configuracion de motion de CADA plano. -> {sid: conf}
 
@@ -862,7 +1126,39 @@ def preparar(escenas, p, laminas_px, ancho, alto, hoy=None):
                     paso["x"] = round(float(paso["x"]) + ox, 1)
                 if "y" in paso:
                     paso["y"] = round(float(paso["y"]) + oy, 1)
+        for k, pz in enumerate(piezas):
+            pz["id"] = f"{e.get('id')}-{k}"
         por_plano.append(piezas)
+    # EL OBJETO QUE LLEVA A LA ESCENA SIGUIENTE: sale de la pieza principal de
+    # este plano al final, vuela con la camara y, al llegar, estalla y se
+    # TRANSFORMA en la pieza del plano siguiente (que nace de el, con pop)
+    puentes = []
+    for i in range(len(escenas) - 1):
+        if not por_plano[i] or not por_plano[i + 1]:
+            puentes.append(None)
+            continue
+        a, b = por_plano[i][0], por_plano[i + 1][0]
+        viaje = tramos[2 * (i + 1)]
+        t_out = float(escenas[i]["t_out"])
+        sale = max(float(escenas[i]["t_in"]) + 0.3, t_out - 0.55)
+        llega = viaje["t1"]
+        icono = ICONO_PUENTE.get(b["tipo"], "estrella")
+        if b["tipo"] == "lamina":
+            otros = [q for q in por_plano[i + 1] if q["tipo"] == "icono"]
+            icono = otros[0]["nombre"] if otros else icono
+        # sale por el LADO hacia el que va la camara, sin tapar la pieza
+        de = [round(a["x"] + W * 0.34, 1), round(a["y"] - H * 0.1, 1)]
+        puentes.append({"de": de, "a": [b["x"], b["y"]], "sale": round(sale, 3),
+                        "vuela": round(float(escenas[i + 1]["t_in"]), 3),
+                        "llega": round(llega, 3), "icono": icono,
+                        "tam": round(W * (0.16 if H > W else 0.09), 1)})
+        if b["en"] < llega - 0.06:
+            b["en"] = round(llega - 0.06, 3)
+        b["entra"] = "pop"
+        b["desde_puente"] = True
+    sy = H * (0.37 if H > W else 0.42)
+    ventanas = [ventana_de(por_plano[i], tramos[2 * i]["t1"], float(e["t_out"]), W, H, sy)
+                for i, e in enumerate(escenas)]
     caminos = []
     for i in range(1, len(escenas)):
         (x0, y0), (x1, y1) = puntos[i - 1], puntos[i]
@@ -873,12 +1169,20 @@ def preparar(escenas, p, laminas_px, ancho, alto, hoy=None):
     confs = {}
     for i, e in enumerate(escenas):
         desde = max(0, i - 2)
+        incluidas = [pz for piezas in por_plano[desde:i + 1] for pz in piezas]
+        mis_puentes = [q for q in puentes[max(0, desde - 1):i + 1] if q]
+        impactos = [im for pz in incluidas for im in impactos_de(pz)]
+        impactos += [{"t": q["llega"], "f": 1.2, "id": None, "x": q["a"][0],
+                      "y": q["a"][1]} for q in mis_puentes]
         confs[e.get("id")] = {
+            "puentes": mis_puentes,
+            "impactos": sorted(impactos, key=lambda im: im["t"]),
+            "ventanas": ventanas[desde:i + 1],
             "tema": TEMAS[tema], "nombre_tema": tema, "fuentes": FUENTES,
             "W": W, "H": H, "t0": round(float(e["t_in"]), 3),
             "cam": tramos[2 * desde:2 * i + 2],
             "caminos": caminos[max(0, desde - 1):i],
-            "piezas": [pz for piezas in por_plano[desde:i + 1] for pz in piezas],
+            "piezas": incluidas,
             "plano": i,
         }
     return confs
@@ -944,6 +1248,50 @@ function resorte(s, w, z){
   return 1 - Math.exp(-z*w*s)*(Math.cos(wd*s) + (z*w/wd)*Math.sin(wd*s));
 }
 function col(n){ return MGT[n] || n || MGT.tinta; }
+let MGID = 0;
+// un ovalo a mano alzada (no cierra justo: se pasa un poco, como un rotulador)
+function trazoOvalo(cx, cy, rx, ry){
+  const pts = [];
+  for (let k = 0; k <= 44; k++){
+    const a = 3.4 + k/44*Math.PI*2.18, f = 1 + 0.05*Math.sin(a*3);
+    pts.push((cx + Math.cos(a)*rx*f).toFixed(1) + ',' + (cy + Math.sin(a)*ry*f).toFixed(1));
+  }
+  return 'M' + pts.join(' L');
+}
+// revela un trazo como si se dibujara
+function dibujar(e, u){
+  if (!e._len){ try { e._len = e.getTotalLength(); } catch(_) { e._len = 0; } if (e._len) e.setAttribute('stroke-dasharray', e._len.toFixed(1)); }
+  u = cl(u, 0, 1);
+  if (e._len) e.setAttribute('stroke-dashoffset', (e._len*(1 - u)).toFixed(1));
+  e.setAttribute('opacity', u > 0 ? 1 : 0);
+}
+// MASCARA DE BARRIDO: el nodo se descubre de izquierda a derecha
+function barrido(nodo, x, y, w, h){
+  const id = 'mgb' + (MGID++);
+  const cp = mk('clipPath', {id}, mk('defs', {}, nodo.parentNode));
+  const r = mk('rect', {x, y, width: 0, height: h}, cp);
+  nodo.setAttribute('clip-path', `url(#${id})`);
+  return u => r.setAttribute('width', (w*cl(u, 0, 1)).toFixed(1));
+}
+// texto partido en lineas que caben en `maxw` (centrado en 0,0)
+function bloqueTexto(padre, texto, fam, tam, maxw, color, maxLineas){
+  const g = mk('g', {}, padre), pal = String(texto).split(/\s+/), lineas = [];
+  const prueba = txt(g, '', {'font-family': fam, 'font-size': tam});
+  let act = '';
+  pal.forEach(w => { const c = act ? act + ' ' + w : w; prueba.textContent = c;
+    if (ancho(prueba) > maxw && act){ lineas.push(act); act = w; } else act = c; });
+  if (act) lineas.push(act);
+  prueba.remove();
+  let mx = 0; const lh = tam*1.12;
+  lineas.slice(0, maxLineas || 3).forEach((l, k, todas) => {
+    const e = txt(g, l, {'font-family': fam, 'font-size': tam, fill: color, 'text-anchor': 'middle',
+      y: ((k - (todas.length - 1)/2)*lh + tam*0.35).toFixed(1)});
+    mx = Math.max(mx, ancho(e));
+  });
+  let k = 1;
+  if (mx > maxw){ k = maxw/mx; g.setAttribute('transform', `scale(${k.toFixed(4)})`); }
+  return {g, w: Math.min(mx, maxw), h: Math.min(lineas.length, maxLineas || 3)*lh*k};
+}
 function txt(padre, s, at){ const e = mk('text', at, padre); e.textContent = s; return e; }
 function ancho(e){ try { return e.getComputedTextLength(); } catch(_) { return 0; } }
 
@@ -1004,6 +1352,103 @@ function icono(nombre, padre){
     case 'reloj':
       mk('circle', a({r: 42, fill: MGT.papel}), g);
       mk('path', a({d: 'M0,0V-26M0,0L18,10', fill: 'none'}), g); break;
+    case 'ojo':
+      mk('path', a({d: 'M-46,0 C-24,-30 24,-30 46,0 C24,30 -24,30 -46,0z', fill: MGT.papel}), g);
+      mk('circle', a({r: 16, fill: MGT.cielo}), g);
+      mk('circle', {r: 7, fill: T}, g); mk('circle', {cx: -5, cy: -6, r: 3.5, fill: '#fff'}, g); break;
+    case 'mano':
+      mk('path', a({d: 'M-24,44 C-34,24 -40,4 -40,-6 C-40,-14 -30,-14 -27,-6 L-22,6 L-22,-34 C-22,-42 -11,-42 -11,-34 L-11,-6 L-11,-42 C-11,-50 0,-50 0,-42 L0,-6 L0,-38 C0,-46 11,-46 11,-38 L11,-4 L11,-28 C11,-36 22,-36 22,-28 L22,14 C22,30 14,40 10,44z', fill: '#E9B98F'}), g); break;
+    case 'llave':
+      mk('circle', a({cx: -24, r: 18, fill: 'none', stroke: MGT.oro, 'stroke-width': 11}), g);
+      mk('path', a({d: 'M-8,0 H42 M28,0 V14 M40,0 V12', fill: 'none', stroke: MGT.oro, 'stroke-width': 11}), g); break;
+    case 'puerta':
+      mk('path', a({d: 'M-30,46 V-18 A30,30 0 0 1 30,-18 V46z', fill: '#8E5A44'}), g);
+      mk('path', {d: 'M0,-46 V46', stroke: T, 'stroke-width': 4, opacity: .5}, g);
+      mk('circle', {cx: 12, cy: 10, r: 4.5, fill: MGT.oro}, g); break;
+    case 'montana':
+      mk('path', a({d: 'M-48,40 L-12,-30 L4,-4 L18,-24 L48,40z', fill: '#8C7A64'}), g);
+      mk('path', a({d: 'M-22,-10 L-12,-30 L-2,-10 L-8,-14 L-14,-6z', fill: '#fff', 'stroke-width': 4}), g); break;
+    case 'sol':
+      for (let k = 0; k < 8; k++){ const an = k*Math.PI/4; mk('line', a({x1: Math.cos(an)*30, y1: Math.sin(an)*30, x2: Math.cos(an)*46, y2: Math.sin(an)*46, 'stroke-width': 8, stroke: MGT.oro}), g); }
+      mk('circle', a({r: 24, fill: MGT.oro}), g); break;
+    case 'luna':
+      mk('path', a({d: 'M14,-40 A42,42 0 1 0 14,40 A32,32 0 1 1 14,-40z', fill: MGT.oro}), g); break;
+    case 'nube':
+      mk('path', a({d: 'M-38,22 C-54,22 -54,-4 -36,-4 C-36,-28 -6,-34 4,-14 C14,-30 42,-22 38,0 C54,2 52,22 38,22z', fill: '#fff'}), g); break;
+    case 'gota':
+      mk('path', a({d: 'M0,-46 C18,-18 32,2 32,16 C32,34 18,44 0,44 C-18,44 -32,34 -32,16 C-32,2 -18,-18 0,-46z', fill: MGT.cielo}), g);
+      mk('path', {d: 'M-14,14 C-14,24 -8,30 0,32', stroke: '#fff', 'stroke-width': 6, fill: 'none', 'stroke-linecap': 'round', opacity: .8}, g); break;
+    case 'fuego':
+      mk('path', a({d: 'M0,46 C-30,46 -38,22 -30,2 C-24,-12 -12,-18 -10,-40 C6,-28 10,-14 8,-2 C14,-8 18,-16 18,-24 C34,-6 40,16 30,32 C24,42 12,46 0,46z', fill: MGT.acento}), g);
+      mk('path', {d: 'M0,40 C-14,40 -18,28 -12,16 C-8,8 -2,4 0,-6 C10,6 16,18 12,30 C10,36 6,40 0,40z', fill: MGT.oro}, g); break;
+    case 'arbol':
+      mk('rect', a({x: -8, y: 4, width: 16, height: 42, fill: '#8E5A44'}), g);
+      mk('circle', a({cy: -12, r: 34, fill: MGT.acento2}), g);
+      mk('circle', {cx: -12, cy: -18, r: 5, fill: MGT.acento}, g); mk('circle', {cx: 12, cy: -6, r: 5, fill: MGT.acento}, g); break;
+    case 'pez':
+      mk('path', a({d: 'M-36,0 C-20,-26 18,-26 30,0 C18,26 -20,26 -36,0z M28,0 L48,-18 L48,18z', fill: MGT.cielo}), g);
+      mk('circle', {cx: -18, cy: -4, r: 4, fill: T}, g); break;
+    case 'barca':
+      mk('path', a({d: 'M-46,12 H46 L32,36 H-32z', fill: '#9C6A48'}), g);
+      mk('path', a({d: 'M2,8 V-44 L36,4z', fill: MGT.papel}), g); break;
+    case 'oveja':
+      mk('path', a({d: 'M-14,30 v14 M14,30 v14', stroke: T, 'stroke-width': 7}), g);
+      mk('path', a({d: 'M-36,16 C-48,4 -36,-14 -24,-12 C-22,-28 0,-30 6,-18 C16,-28 36,-20 32,-4 C44,4 36,26 22,26 C14,34 -8,34 -14,26 C-28,32 -40,26 -36,16z', fill: '#fff'}), g);
+      mk('ellipse', a({cx: 36, cy: -12, rx: 12, ry: 15, fill: T}), g); break;
+    case 'espada':
+      mk('path', a({d: 'M-4,-46 L4,-46 L6,14 L-6,14z', fill: '#DDE3EA'}), g);
+      mk('rect', a({x: -22, y: 14, width: 44, height: 9, rx: 3, fill: MGT.oro}), g);
+      mk('rect', a({x: -5, y: 23, width: 10, height: 20, rx: 3, fill: '#8E5A44'}), g); break;
+    case 'escudo':
+      mk('path', a({d: 'M0,-44 L38,-30 C38,8 24,32 0,46 C-24,32 -38,8 -38,-30z', fill: MGT.acento2}), g);
+      mk('path', {d: 'M0,-22 V24 M-16,-4 H16', stroke: MGT.papel, 'stroke-width': 9, 'stroke-linecap': 'round'}, g); break;
+    case 'trompeta':
+      mk('path', a({d: 'M-44,-6 H8 L40,-30 V30 L8,6 H-44z', fill: MGT.oro}), g); break;
+    case 'tablas':
+      [-22, 22].forEach(x => {
+        mk('path', a({d: `M${x-20},44 V-20 A20,20 0 0 1 ${x+20},-20 V44z`, fill: '#C9C2B5'}), g);
+        [-10, 4, 18, 32].forEach(yy => mk('line', {x1: x-11, y1: yy, x2: x+11, y2: yy, stroke: T, 'stroke-width': 4, 'stroke-linecap': 'round', opacity: .55}, g));
+      }); break;
+    case 'templo':
+      mk('path', a({d: 'M-46,-14 L0,-42 L46,-14z', fill: MGT.oro}), g);
+      [-34, -12, 12, 34].forEach(x => mk('rect', a({x: x - 6, y: -12, width: 12, height: 44, fill: MGT.papel, 'stroke-width': 4}), g));
+      mk('rect', a({x: -48, y: 32, width: 96, height: 12, fill: MGT.papel}), g); break;
+    case 'tumba':
+      mk('path', a({d: 'M-48,40 C-46,-20 46,-20 48,40z', fill: '#A39584'}), g);
+      mk('circle', a({cx: 18, cy: 20, r: 20, fill: '#7E7266'}), g);
+      mk('path', {d: 'M-14,40 V18 A12,12 0 0 1 10,18', fill: T}, g); break;
+    case 'lupa':
+      mk('line', a({x1: 14, y1: 14, x2: 42, y2: 42, 'stroke-width': 14}), g);
+      mk('circle', a({cx: -8, cy: -8, r: 28, fill: MGT.cielo, 'fill-opacity': .5}), g); break;
+    case 'balanza':
+      mk('path', a({d: 'M0,-40 V40 M-26,40 H26 M-40,-26 H40', fill: 'none'}), g);
+      mk('path', a({d: 'M-40,-26 L-52,6 H-28z M40,-26 L28,6 H52z', fill: MGT.oro, 'stroke-width': 5}), g); break;
+    case 'ancla':
+      mk('path', a({d: 'M0,-30 V40 M-36,14 C-30,36 30,36 36,14 M-14,-14 H14', fill: 'none', 'stroke-width': 9}), g);
+      mk('circle', a({cy: -38, r: 9, fill: 'none', 'stroke-width': 7}), g); break;
+    case 'copa':
+      mk('path', a({d: 'M-30,-40 H30 C30,-6 14,6 0,6 C-14,6 -30,-6 -30,-40z', fill: MGT.oro}), g);
+      mk('path', a({d: 'M0,6 V32 M-20,40 H20', fill: 'none', 'stroke-width': 8}), g); break;
+    case 'persona':
+      mk('circle', a({cy: -26, r: 17, fill: '#E2B48A'}), g);
+      mk('path', a({d: 'M-28,46 C-28,0 -16,-6 0,-6 C16,-6 28,0 28,46z', fill: MGT.acento2}), g); break;
+    case 'chincheta':
+      mk('path', a({d: 'M0,46 C-6,30 -32,8 -32,-14 A32,32 0 1 1 32,-14 C32,8 6,30 0,46z', fill: MGT.acento}), g);
+      mk('circle', {cy: -14, r: 12, fill: MGT.papel}, g); break;
+    case 'arena':
+      mk('path', a({d: 'M-28,-44 H28 M-28,44 H28', 'stroke-width': 9}), g);
+      mk('path', a({d: 'M-22,-40 H22 C22,-14 4,-6 4,0 C4,6 22,14 22,40 H-22 C-22,14 -4,6 -4,0 C-4,-6 -22,-14 -22,-40z', fill: MGT.papel}), g);
+      mk('path', {d: 'M-14,36 C-8,22 8,22 14,36z M-10,-26 H10 C6,-16 2,-12 0,-8 C-2,-12 -6,-16 -10,-26z', fill: MGT.oro}, g); break;
+    case 'pregunta': case 'check': case 'equis': {
+      mk('circle', a({r: 44, fill: nombre === 'check' ? MGT.acento2 : MGT.acento}), g);
+      if (nombre === 'pregunta') txt(g, '?', {'text-anchor': 'middle', y: 22, 'font-size': 64, 'font-family': MGF.titulo, fill: '#fff'});
+      if (nombre === 'check') mk('path', {d: 'M-20,2 L-6,16 L22,-14', fill: 'none', stroke: '#fff', 'stroke-width': 11, 'stroke-linecap': 'round', 'stroke-linejoin': 'round'}, g);
+      if (nombre === 'equis') mk('path', {d: 'M-16,-16 L16,16 M16,-16 L-16,16', stroke: '#fff', 'stroke-width': 11, 'stroke-linecap': 'round'}, g);
+      break; }
+    case 'flecha':
+      mk('path', a({d: 'M-44,-10 H10 V-30 L44,0 L10,30 V10 H-44z', fill: MGT.acento}), g); break;
+    default:
+      mk('circle', a({r: 30, fill: MGT.acento}), g);
   }
   return g;
 }
@@ -1045,15 +1490,29 @@ function hazVersiculo(p, g){
     cab.setAttribute('data-y', y + cabH/2);
     y += cabH + tam*0.5;
   }
-  const palabras = [];
+  // CADA LINEA ES UNA MASCARA: la palabra sube desde detras de su renglon
+  // cuando suena; encima queda su sombra tenue para leer la forma del versiculo
+  const palabras = [], ovalos = [];
   lineas.forEach(l => {
     let x = -l.w / 2;
     y += lh;
+    const base = y - lh*0.22, id = 'mgm' + (MGID++);
+    const cp = mk('clipPath', {id}, mk('defs', {}, g));
+    mk('rect', {x: -p.w/2 - tam, y: base - tam*1.02, width: p.w + 2*tam, height: tam*1.34}, cp);
+    const capa = mk('g', {'clip-path': `url(#${id})`}, g);
     l.ps.forEach(({i, a}) => {
       const pw = p.palabras[i];
       const color = pw.c === 1 ? MGT.acento : (pw.c === 2 ? MGT.acento2 : MGT.tinta);
-      const e = txt(g, pw.t, {'font-family': MGF.verso, 'font-size': tam, fill: color});
-      palabras.push({e, x, y: y - lh*0.22, en: pw.en, c: pw.c, a});
+      const sombra = txt(g, pw.t, {'font-family': MGF.verso, 'font-size': tam, fill: MGT.tinta, x: x.toFixed(1), y: base.toFixed(1), opacity: .13});
+      g.insertBefore(sombra, capa);
+      const e = txt(capa, pw.t, {'font-family': MGF.verso, 'font-size': tam, fill: color});
+      palabras.push({e, sombra, x, y: base, en: pw.en, c: pw.c, a});
+      if (pw.c === 1){
+        // la palabra clave se RODEA a mano despues de decirla
+        const o = mk('path', {d: trazoOvalo(x + a/2, base - tam*0.33, a/2 + tam*0.28, tam*0.62), fill: 'none',
+          stroke: MGT.acento, 'stroke-width': Math.max(4, tam*0.07), 'stroke-linecap': 'round', opacity: 0}, g);
+        ovalos.push({o, en: pw.en + 0.4});
+      }
       x += a + esp;
     });
   });
@@ -1095,15 +1554,12 @@ function hazVersiculo(p, g){
     }
     palabras.forEach(w => {
       const s = T - w.en;
-      // las que aun no se dicen se ven tenues: se lee la forma del versiculo
-      // y cada palabra se entinta, salta y se asienta cuando suena
-      const r = s <= 0 ? 0 : resorte(s, 16, .5);
-      const op = s <= 0 ? .16 : lerp(.16, 1, cl(s/0.18, 0, 1));
-      const dy = s <= 0 ? tam*0.12 : (1 - r) * tam*0.35;
-      const esc = s <= 0 ? 1 : 1 + (w.c ? .22 : .1) * Math.exp(-s*6) * Math.sin(Math.min(s*14, Math.PI));
-      w.e.setAttribute('opacity', op.toFixed(3));
-      w.e.setAttribute('transform', `translate(${(w.x + w.a/2).toFixed(1)},${(w.y + dy).toFixed(1)}) scale(${esc.toFixed(3)}) translate(${(-w.a/2).toFixed(1)},0)`);
+      const r = s <= 0 ? 0 : resorte(s, 15, .6);
+      w.e.setAttribute('opacity', s > 0 ? 1 : 0);
+      w.e.setAttribute('transform', `translate(${w.x.toFixed(1)},${(w.y + (1 - r)*tam*1.15).toFixed(1)})`);
+      w.sombra.setAttribute('opacity', (s <= 0 ? .13 : .13*cl(1 - s/0.25, 0, 1)).toFixed(3));
     });
+    ovalos.forEach(v => dibujar(v.o, eOut((T - v.en)/0.5)));
     const sr = T - p.ref_en, rr = resorte(sr, 12, .4);
     ref.setAttribute('transform', `translate(0,${(refY + (1 - rr)*tam*1.2).toFixed(1)})`);
     ref.setAttribute('opacity', cl(sr/0.15, 0, 1).toFixed(3));
@@ -1135,6 +1591,7 @@ function hazReloj(p, g){
   if (p.titulo){
     titulo = txt(g, p.titulo, {'font-family': MGF.titulo, 'font-size': r*0.15, 'letter-spacing': r*0.03, fill: MGT.tinta, 'text-anchor': 'middle', y: -r*1.22});
   }
+  let barreTitulo = null;
   mk('circle', {cx: r*0.06, cy: r*0.07, r: r, fill: MGT.tinta, opacity: .9}, g);
   mk('circle', {r: r, fill: MGT.papel, stroke: MGT.tinta, 'stroke-width': sw}, g);
   const sectores = p.porciones.map(por => {
@@ -1172,7 +1629,8 @@ function hazReloj(p, g){
   }
   // que el titulo y el pie no se salgan del cuadro
   const encaja = (e, max) => { const a = ancho(e); if (a > max){ const fs = parseFloat(e.getAttribute('font-size')) * max / a; e.setAttribute('font-size', fs.toFixed(1)); e.setAttribute('letter-spacing', (fs*0.12).toFixed(1)); } };
-  if (titulo) encaja(titulo, MG.W*0.88);
+  if (titulo){ encaja(titulo, MG.W*0.88); const aw = ancho(titulo) + 20, fs = parseFloat(titulo.getAttribute('font-size'));
+    barreTitulo = barrido(titulo, -aw/2, -r*1.22 - fs, aw, fs*1.4); }
   if (pie){
     const t = pie.querySelector('text'), caja = pie.querySelector('rect');
     encaja(t, MG.W*0.8);
@@ -1192,7 +1650,7 @@ function hazReloj(p, g){
       etiquetas[k].setAttribute('transform', `translate(${(Math.sin(mid)*r*0.5).toFixed(1)},${(-Math.cos(mid)*r*0.5).toFixed(1)}) scale(${Math.max(0.001, rr).toFixed(3)})`);
     });
     aguja.setAttribute('transform', `rotate(${(aguja_a*180/Math.PI).toFixed(2)})`);
-    if (titulo) titulo.setAttribute('opacity', cl((T - p.en - 0.3)/0.3, 0, 1));
+    if (barreTitulo) barreTitulo(eIO((T - p.en - 0.25)/0.6));
     if (pie){
       const s = T - p.pie_en, rr = resorte(s, 12, .4);
       pie.setAttribute('opacity', cl(s/0.12, 0, 1));
@@ -1406,8 +1864,11 @@ function hazTexto(p, g0){
   const tam = p.tam, partes = [], g = mk('g', {}, g0);
   let x = 0;
   const esp = tam*0.28;
+  const id = 'mgm' + (MGID++);
+  const cpr = mk('rect', {x: -1e4, y: -tam*0.75, width: 2e4, height: tam*1.25}, mk('clipPath', {id}, mk('defs', {}, g)));
+  const capa = mk('g', {'clip-path': `url(#${id})`}, g);
   p.palabras.forEach(pw => {
-    const e = txt(g, pw.t, {'font-family': MGF.titulo, 'font-size': tam, fill: pw.c ? MGT.acento : MGT.tinta,
+    const e = txt(capa, pw.t, {'font-family': MGF.titulo, 'font-size': tam, fill: pw.c ? MGT.acento : MGT.tinta,
       stroke: MGT.papel, 'stroke-width': tam*0.06, 'paint-order': 'stroke', 'stroke-linejoin': 'round'});
     const a = ancho(e);
     partes.push({e, x, a, en: pw.en});
@@ -1417,9 +1878,10 @@ function hazTexto(p, g0){
   if (total > p.w) g.setAttribute('transform', `scale(${(p.w/total).toFixed(4)})`);
   return function(T){
     partes.forEach(q => {
-      const s = T - q.en, r = resorte(s, 15, .38);
+      // sube desde detras de la mascara del renglon
+      const s = T - q.en, r = resorte(s, 15, .55);
       q.e.setAttribute('opacity', s > 0 ? 1 : 0);
-      q.e.setAttribute('transform', `translate(${(q.x - total/2 + q.a/2).toFixed(1)},${(tam*0.35 + (1 - r)*tam*0.8).toFixed(1)}) scale(${Math.max(0.001, 0.5 + 0.5*r).toFixed(3)}) translate(${(-q.a/2).toFixed(1)},0)`);
+      q.e.setAttribute('transform', `translate(${(q.x - total/2).toFixed(1)},${(tam*0.35 + (1 - r)*tam*1.15).toFixed(1)})`);
     });
   };
 }
@@ -1435,8 +1897,111 @@ function hazIcono(p, g){
   };
 }
 
+function hazContador(p, g){
+  const tam = p.tam;
+  const num = txt(g, '0', {'font-family': MGF.titulo, 'font-size': tam, fill: MGT.acento, 'text-anchor': 'middle', y: (-tam*0.12).toFixed(1),
+    stroke: MGT.papel, 'stroke-width': tam*0.05, 'paint-order': 'stroke'});
+  const etq = txt(g, p.etq, {'font-family': MGF.titulo, 'font-size': tam*0.26, 'letter-spacing': tam*0.04, fill: MGT.tinta, 'text-anchor': 'middle', y: (tam*0.3).toFixed(1)});
+  let ew = ancho(etq);
+  if (ew > p.w){ etq.setAttribute('font-size', (tam*0.26*p.w/ew).toFixed(1)); ew = p.w; }
+  const barre = barrido(etq, -ew/2 - 10, tam*0.0, ew + 20, tam*0.45);
+  // los pictogramas aparecen A LA VEZ que cuenta el numero
+  const k = p.n <= 12 ? p.n : 40, cols = p.n <= 12 ? Math.min(p.n, 6) : 10;
+  const filas = Math.ceil(k/cols), lado = Math.min(p.w/cols, tam*0.58, MG.H*0.34/filas), pics = [];
+  for (let j = 0; j < k; j++){
+    const fila = Math.floor(j/cols), c = j % cols, enFila = Math.min(cols, k - fila*cols);
+    const e = mk('g', {}, g);
+    if (p.n <= 12){ const ic = icono(p.icono, e); ic.setAttribute('transform', `scale(${(lado*0.82/100).toFixed(4)})`); }
+    else mk('circle', {r: lado*0.3, fill: j % 2 ? MGT.acento2 : MGT.acento, stroke: MGT.tinta, 'stroke-width': lado*0.05}, e);
+    pics.push({e, x: (c - (enFila - 1)/2)*lado, y: tam*0.62 + fila*lado + lado/2, t: p.en + (p.fin - p.en)*(j + 1)/k});
+  }
+  const nota = p.n > 12 ? txt(g, 'cada ● = ' + Math.round(p.n/40).toLocaleString('es'), {'font-family': MGF.titulo, 'font-size': tam*0.17,
+    fill: MGT.suave, 'text-anchor': 'middle', y: (tam*0.75 + filas*lado).toFixed(1)}) : null;
+  return function(T){
+    const u = eOut((T - p.en) / Math.max(0.3, p.fin - p.en));
+    num.textContent = Math.round(p.n*u).toLocaleString('es');
+    const s2 = T - p.fin, golpe = s2 > 0 ? 1 + 0.16*Math.exp(-s2*6)*Math.sin(Math.min(s2*14, Math.PI)) : 1;
+    num.setAttribute('transform', `translate(0,${(-tam*0.45).toFixed(1)}) scale(${golpe.toFixed(3)}) translate(0,${(tam*0.45).toFixed(1)})`);
+    barre(eIO((T - p.en - 0.2)/0.55));
+    pics.forEach(q => { const s = T - q.t, r = resorte(s, 16, .4);
+      q.e.setAttribute('opacity', s > 0 ? 1 : 0);
+      q.e.setAttribute('transform', `translate(${q.x.toFixed(1)},${(q.y - (1 - r)*lado*0.8).toFixed(1)}) scale(${Math.max(0.001, r).toFixed(3)})`); });
+    if (nota) nota.setAttribute('opacity', cl((T - p.fin)/0.3, 0, 1).toFixed(3));
+  };
+}
+
+function hazComparacion(p, g){
+  const tam = p.tam, v = p.vertical, cw = v ? p.w*0.92 : p.w*0.44, sw = Math.max(5, tam*0.09);
+  const tarjeta = (texto, borde, cx, cy) => {
+    const t = mk('g', {}, g), sombra = mk('rect', {}, t), caja = mk('rect', {}, t);
+    const b = bloqueTexto(t, texto, MGF.titulo, tam, cw*0.8, MGT.tinta, 3);
+    const ch = Math.max(b.h + tam*1.1, tam*2.3);
+    [[sombra, sw*1.6, MGT.tinta, 'none'], [caja, 0, MGT.papel, borde]].forEach(([e, d, fill, st]) => {
+      e.setAttribute('x', -cw/2 + d); e.setAttribute('y', -ch/2 + d); e.setAttribute('width', cw); e.setAttribute('height', ch);
+      e.setAttribute('rx', tam*0.35); e.setAttribute('fill', fill);
+      if (st !== 'none'){ e.setAttribute('stroke', st); e.setAttribute('stroke-width', sw); }
+    });
+    return {t, b, ch, cx, cy};
+  };
+  const A = tarjeta(p.a, MGT.tinta, v ? 0 : -p.sep, v ? -p.sep : 0);
+  const B = tarjeta(p.b, MGT.acento2, v ? 0 : p.sep, v ? p.sep : 0);
+  const tacha = mk('path', {d: `M${-cw*0.4},${tam*0.1} C${-cw*0.1},${-tam*0.2} ${cw*0.15},${tam*0.25} ${cw*0.4},${-tam*0.15}`,
+    fill: 'none', stroke: MGT.acento, 'stroke-width': tam*0.18, 'stroke-linecap': 'round', opacity: 0}, A.t);
+  const insignia = (cual, T0) => { const e = mk('g', {}, cual.t); icono(T0, e).setAttribute('transform', `scale(${(tam*0.012).toFixed(4)})`); return e; };
+  const xA = insignia(A, 'equis'), okB = insignia(B, 'check');
+  const flecha = mk('path', {d: v ? `M0,${-p.sep + A.ch/2 + tam*0.3} V${p.sep - B.ch/2 - tam*0.45} M${-tam*0.35},${p.sep - B.ch/2 - tam*0.8} L0,${p.sep - B.ch/2 - tam*0.4} L${tam*0.35},${p.sep - B.ch/2 - tam*0.8}`
+    : `M${-p.sep + cw/2 + tam*0.3},0 H${p.sep - cw/2 - tam*0.45} M${p.sep - cw/2 - tam*0.8},${-tam*0.35} L${p.sep - cw/2 - tam*0.4},0 L${p.sep - cw/2 - tam*0.8},${tam*0.35}`,
+    fill: 'none', stroke: MGT.tinta, 'stroke-width': sw, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0}, g);
+  return function(T){
+    const sa = T - p.a_en, ra = resorte(sa, 13, .42);
+    const sx = T - (p.b_en - 0.2), ux = eOut(sx/0.4);
+    // A cae; cuando llega la verdad se TACHA, encoge y se apaga (y se queda)
+    A.t.setAttribute('opacity', sa > 0 ? 1 : 0);
+    A.t.setAttribute('transform', `translate(${A.cx},${(A.cy - (1 - ra)*tam*3).toFixed(1)}) scale(${(1 - 0.1*ux).toFixed(3)}) rotate(${(-2.5*ux).toFixed(2)})`);
+    A.b.g.setAttribute('opacity', (1 - 0.5*ux).toFixed(3));
+    dibujar(tacha, ux);
+    const rx = resorte(sx - 0.25, 15, .4);
+    xA.setAttribute('opacity', sx > 0.25 ? 1 : 0);
+    xA.setAttribute('transform', `translate(${(cw/2 - tam*0.2).toFixed(1)},${(-A.ch/2 + tam*0.2).toFixed(1)}) scale(${Math.max(0.001, rx).toFixed(3)})`);
+    const sb = T - p.b_en, rb = resorte(sb, 13, .42);
+    B.t.setAttribute('opacity', sb > 0 ? 1 : 0);
+    const late = sb > 0.8 ? 1 + 0.025*Math.sin((sb - 0.8)*5) : 1;
+    B.t.setAttribute('transform', `translate(${B.cx},${(B.cy + (1 - rb)*tam*3).toFixed(1)}) scale(${(Math.max(0.001, rb)*late).toFixed(3)})`);
+    const rk = resorte(sb - 0.3, 15, .4);
+    okB.setAttribute('opacity', sb > 0.3 ? 1 : 0);
+    okB.setAttribute('transform', `translate(${(cw/2 - tam*0.2).toFixed(1)},${(-B.ch/2 + tam*0.2).toFixed(1)}) scale(${Math.max(0.001, rk).toFixed(3)})`);
+    dibujar(flecha, eOut((sb - 0.05)/0.35));
+  };
+}
+
+function hazLista(p, g){
+  const tam = p.tam, n = p.items.length, w = p.w, alto = tam*1.6, sw = Math.max(4, tam*0.08);
+  const filas = p.items.map((it, k) => {
+    const e = mk('g', {}, g);
+    mk('rect', {x: -w/2 + sw*1.4, y: -alto/2 + sw*1.4, width: w, height: alto, rx: alto/2, fill: MGT.tinta}, e);
+    mk('rect', {x: -w/2, y: -alto/2, width: w, height: alto, rx: alto/2, fill: MGT.papel, stroke: MGT.tinta, 'stroke-width': sw}, e);
+    mk('circle', {cx: -w/2 + alto/2, r: alto*0.38, fill: k % 2 ? MGT.acento2 : MGT.acento}, e);
+    txt(e, String(k + 1), {'font-family': MGF.titulo, 'font-size': tam*0.9, fill: '#fff', 'text-anchor': 'middle', x: -w/2 + alto/2, y: tam*0.32});
+    const t = txt(e, it.t, {'font-family': MGF.titulo, 'font-size': tam, fill: MGT.tinta, x: -w/2 + alto*1.05, y: tam*0.35});
+    const maxw = w - alto*1.4, aw = ancho(t);
+    if (aw > maxw) t.setAttribute('font-size', (tam*maxw/aw).toFixed(1));
+    return {e, it, y: (k - (n - 1)/2)*p.paso, dir: k % 2 ? -1 : 1};
+  });
+  return function(T){
+    filas.forEach((f, k) => {
+      const s = T - f.it.en, r = resorte(s, 13, .45);
+      // la que entra empuja: las de antes se apagan un poco (encadenado)
+      const siguiente = filas[k + 1], apaga = siguiente ? eOut((T - siguiente.it.en)/0.4) : 0;
+      f.e.setAttribute('opacity', s > 0 ? (1 - 0.3*apaga).toFixed(3) : 0);
+      const estira = 1 + cl((1 - r)*0.25, -0.06, 0.25);
+      f.e.setAttribute('transform', `translate(${((1 - r)*f.dir*MG.W).toFixed(1)},${f.y.toFixed(1)}) scale(${estira.toFixed(3)},${(1/estira).toFixed(3)}) scale(${(1 - 0.06*apaga).toFixed(3)})`);
+    });
+  };
+}
+
 const CONSTRUCTORES = {versiculo: hazVersiculo, reloj: hazReloj, mapa: hazMapa, linea: hazLinea,
-  lamina: hazLamina, texto: hazTexto, icono: hazIcono};
+  lamina: hazLamina, texto: hazTexto, icono: hazIcono, contador: hazContador,
+  comparacion: hazComparacion, lista: hazLista};
 
 // ---------------------------------------------------------------- el mundo
 function mgConstruir(){
@@ -1459,6 +2024,13 @@ function mgConstruir(){
     let upd = () => {};
     try { upd = CONSTRUCTORES[p.tipo](p, dentro) || upd; } catch (e) { console.log('motion ' + p.tipo + ': ' + e); }
     MGPIEZAS.push({p, fuera, upd});
+  });
+  (MG.puentes || []).forEach(pu => {
+    const g = mk('g', {}, mundo);
+    const ring = mk('circle', {fill: 'none', stroke: MGT.oro, opacity: 0}, g);
+    const ic = mk('g', {}, g);
+    icono(pu.icono, ic);
+    MGPIEZAS.push({puente: true, pu, g, ic, ring});
   });
   MGHECHO = true;
   MGCONLETRAS = !!window.LETRAS_OK;
@@ -1518,6 +2090,14 @@ function mgPieza(q, T){
     if (d === 'abajo' || d === 'arriba'){ sy = 1 + estira; sx = 1/sy; }
     else { sx = 1 + estira; sy = 1/sx; }
   }
+  // ENCADENADO: cuando otra pieza aterriza cerca, esta reacciona (se mece)
+  let reac = 0;
+  (MG.impactos || []).forEach(im => {
+    if (im.id === p.id || T < p.en + 0.45) return;
+    const si = T - im.t;
+    if (si > 0 && si < 1.2 && Math.abs(im.x - p.x) < MG.W*0.9) reac += im.f*Math.exp(-si*6)*Math.sin(si*17);
+  });
+  rot += 2.2*reac; esc *= 1 + 0.012*reac;
   op *= cl(s/0.12, 0, 1);
   if (p.sale !== undefined && T > p.sale){
     const e = eIO((T - p.sale)/0.5);
@@ -1529,10 +2109,71 @@ function mgPieza(q, T){
   q.upd(T);
 }
 
+// LA CAMARA SIGUE LO IMPORTANTE: dentro de cada plano va de foco en foco
+// (la chincheta que se nombra, el año que se dice, la porcion del reloj...) y
+// vuelve a su sitio antes de acabar el plano, para que el viaje al siguiente
+// empiece donde toca (sin corte)
+function mgFoco(T, base){
+  const v = (MG.ventanas || []).find(w => T >= w.a && T < w.b);
+  if (!v || !v.focos.length) return base;
+  const est = [{t: v.a, f: null}].concat(v.focos.map(f => ({t: f.t, f})), [{t: v.b - 0.8, f: null}]);
+  let k = 0;
+  for (let j = 0; j < est.length; j++) if (T >= est[j].t) k = j;
+  if (k === 0) return base;
+  const val = e => e.f ? [e.f.x, e.f.y, e.f.z] : base;
+  const dur = Math.max(0.2, Math.min(0.75, est[k].t - est[k - 1].t));
+  const a = val(est[k - 1]), b = val(est[k]), u = eIO((T - est[k].t)/dur);
+  return [lerp(a[0], b[0], u), lerp(a[1], b[1], u), lerp(a[2], b[2], u)];
+}
+// el golpecito de camara cuando algo aterriza
+function mgGolpe(T){
+  let v = 0;
+  (MG.impactos || []).forEach(im => { const s = T - im.t; if (s > 0 && s < 0.9) v += im.f*Math.exp(-s*7)*Math.sin(s*20); });
+  return v;
+}
+// EL OBJETO PUENTE: sale de la pieza de este plano, vuela con la camara y se
+// transforma (estalla en un anillo) en la pieza del plano siguiente
+function mgPuente(q, T){
+  const pu = q.pu, tam = pu.tam;
+  if (T < pu.sale || T > pu.llega + 0.6){ q.g.setAttribute('display', 'none'); return; }
+  q.g.removeAttribute('display');
+  let x = pu.de[0], y = pu.de[1], esc = 1, rot = 0, sx = 1, sy = 1, op = 1, anillo = 0;
+  if (T < pu.vuela){
+    const s = T - pu.sale, r = resorte(s, 14, .4);
+    esc = Math.max(0.001, r);
+    y -= tam*0.6*cl(r, 0, 1.2);
+    // anticipacion: se agacha justo antes de saltar
+    const ag = cl((T - (pu.vuela - 0.15))/0.15, 0, 1);
+    sy = 1 - 0.22*ag; sx = 1 + 0.18*ag;
+  } else if (T < pu.llega){
+    const u = eIO((T - pu.vuela)/Math.max(0.1, pu.llega - pu.vuela));
+    const a = [pu.de[0], pu.de[1] - tam*0.6], b = pu.a;
+    const cx = (a[0] + b[0])/2, cy = Math.min(a[1], b[1]) - MG.H*0.22;
+    x = (1-u)*(1-u)*a[0] + 2*(1-u)*u*cx + u*u*b[0];
+    y = (1-u)*(1-u)*a[1] + 2*(1-u)*u*cy + u*u*b[1];
+    rot = 360*eIO(u);
+    const vel = Math.sin(Math.PI*u);
+    sx = 1 + 0.25*vel; sy = 1/sx;
+  } else {
+    const s = T - pu.llega;
+    x = pu.a[0]; y = pu.a[1];
+    esc = 1 + 3.5*eOut(s/0.4); op = 1 - eOut(s/0.35); anillo = s;
+  }
+  q.ic.setAttribute('transform', `translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${rot.toFixed(1)}) scale(${(esc*sx*tam/100).toFixed(4)},${(esc*sy*tam/100).toFixed(4)})`);
+  q.ic.setAttribute('opacity', op.toFixed(3));
+  if (anillo > 0){
+    q.ring.setAttribute('cx', pu.a[0]); q.ring.setAttribute('cy', pu.a[1]);
+    q.ring.setAttribute('r', (tam*(0.5 + 3.2*eOut(anillo/0.55))).toFixed(1));
+    q.ring.setAttribute('stroke-width', (tam*0.14*(1 - eOut(anillo/0.55))).toFixed(2));
+    q.ring.setAttribute('opacity', (1 - eOut(anillo/0.55)).toFixed(3));
+  } else q.ring.setAttribute('opacity', 0);
+}
+
 function motionPintar(t){
   if (!MGHECHO || (!MGCONLETRAS && window.LETRAS_OK)) mgConstruir();
   const T = MG.t0 + t;
-  const [cx, cy, z] = mgCamara(T);
+  let [cx, cy, z] = mgFoco(T, mgCamara(T));
+  z *= 1 + 0.014*mgGolpe(T);
   document.getElementById('mgmundo').setAttribute('transform',
     `translate(${MG.W/2},${MG.H/2}) scale(${z.toFixed(5)}) translate(${(-cx).toFixed(2)},${(-cy).toFixed(2)})`);
   MGPIEZAS.forEach(q => {
@@ -1547,6 +2188,7 @@ function motionPintar(t){
       q.fl.setAttribute('transform', `translate(${fin[0].toFixed(1)},${fin[1].toFixed(1)}) rotate(${a.toFixed(1)}) scale(${cl((u - 0.9)*10, 0, 1).toFixed(3)})`);
       return;
     }
+    if (q.puente){ mgPuente(q, T); return; }
     mgPieza(q, T);
   });
 }

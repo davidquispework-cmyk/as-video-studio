@@ -325,6 +325,34 @@ G. **FIGURAS PLANAS PROPIAS (decidido 6-nov)**: personajes de colores lisos como
    - Si no hay nada de eso: la imagen del plano como **lámina** enmarcada que
      sube rebotando, con iconos que saltan al decir su palabra (cruz, corazón,
      Biblia, moneda, celular, corona, paloma, casa, vela, estrella, pan, cadena…).
+   **Ampliado el mismo día (tras ver David las referencias)**:
+   - **Texto que se revela desde una MÁSCARA**: cada renglón del versículo es una
+     ventana; la palabra SUBE desde detrás de su renglón cuando la voz la dice (su
+     sombra tenue se ve antes, para leer la forma de la frase). La palabra clave
+     se RODEA a mano después de decirla. Los títulos se descubren con un barrido.
+   - **Movimientos encadenados**: cuando una pieza aterriza, la cámara da un
+     golpecito y las piezas vecinas se mecen (reaccionan); en las listas la que
+     entra empuja y apaga un poco a las de antes; los pictogramas del contador
+     salen a la vez que cuenta el número.
+   - **La cámara sigue lo importante**: dentro de cada plano va de foco en foco
+     (se acerca a la chincheta que se nombra, al año que se dice, a la porción del
+     reloj, a la tarjeta tachada y luego a la verdadera…) y vuelve a su sitio
+     antes de acabar el plano, para que el viaje al siguiente no corte.
+   - **Un objeto se transforma para presentar la escena siguiente**: al final de
+     cada plano sale por el lado un objeto que anuncia lo que viene (chincheta →
+     mapa, Biblia → versículo, reloj de arena → línea de tiempo, balanza →
+     comparación…); se agacha, salta, vuela con la cámara y al llegar ESTALLA en
+     un anillo del que nace la pieza nueva.
+   - **Más recursos**: 3 piezas nuevas — **comparación** («no fueron tres reyes,
+     sino unos magos»: la falsa cae, se tacha con ✗, la verdadera sube con ✓ y una
+     flecha), **contador** («cinco mil hombres»: el número cuenta y salen
+     muñequitos o puntos «cada ● = 125»; también panes, peces, ovejas, monedas,
+     días…), **lista** («tres cosas: orar, leer la Biblia y servir»: cada una entra
+     numerada cuando se dice) — y 46 iconos (antes 14): ojo, mano, llave, puerta,
+     monte, sol, luna, nube, agua, fuego, árbol, pez, barca, oveja, espada, escudo,
+     trompeta, tablas de la ley, templo, tumba, lupa, balanza, ancla, copa,
+     persona, chincheta, reloj de arena, ?, ✓, ✗, flecha… que saltan junto a la
+     lámina al decir su palabra.
    Subtítulos, gancho y plantilla TikTok siguen encima igual. Con motion no hay
    muñecos ni efectos de ambiente (eso va en la segunda parte).
    Cómo quedó: `pasos/motion.py` (detección, piezas, cámara y el JS que anima) +
@@ -336,9 +364,10 @@ G. **FIGURAS PLANAS PROPIAS (decidido 6-nov)**: personajes de colores lisos como
    línea, reloj, lámina, con `en`, `entra` y `luego`) o `"motion": false`.
    Prueba: `pasos/prueba_motion.py` (`--foto` pinta y comprueba que no hay corte).
    **SEGUNDA PARTE (siguiente chat)**: que Claude escriba el storyboard de cada
-   plano con metáforas; figuras planas propias (muñecos) dentro del mundo; más
-   piezas (comparación, lista, contador, flechas y círculos que señalan); sonido
-   «whoosh» en los viajes y «pop» en cada pieza.
+   plano con metáforas (y elija piezas e iconos con intención); figuras planas
+   propias (muñecos) dentro del mundo; más piezas (flechas que señalan, gráfico
+   de barras, antes/después, árbol genealógico); sonido «whoosh» en los viajes y
+   «pop» en cada pieza.
 B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Cómo se usa: al crear el vídeo (o en «El encargo») → «Gancho» → «⚡ Gancho +
    textos TikTok». Debajo salen dos filas nuevas: «Letra de los textos»

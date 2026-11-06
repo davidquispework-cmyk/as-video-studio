@@ -67,12 +67,23 @@ Leer antes NOTAS-DAVID.md (punto G y etapa 1 «Muñecos que gesticulan») y segu
   novena, «N horas al día» sobre 24 h) > lámina (la imagen del plano) + iconos que
   saltan al decir su palabra (`PALABRAS_ICONO`). En plan.json `"motion": [piezas]`
   manda (storyboard a mano); `"motion": false` = solo lámina.
+- Prioridad completa: versículo > comparación («no X sino Y») > línea > mapa > reloj
+  > lista («: a, b y c») > contador («cinco mil hombres») > lámina + iconos (46).
+- Máscaras: cada renglón del versículo y del texto es un clipPath (la palabra sube
+  desde detrás); `barrido()` descubre títulos; `trazoOvalo` + `dibujar` rodean a mano.
+- Encadenado: `impactos_de` (Python) -> golpe de cámara `mgGolpe` y reacción de las
+  vecinas en `mgPieza`. Cámara que sigue: `focos_de`/`ventana_de` -> `mgFoco`; los
+  focos acaban 1,3 s antes del final y vuelve a la base 0,8 s antes: NO romper eso o
+  vuelve el corte entre planos.
+- Objeto puente (`puentes` en `preparar`, `mgPuente` en JS): sale por el lado al
+  final del plano, vuela con la cámara y estalla; la pieza siguiente pasa a
+  `entra: "pop"` y `en` = llegada.
 - Prueba: `pasos/prueba_motion.py` (`--foto` pinta y comprueba que no hay corte).
 
 ## Lo siguiente (segunda parte)
 Que Claude escriba el storyboard por plano (`"motion": [...]` en plan.json) con
 metáforas; muñecos/figuras planas DENTRO del mundo (hoy, con motion, no hay muñecos
-ni ambiente); más piezas (comparación, lista, contador, balanza, cadena); sonido
+ni ambiente); más piezas (flechas que señalan, barras, antes/después); sonido
 «whoosh» en cada viaje de cámara y «pop» en cada pieza.
 
 ## Ideas para más adelante

@@ -30,6 +30,9 @@ ESCENAS = [
     _escena("S004", "Desde la hora sexta hasta la hora novena hubo tinieblas", 13.0, 17.0),
     _escena("S005", "Si pasas cinco horas al día en el celular tu tiempo se va", 17.0, 21.0),
     _escena("S006", "El corazón lleno de cosas no tiene hambre de Dios", 21.0, 24.0),
+    _escena("S007", "No fueron tres reyes, sino unos magos de oriente.", 24.0, 28.0),
+    _escena("S008", "Jesús alimentó a cinco mil hombres con cinco panes", 28.0, 32.0),
+    _escena("S009", "Haz tres cosas: orar, leer la Biblia y servir.", 32.0, 36.0),
 ]
 
 
@@ -58,6 +61,19 @@ def main():
     assert tipos[2] == ["linea"], tipos
     assert tipos[3] == ["reloj"] and tipos[4] == ["reloj"], tipos
     assert tipos[5][0] == "lamina" and "icono" in tipos[5], tipos
+    assert tipos[6] == ["comparacion"] and tipos[7] == ["contador"] and tipos[8] == ["lista"], tipos
+    comp = confs["S007"]["piezas"][-1]
+    assert comp["a"] == "tres reyes" and comp["b"].startswith("unos magos"), comp
+    cont = next(p for p in confs["S008"]["piezas"] if p["tipo"] == "contador")
+    assert cont["n"] == 5000 and cont["etq"] == "HOMBRES" and cont["icono"] == "persona"
+    # el objeto puente: sale al final de un plano y la pieza siguiente nace de el
+    pu = confs["S002"]["puentes"]
+    assert any(q["icono"] == "chincheta" for q in pu), pu
+    mapa_ = next(p for p in confs["S002"]["piezas"] if p["tipo"] == "mapa")
+    assert mapa_["entra"] == "pop" and mapa_["desde_puente"]
+    # la camara sigue lo importante: hay focos y vuelve a su sitio antes del final
+    ven = confs["S002"]["ventanas"][-1]
+    assert ven["focos"] and all(f["t"] <= ven["b"] - 1.3 for f in ven["focos"]), ven
     mapa = next(p for p in confs["S002"]["piezas"] if p["tipo"] == "mapa")
     assert 100 <= mapa["tramos"][0]["km"] <= 125, mapa["tramos"]   # Belén–Nazaret ~110 km
     # la camara: cada plano empieza donde acabo el anterior (no hay corte)
