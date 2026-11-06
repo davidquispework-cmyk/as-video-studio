@@ -217,26 +217,64 @@ def extraer_fotogramas(clip, carpeta_salida, fps, cuantos):
 
 # ------------------------------------------------------ el prompt de movimiento
 
+def _movimiento_de(texto):
+    """Que se mueve en la escena, leido de sus palabras. -> [frases]"""
+    t = texto.lower()
+    reglas = [
+        (("camin", "anda", "march", "viaj", "llega", "entra", "sale"),
+         "el personaje camina despacio hacia delante"),
+        (("habla", "dice", "predic", "ense", "explica", "pregunt", "respond"),
+         "el personaje habla gesticulando con las manos, mueve la boca y la cabeza"),
+        (("escrib", "pergamino", "carta", "libro", "lee", "rollo"),
+         "la mano escribe o pasa la página con calma, la mirada sigue el texto"),
+        (("ora", "rez", "arrodill", "plegaria"),
+         "el personaje inclina la cabeza y junta las manos, respira despacio"),
+        (("multitud", "gente", "pueblo", "discípul", "discipul"),
+         "la gente del fondo se mueve, conversa y gira la cabeza"),
+        (("fuego", "lámpara", "lampara", "vela", "antorcha", "brasa"),
+         "las llamas parpadean y el humo sube"),
+        (("mar", "río", "rio", "agua", "lago", "barca", "ola"),
+         "el agua se mueve con olas suaves y reflejos"),
+        (("viento", "desierto", "polvo", "arena"),
+         "el viento mueve la ropa, el pelo y levanta polvo fino"),
+        (("cielo", "nube", "monte", "montaña", "atardecer", "amanecer"),
+         "las nubes avanzan despacio por el cielo"),
+        (("cruz", "crucif", "sufr", "llor", "triste"),
+         "expresión de dolor contenida, lágrimas, movimiento muy lento"),
+        (("ángel", "angel", "luz", "gloria", "resucit"),
+         "rayos de luz se intensifican poco a poco"),
+    ]
+    salida = [frase for claves, frase in reglas if any(c in t for c in claves)]
+    return salida[:3]
+
+
 def prompt_para_copiar(escena, formato=""):
     """Lo que se pega en Kling / Hailuo / Meta AI junto a la imagen del plano.
 
     Es un prompt de MOVIMIENTO, no de dibujo: la imagen ya dice como es todo,
-    el prompt dice que se mueve. Corto, que esas webs cortan los largos.
+    el prompt dice que se mueve y como va la camara. Corto y concreto, que
+    esas webs cortan los largos y se lian con los abstractos.
     """
     vertical = str(formato or "").lower().startswith("vert")
     que = " ".join(str(escena.get("prompt") or escena.get("direccion")
                        or escena.get("accion") or "").split())
-    if len(que) > 300:
-        que = que[:300].rsplit(" ", 1)[0] + "…"
+    if len(que) > 220:
+        que = que[:220].rsplit(" ", 1)[0] + "…"
+    narracion = " ".join(str(escena.get("narracion") or "").split())
+    movimientos = _movimiento_de(f"{que} {narracion}") or [
+        "el personaje respira, parpadea y gira levemente la cabeza",
+        "la ropa y el pelo se mecen con una brisa suave"]
     partes = [
-        "Anima esta imagen (image-to-video), "
-        + ("vertical 9:16" if vertical else "horizontal 16:9") + ", 5 segundos.",
+        "Image-to-video. Anima la imagen adjunta, "
+        + ("vertical 9:16" if vertical else "horizontal 16:9")
+        + ", 5 segundos, una sola toma continua.",
         f"ESCENA: {que}" if que else "",
-        "MOVIMIENTO: los personajes se mueven con naturalidad (andan, gesticulan, "
-        "giran la cabeza), la ropa y el pelo se mecen, el fuego, el agua y las "
-        "nubes se mueven; cámara lenta y suave.",
-        "Mantén el mismo estilo, colores y personajes de la imagen. Sin texto, "
-        "sin cortes, sin cambios de escena.",
+        "MOVIMIENTO: " + "; ".join(movimientos) + ".",
+        "CÁMARA: acercamiento lento (slow push-in), estable, sin giros bruscos.",
+        "ESTILO: conserva exactamente el dibujo, los colores, la luz y las caras "
+        "de la imagen; movimientos naturales y lentos, cinematográfico.",
+        "EVITA: texto, letras, subtítulos, cortes, cambios de escena, caras que se "
+        "deforman, manos con dedos de más, personajes nuevos.",
     ]
     return "\n".join(p for p in partes if p)
 

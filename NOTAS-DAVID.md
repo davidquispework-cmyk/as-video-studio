@@ -58,6 +58,11 @@ El VPS no tiene GPU: nada de modelos de vídeo locales. Todo a coste 0:
    **Modo automático (de pago) PREPARADO Y APAGADO**: Configuración → «Clips de vídeo»
    → automático + variable `FAL_KEY` en el servidor (fal.ai, Kling 2.1, ~0,28 $/clip).
    Sin las dos cosas no gasta nada. Pendiente: probar ese modo con saldo real.
+   6-nov: arreglado el error «'list' object has no attribute 'ruta_de'» al montar
+   (en p8_render una variable `clips` pisaba el módulo; ahora se importa como
+   `clips_video`). Mejorados los prompts: el de imagen lleva la descripción fija de
+   cada personaje y del sitio + «continuidad» con el plano anterior (adjuntar su
+   imagen en Gemini/ChatGPT); el de clip dice qué se mueve, la cámara y qué evitar.
 3. **Etapa 3**: personajes «marioneta» SVG por piezas (brazos articulados) con gestos.
 
 ## Decisión de dinero (5-nov-2026)

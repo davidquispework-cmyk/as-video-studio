@@ -49,7 +49,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import ambiente  # noqa: E402
 import cartelas  # noqa: E402
-import clips  # noqa: E402
+import clips as clips_video  # noqa: E402
 import estadisticas  # noqa: E402
 import medios  # noqa: E402
 import sonido  # noqa: E402
@@ -1041,7 +1041,7 @@ def renderizar_plano(tarea, navegador=None):
     # (los del render son f00001.png... en la raiz y no se pueden mezclar)
     fotos_clip = None
     if tarea.get("clip_video"):
-        fotos_clip = clips.extraer_fotogramas(
+        fotos_clip = clips_video.extraer_fotogramas(
             tarea["clip_video"], os.path.join(carpeta, "clip"), fps, total)
     pagina = _pagina_de(tarea["escena"], tarea["mov"], tarea["capa"],
                         tarea["hyper"], {"resolucion": tarea["resolucion"]},
@@ -1411,7 +1411,7 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
         # EL CLIP (etapa 2): si la persona subio un video para este plano, sale
         # en lugar de la imagen quieta. Sin recorte de figura ni balanceo: el
         # clip ya trae su propio movimiento; las particulas y la luz si.
-        ruta_clip = clips.ruta_de(proyecto.raiz, sid)
+        ruta_clip = clips_video.ruta_de(proyecto.raiz, sid)
         con_clip = os.path.isfile(ruta_clip) and p.get("clips", True)
         amb = None
         if p.get("ambiente", "auto") not in ("no", False, None) and con_clip:

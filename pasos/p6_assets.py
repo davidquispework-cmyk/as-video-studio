@@ -265,6 +265,19 @@ def prompts_para_subir(proyecto, params, plan=None):
     guia = guia or (p.get("estilo") or {}).get("prompt") or ""
     formato = plan.get("formato") or ""
     hechas = subidas.listar(proyecto.raiz)
+    # LA CONTINUIDAD: como es cada personaje y cada sitio, para que el
+    # generador gratis los dibuje igual en todos los planos, y que plano va
+    # justo antes (su imagen se adjunta como referencia).
+    try:
+        catalogo = _catalogo_de(p, proyecto)
+    except Exception:                                # noqa: BLE001
+        catalogo = {"reparto": {}, "sets": {}}
+    reparto = {n: " ".join(str((f or {}).get("descripcion") or "").split())
+               for n, f in (catalogo.get("reparto") or {}).items()}
+    sets = {n: " ".join(str((f or {}).get("prompt") or (f or {}).get("descripcion")
+                            or "").split())
+            for n, f in (catalogo.get("sets") or {}).items()}
+    anterior = None
     salida = []
     for escena in plan.get("escenas") or []:
         sid = escena.get("id")
@@ -277,10 +290,15 @@ def prompts_para_subir(proyecto, params, plan=None):
             "narracion": escena.get("narracion") or "",
             "prompt": subidas.prompt_para_copiar(
                 escena, guia=guia, idioma=plan.get("idioma") or "",
-                formato=formato),
+                formato=formato,
+                fichas={n: reparto.get(n) for n in escena.get("personajes") or []
+                        if reparto.get(n)},
+                sitio=sets.get(escena.get("set")) or "",
+                anterior=anterior),
             "subida": sid in hechas,
             "mtime": (hechas.get(sid) or {}).get("mtime"),
         })
+        anterior = sid
     return salida
 
 

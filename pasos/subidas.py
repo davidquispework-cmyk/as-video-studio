@@ -212,7 +212,8 @@ def importar_zip(raiz_proyecto, datos, validos, tamano="apaisado"):
 
 # --------------------------------------------------- los prompts para copiar
 
-def prompt_para_copiar(escena, guia="", idioma="", formato=""):
+def prompt_para_copiar(escena, guia="", idioma="", formato="", fichas=None,
+                       sitio="", anterior=None):
     """Un prompt corto y en limpio para pegar en Gemini, ChatGPT o similar.
 
     El prompt del motor esta escrito para gpt-image con sus referencias
@@ -234,9 +235,21 @@ def prompt_para_copiar(escena, guia="", idioma="", formato=""):
     lugar = escena.get("lugar") or escena.get("set")
     if lugar:
         partes.append(f"DÓNDE: {lugar}.")
+    if sitio and not lugar:
+        partes.append(f"DÓNDE: {sitio}")
     personajes = escena.get("personajes") or []
+    fichas = fichas or {}
     if personajes:
-        partes.append("QUIÉN SALE: " + ", ".join(str(p) for p in personajes) + ".")
+        partes.append("QUIÉN SALE (dibújalos SIEMPRE con este mismo aspecto: "
+                      "cara, edad, pelo, barba y ropa):")
+        for nombre in personajes:
+            descr = fichas.get(nombre)
+            partes.append(f"- {nombre}" + (f": {descr}" if descr else ""))
+    if anterior:
+        partes.append(f"CONTINUIDAD: este plano va justo después de {anterior}. "
+                      f"Si te dejo adjunta la imagen de {anterior}, usa el MISMO "
+                      "estilo de dibujo, paleta de colores, luz y aspecto de los "
+                      "personajes; solo cambia lo que dice «QUÉ SE VE».")
     narracion = " ".join(str(escena.get("narracion") or "").split())
     if narracion:
         partes.append(f"LO QUE SE ESTÁ NARRANDO (no lo escribas en la imagen): "
