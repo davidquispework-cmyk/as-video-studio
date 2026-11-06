@@ -104,6 +104,8 @@ import time
 
 try:
     from . import cli_claude, comun, cta, estadisticas, fidelidad, fuentes, marcas_tts
+    from . import intencion
+    from . import ajustes as ajustes_estudio
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
     import cli_claude
     import comun
@@ -111,7 +113,9 @@ except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
     import estadisticas
     import fidelidad
     import fuentes
+    import intencion
     import marcas_tts
+    import ajustes as ajustes_estudio
 
 PASO = "guion"
 
@@ -818,10 +822,20 @@ def _instruccion(transcript, metadatos, brief, anterior, opciones, correcciones,
         "se puede cambiar por otra mas simple que diga lo mismo, se cambia.",
     ])
 
+    # EL RITMO (punto E): retencion, frases cortas y nada de muletillas. Solo
+    # texto del encargo: no mueve la firma del guion.
+    partes.extend(["", intencion.pauta_ritmo(intencion.es_corto(maximo), idioma)])
+
     if opciones["anotaciones_voz"]:
         partes.append("")
+        # con la voz gratuita cada bloque se graba con su tono: se le pide al
+        # redactor que DECIDA el tono de la historia (`intencion.pauta_tono`)
+        gratis = _voz_gratuita()
         partes.append(marcas_tts.instrucciones(
-            con_emocion=opciones["emocion_en_voz"]))
+            con_emocion=opciones["emocion_en_voz"],
+            motor="un sintetizador de voz" if gratis else "Cartesia",
+            pauta_tono=(intencion.pauta_tono()
+                        if gratis and opciones["emocion_en_voz"] else None)))
 
     if correcciones:
         # EL TEXTO QUE SE CORRIGE VA DELANTE DE LA CORRECCION. Sin esto, las
@@ -1076,6 +1090,14 @@ def _deletrear_bloque(texto, anterior, idioma):
     return texto, envueltas, []
 
 
+def _voz_gratuita():
+    """True si la voz sale de las voces gratuitas (se lee al redactar)."""
+    try:
+        return ajustes_estudio.voz_gratuita_activa()
+    except Exception:                                    # noqa: BLE001
+        return False
+
+
 def _aplicar_marcas(bloques, opciones, avisos=None, idioma="es", intactos=None):
     """Deja el texto de cada bloque en un estado seguro para locutarlo.
 
@@ -1104,7 +1126,7 @@ def _aplicar_marcas(bloques, opciones, avisos=None, idioma="es", intactos=None):
     """
     quita = not opciones.get("anotaciones_voz")
     intactos = intactos or {}
-    repuestas, deletreadas, dejadas = [], [], []
+    repuestas, deletreadas, dejadas, muletillas = [], [], [], []
     for bloque in bloques:
         if quita:
             bloque["texto"] = marcas_tts.limpiar(bloque["texto"])
@@ -1123,6 +1145,18 @@ def _aplicar_marcas(bloques, opciones, avisos=None, idioma="es", intactos=None):
             dejadas.extend(sin_tocar)
         bloque["texto"], cambios = comun.reponer_tildes(bloque["texto"], idioma)
         repuestas.extend(cambios)
+        # LAS MULETILLAS FUERA (punto E): «o sea,», «bueno,» al empezar,
+        # «basicamente»... Solo en lo que escribe el modelo: lo tecleado a mano
+        # y lo que no cambia respecto al guion anterior se respeta.
+        bid = str(bloque.get("id") or "").upper()
+        if (bid not in (opciones.get("bloques") or {})
+                and intactos.get(bid) != bloque["texto"]):
+            bloque["texto"], fuera = intencion.quitar_muletillas(bloque["texto"], idioma)
+            muletillas.extend(fuera)
+    if muletillas and avisos is not None:
+        muestra = list(dict.fromkeys(muletillas))
+        avisos.append(f"quitadas {len(muletillas)} muletilla(s) que sonaban a "
+                      f"duda: " + ", ".join(f"«{m}»" for m in muestra[:8]))
     if deletreadas and avisos is not None:
         # se cuenta por lo mismo que las tildes: lo que el motor arregla solo
         # tiene que verse, o el dia que se equivoque nadie sabra que fue el
@@ -1285,6 +1319,10 @@ def _avisos(bloques, palabras, brief, idioma):
         avisos.append(f"bloques demasiado largos para un plano: "
                       + ", ".join(largos))
     avisos.extend(marcas_tts.revisar_conjunto(bloques))
+    # el ritmo (punto E): las frases que cansan, como aviso y no como
+    # correccion -- pedir otro guion por una frase larga costaria una llamada
+    avisos.extend(intencion.revisar_ritmo(bloques, intencion.es_corto(maximo),
+                                          marcas_tts.limpiar))
     cifras = comun.revisar_cifras(
         " ".join(marcas_tts.limpiar(b["texto"]) for b in bloques))
     if cifras["hay_cifras"]:

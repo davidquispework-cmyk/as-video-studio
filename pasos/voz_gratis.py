@@ -25,7 +25,12 @@ Las ANOTACIONES de voz del guion (`marcas_tts`) se traducen asi:
                             silencio (0,8x lo pedido, que es lo que Cartesia
                             anade de verdad: ver marcas_tts, punto 3)
     <spell>ABC</spell>      se locuta separando las letras
-    speed, volume, emotion  se ignoran (Edge no los acepta en texto plano)
+    speed, volume, emotion  se respetan POR FRASE (punto E): Edge no acepta
+                            SSML propio, pero si rate/pitch/volume por peticion,
+                            asi que se parte el texto en cada cambio y cada
+                            trozo se graba con su prosodia (`intencion.prosodia`:
+                            alegre, sereno, triste, tenso, firme...)
+    «¿...? sigue» y «... sigue»  un respiro corto (`intencion.respiros`)
 
     voces(idioma)                  -> [ficha] en la forma del catalogo de p4_voz
     elegir(voz_id, idioma, defecto) -> ShortName de una voz gratuita
@@ -41,8 +46,9 @@ import subprocess
 import time
 
 try:
-    from . import marcas_tts
+    from . import intencion, marcas_tts
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
+    import intencion
     import marcas_tts
 
 RAIZ_ESTUDIO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -235,43 +241,68 @@ def porcentaje_velocidad(velocidad):
 # --------------------------------------------------------------------- toma
 
 def _trozos(texto):
-    """El texto anotado -> [(lo que se dice, silencio despues en s)].
+    """El texto anotado -> [[lo que se dice, silencio despues en s, prosodia]].
 
-    Se parte en cada <break>: Edge no lo entiende y lo leeria en voz alta.
+    prosodia = (speed, volume, emocion) en vigor para ese trozo. Se parte en
+    cada <break> (Edge no lo entiende y lo leeria en voz alta) y en cada cambio
+    de speed/volume/emotion, que `marcas_tts.sanear` solo deja en frontera de
+    frase. Y dentro de cada trozo, tras una pregunta o unos puntos suspensivos
+    que siguen, un respiro (`intencion.respiros`).
     """
-    salida = []
-    resto = str(texto or "")
-    posicion = 0
-    for m in marcas_tts._BREAK.finditer(resto):                 # noqa: SLF001
-        antes = resto[posicion:m.start()]
-        valor = float(m.group(1))
-        segundos = valor / 1000.0 if m.group(2).lower() == "ms" else valor
-        salida.append([antes, segundos * 0.8])
-        posicion = m.end()
-    salida.append([resto[posicion:], 0.0])
+    estado = {"speed": 1.0, "volume": 1.0, "emotion": "neutral"}
+    crudos = []                      # [texto crudo, silencio, prosodia]
+    actual = []
+
+    def cerrar(silencio=0.0):
+        crudo = "".join(actual)
+        actual.clear()
+        crudos.append([crudo, silencio,
+                       (estado["speed"], estado["volume"], estado["emotion"])])
+
+    for clase, pieza in marcas_tts.trocear(str(texto or "")):
+        if clase == "texto":
+            actual.append(pieza)
+        elif clase == "spell":
+            # <spell>ABC</spell> -> «A B C»: separadas, Edge las deletrea
+            actual.append(" " + " ".join(str(pieza).replace(" ", "")) + " ")
+        elif clase == "break":
+            cerrar(float(pieza) / 1000.0 * 0.8)
+        elif clase in ("speed", "volume", "emotion"):
+            # a mitad de frase se ignora (como en `marcas_tts.sanear`): partir
+            # ahi sonaria a que entra otro locutor
+            if "".join(actual).strip() and not marcas_tts._FIN_DE_FRASE.search(  # noqa: SLF001
+                    "".join(actual)):
+                continue
+            cerrar(0.0)
+            estado[clase] = pieza if clase == "emotion" else float(pieza)
+        # 'basura': fuera, se leeria en voz alta
+    cerrar(0.0)
 
     limpios = []
-    for crudo, silencio in salida:
-        # <spell>ABC</spell> -> «A B C»: separadas, Edge las deletrea
-        crudo = marcas_tts._SPELL.sub(                           # noqa: SLF001
-            lambda m: " ".join(m.group(1).replace(" ", "")), crudo)
+    for crudo, silencio, tono in crudos:
         dicho = marcas_tts.limpiar(crudo)
-        if dicho:
-            limpios.append([dicho, silencio])
-        elif limpios:
-            limpios[-1][1] += silencio       # una pausa sin texto detras se suma
+        if not dicho:
+            if limpios:
+                limpios[-1][1] += silencio   # una pausa sin texto detras se suma
+            continue
+        partes = intencion.respiros(dicho)
+        for indice, (trozo, respiro) in enumerate(partes):
+            ultimo = indice == len(partes) - 1
+            limpios.append([trozo, silencio if ultimo else respiro, tono])
     return limpios
 
 
-async def _sintetizar_trozo(edge, texto, voz, velocidad):
-    comunicar = edge.Communicate(texto, voz, rate=velocidad, boundary="WordBoundary")
+async def _sintetizar_trozo(edge, texto, voz, velocidad, pitch="+0Hz", volumen="+0%"):
+    def comunicar():
+        return edge.Communicate(texto, voz, rate=velocidad, pitch=pitch,
+                                volume=volumen, boundary="WordBoundary")
     audio = bytearray()
     palabras = []
     for intento in range(3):
         audio.clear()
         palabras.clear()
         try:
-            async for trozo in comunicar.stream():
+            async for trozo in comunicar().stream():
                 if trozo["type"] == "audio":
                     audio.extend(trozo["data"])
                 elif trozo["type"] == "WordBoundary":
@@ -283,8 +314,6 @@ async def _sintetizar_trozo(edge, texto, voz, velocidad):
             if intento == 2:
                 raise
             await asyncio.sleep(1.5 * (intento + 1))
-            comunicar = edge.Communicate(texto, voz, rate=velocidad,
-                                         boundary="WordBoundary")
     if not audio:
         raise RuntimeError("la voz gratuita devolvio un trozo sin audio")
     return bytes(audio), palabras
@@ -312,27 +341,29 @@ def toma(texto, voz, velocidad=None, sr=44100, avisar=None):
     trozos = _trozos(texto)
     if not trozos:
         raise ValueError("no hay texto que locutar")
-    tasa = porcentaje_velocidad(velocidad)
-    previstas = max(1, sum(len(t.split()) for t, _s in trozos))
+    base = int(porcentaje_velocidad(velocidad).rstrip("%"))
+    previstas = max(1, sum(len(t[0].split()) for t in trozos))
 
     async def todos():
         semaforo = asyncio.Semaphore(A_LA_VEZ)
         hechas = [0]
 
-        async def uno(texto_trozo):
+        async def uno(texto_trozo, tono):
+            rate, pitch, volumen = intencion.prosodia(base, *tono)
             async with semaforo:
-                resultado = await _sintetizar_trozo(edge, texto_trozo, voz, tasa)
+                resultado = await _sintetizar_trozo(edge, texto_trozo, voz, rate,
+                                                    pitch, volumen)
                 hechas[0] += len(texto_trozo.split())
                 avisa(min(0.95, hechas[0] / previstas),
                       f"{hechas[0]} de ~{previstas} palabras (voz gratuita)")
                 return resultado
-        return await asyncio.gather(*(uno(t) for t, _s in trozos))
+        return await asyncio.gather(*(uno(t, tono) for t, _s, tono in trozos))
 
     resultados = _correr(todos())
     pcm = bytearray()
     palabras = []
     reloj = 0.0
-    for (texto_trozo, silencio), (mp3, marcas) in zip(trozos, resultados):
+    for (texto_trozo, silencio, _tono), (mp3, marcas) in zip(trozos, resultados):
         crudo = _mp3_a_pcm(mp3, sr)
         for marca in marcas:
             hablada = marcas_tts.texto_de_marca(marca["w"])

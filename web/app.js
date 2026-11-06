@@ -8193,6 +8193,7 @@ function bloquesLight() {
       h('span', { clase: 'id' }, bloque.id),
       bloqueEditadoLight(bloque) ? h('span', { clase: 'pastilla tocado' }, 'editado') : null,
       h('span', { clase: 'crece' }),
+      selectorTonoLight(bloque),
       hayAudio ? h('button', {
         clase: 'mini fantasma',
         onclick: () => {
@@ -8213,8 +8214,11 @@ function bloquesLight() {
        la edición se había perdido. Mientras el audio no diga lo que hay
        escrito, se enseña lo escrito y el botón para grabar SU tramo, a la
        vista y no escondido dentro de «Cambiar con una frase». */
+    const tonoCambiado = hayAudio
+      && tonoDeTexto(texto) !== tonoDeTexto(conAudio.texto || '');
     const pendiente = hayAudio && !editando
-      && textoVisibleLight(texto) !== textoVisibleLight(conAudio.texto || '');
+      && (tonoCambiado
+        || textoVisibleLight(texto) !== textoVisibleLight(conAudio.texto || ''));
     if (pendiente) {
       const sec = seccionDe[bloque.id];
       ficha.appendChild(h('p', { clase: 'texto-bloque' }, textoVisibleLight(texto)));
@@ -8222,9 +8226,11 @@ function bloquesLight() {
         sec ? h('button', {
           clase: 'mini', disabled: !!trabajoVideoLight(),
           onclick: () => cambiarBloqueLight(bloque, sec, true),
-        }, 'Regrabar este tramo con mi texto') : null,
-        h('span', { clase: 'meta' },
-          'el audio todavía dice la versión anterior de este bloque')));
+        }, tonoCambiado ? 'Regrabar este tramo con el tono nuevo'
+          : 'Regrabar este tramo con mi texto') : null,
+        h('span', { clase: 'meta' }, tonoCambiado
+          ? 'el audio todavía tiene el tono anterior de este bloque'
+          : 'el audio todavía dice la versión anterior de este bloque')));
     } else if (hayAudio && !editando) {
       ficha.appendChild(parrafoKaraokeLight(bloque, conAudio, texto));
     } else {
@@ -8286,21 +8292,87 @@ function parrafoKaraokeLight(bloque, conAudio, texto) {
    editor y el que `p4_voz` aplica al grabar — así una corrección a mano llega
    al audio sin volver a pedirle el guion entero al modelo. */
 let _guardadoBloqueLight = null;
-function guardarBloqueLight(bid, texto, original) {
+
+/* EL TONO DE CADA BLOQUE (punto E). Es la etiqueta `<emotion>` con la que
+   EMPIEZA el bloque —la misma que pone Claude al escribir el guion— y el
+   gemelo de esto en el backend es `pasos/intencion.py` (tono_de / con_tono).
+   Con la voz gratuita cada bloque empieza neutro, así que cambiar el tono de
+   uno no cambia cómo suenan los demás. Los nombres, los de `intencion.TONOS`. */
+const TONOS_VOZ = [
+  ['neutral', '😐 Neutro', 'contar sin más'],
+  ['content', '😊 Alegre', 'buena noticia, esperanza, milagro'],
+  ['calm', '🕊️ Sereno', 'reflexión, oración, versículo'],
+  ['sad', '😢 Triste / lento', 'muerte, pérdida, dolor'],
+  ['scared', '😨 Tenso / miedo', 'peligro, persecución, suspense'],
+  ['angry', '💪 Firme', 'advertencia, denuncia, un «¡no!»'],
+];
+const RE_TONO_INICIAL = /^\s*(?:<emotion\s+value="([A-Za-z]+)"\s*\/>\s*)+/i;
+
+function tonoDeTexto(texto) {
+  const m = String(texto || '').match(RE_TONO_INICIAL);
+  if (!m) return 'neutral';
+  const todos = [...m[0].matchAll(/value="([A-Za-z]+)"/gi)];
+  const ultimo = todos.length ? todos[todos.length - 1][1].toLowerCase() : 'neutral';
+  return TONOS_VOZ.some(([clave]) => clave === ultimo) ? ultimo : 'neutral';
+}
+
+function conTonoTexto(texto, tono) {
+  const resto = String(texto || '').replace(RE_TONO_INICIAL, '').replace(/^\s+/, '');
+  if (!tono || tono === 'neutral') return resto;
+  return `<emotion value="${tono}"/>${resto}`;
+}
+
+/* Lo que el guion trae de fábrica para ese bloque: si lo guardado vuelve a ser
+   eso, no hay edición que guardar. */
+function textoOriginalLight(bid) {
+  const bloque = (((APP.light.video.guion || {}).bloques) || []).find(b => b.id === bid);
+  return bloque ? bloque.texto : undefined;
+}
+
+function guardarEdicionLight(bid, nuevo) {
   const v = APP.light.video;
   const ficha = v.fichas.guion || {};
   ficha.params = ficha.params || {};
   ficha.params.bloques = ficha.params.bloques || {};
+  if (nuevo === textoOriginalLight(bid)) delete ficha.params.bloques[bid];
+  else ficha.params.bloques[bid] = { texto: nuevo };
+  v.fichas.guion = ficha;
+  enviarEdicionesLight();
+}
+
+/* El selector de tono de la cabecera del bloque. Cambiarlo es gratis con la
+   voz gratuita: solo hay que volver a grabar el tramo (el botón sale solo). */
+function selectorTonoLight(bloque) {
+  const texto = textoDeBloqueLight(bloque);
+  const actual = tonoDeTexto(texto);
+  const ficha = TONOS_VOZ.find(([clave]) => clave === actual) || TONOS_VOZ[0];
+  return h('select', {
+    clase: 'tono-bloque' + (actual !== 'neutral' ? ' con-tono' : ''),
+    title: `Tono de la voz en este bloque: ${ficha[1]} (${ficha[2]})`,
+    disabled: !!trabajoVideoLight(),
+    onchange: ev => {
+      guardarEdicionLight(bloque.id, conTonoTexto(textoDeBloqueLight(bloque), ev.target.value));
+      pintarLight();
+    },
+  }, ...TONOS_VOZ.map(([clave, nombre, uso]) => h('option', {
+    value: clave, selected: clave === actual, title: uso,
+  }, nombre)));
+}
+
+function guardarBloqueLight(bid, texto, original) {
   /* SI NO HA CAMBIADO NADA, NO SE GUARDA NADA. Lo que se enseña es el texto sin
      las anotaciones del TTS, así que guardarlo tal cual por haber puesto el
      cursor encima le quitaría sus pausas a un bloque que nadie ha tocado. Si de
      verdad se edita sí se pierden, y eso es lo que se pidió: una frase
-     reescrita ya no tiene las pausas donde las tenía. */
-  if (original !== undefined && texto === textoVisibleLight(original)) {
-    delete ficha.params.bloques[bid];
-  } else {
-    ficha.params.bloques[bid] = { texto };
-  }
+     reescrita ya no tiene las pausas donde las tenía. EL TONO SÍ SE QUEDA:
+     es una decisión del bloque entero, no de una frase. */
+  const sinCambio = original !== undefined && texto === textoVisibleLight(original);
+  guardarEdicionLight(bid, sinCambio ? original : conTonoTexto(texto, tonoDeTexto(original)));
+}
+
+function enviarEdicionesLight() {
+  const v = APP.light.video;
+  const ficha = v.fichas.guion || {};
   clearTimeout(_guardadoBloqueLight);
   _guardadoBloqueLight = setTimeout(async () => {
     try {

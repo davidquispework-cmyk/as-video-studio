@@ -750,11 +750,17 @@ PAUSAS = (
 )
 
 
-def instrucciones(con_emocion=True):
-    """Bloque de reglas de anotacion para el prompt del guion."""
+def instrucciones(con_emocion=True, motor="Cartesia", pauta_tono=None):
+    """Bloque de reglas de anotacion para el prompt del guion.
+
+    pauta_tono, si llega, sustituye al parrafo de EMOCION: con la voz gratuita
+    cada bloque se graba con su tono y se puede usar mucho mas (punto E,
+    `intencion.pauta_tono`).
+    """
+    con_emocion = bool(con_emocion or pauta_tono)
     lineas = [
         "== ANOTACIONES DE VOZ (van dentro del texto de los bloques) ==",
-        "El guion no se lee: lo locuta Cartesia. La puntuacion normal ya da el "
+        f"El guion no se lee: lo locuta {motor}. La puntuacion normal ya da el "
         "ritmo basico y es la primera herramienta: escribe frases bien "
         "puntuadas ANTES de pensar en ninguna etiqueta. Las etiquetas son para "
         "lo que la puntuacion no distingue, que es cuando el relato cambia de "
@@ -779,7 +785,9 @@ def instrucciones(con_emocion=True):
         f"VOLUMEN. `<volume ratio=\"0.9\"/>` baja la voz, para un inciso o una "
         f"confidencia. Entre {VOLUMEN_SUAVE_MIN} y {VOLUMEN_SUAVE_MAX}.",
     ])
-    if con_emocion:
+    if pauta_tono:
+        lineas.extend(["", pauta_tono])
+    elif con_emocion:
         lineas.extend([
             "",
             f"EMOCION. `<emotion value=\"sad\"/>` inclina el tono. Validas: "

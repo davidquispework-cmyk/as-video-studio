@@ -204,8 +204,8 @@ COMPLETA y pulida, calidad profesional, no en versión mínima; pero con ahorro-
 cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
 
 PLAN INMEDIATO (orden cambiado el 6-nov): primero los puntos de «OPINIÓN DE DAVID»
-(abajo), un chat por punto. A, B+B+, C y **G con D** HECHOS (G completo el 6-nov).
-Siguen **E** (guion y voz con intención) y luego **F** (movimiento y transiciones). Mientras: David saca la clave de YouTube
+(abajo), un chat por punto. A, B+B+, C, **G con D** y **E** HECHOS (6-nov).
+Sigue **F** (movimiento y transiciones). Mientras: David saca la clave de YouTube
 (gratis), prueba «💡 Ideas» y publica para tener datos («Mis vídeos»). Después,
 etapa 6 de la hoja de ruta (un solo prompt para todas las imágenes).
 
@@ -269,10 +269,47 @@ C. **Fidelidad histórica y bíblica — HECHO (6-nov-2026)**.
 D. **Más explicativo en imagen** — va DENTRO de G (ver G, primera parte: mapa con
    distancia, línea de tiempo, reloj por porciones y tarjeta de versículo HECHOS).
    Falta: flechas/círculos que señalan y comparaciones.
-E. **Guion y voz con intención**: nada de muletillas («o sea»); ritmo para
-   retener todo el vídeo; pausas mejor puestas; el TONO de la voz cambia según la
-   historia (alegre, lento, tenso/miedo) — con la voz gratis (edge-tts) se puede
-   con SSML (velocidad, tono, pausas) por frase; decidirlo en el guion.
+E. **Guion y voz con intención — HECHO (6-nov-2026)**.
+   Cómo se usa: no hay que tocar nada para que funcione; los vídeos NUEVOS (o un
+   guion que se vuelva a escribir) ya salen así. Y en la pantalla del guion, cada
+   bloque tiene arriba a la derecha un desplegable de **tono**: 😐 Neutro,
+   😊 Alegre (buena noticia, milagro), 🕊️ Sereno (oración, versículo),
+   😢 Triste / lento (muerte, pérdida), 😨 Tenso / miedo (peligro, suspense),
+   💪 Firme (advertencia). Si ya había audio, sale el botón «Regrabar este tramo
+   con el tono nuevo» (gratis con la voz gratuita: solo regraba ese trozo).
+   Qué sale: (1) **La voz gratis cambia de tono de verdad**: antes tiraba todo
+   menos las pausas; ahora cada frase se graba con su tono (más lenta, grave y
+   baja si es triste; más viva y aguda si es alegre; baja y algo rápida si es
+   tensa; más fuerte si es firme), y también respeta la velocidad y el volumen
+   que pone Claude. (2) **Pausas con intención**: tras una pregunta que sigue
+   («¿Por qué lo hizo? Porque…») y tras unos puntos suspensivos, un respiro
+   corto solo; las pausas grandes (tras el gancho, antes de la revelación) las
+   sigue poniendo el guion. (3) **Claude decide el tono** al escribir el guion
+   (de 3 a 6 cambios en un vídeo largo, 2-3 en uno corto, siguiendo la
+   historia). (4) **Ritmo para retener**: la 1.ª frase es el gancho, preguntas
+   que se abren y se cierran después, un giro cada 20-30 s (cada 8-10 s en
+   TikTok), frases cortas (máx. 28 palabras; 16 en un vídeo corto: era el
+   pendiente de la etapa 4), hablar a «tú», final que remata. (5) **Sin
+   muletillas**: se le prohíben a Claude y, si se cuela alguna, se quita sola
+   («o sea,», «bueno,» al empezar, «básicamente», «literalmente», «la verdad es
+   que», «digamos»; «o sea que» → «así que»). «Oye, Israel» o «Mira» NO se tocan
+   (son de la Biblia). Lo escrito a mano se respeta. Los avisos del guion dicen
+   qué muletillas se quitaron y qué frases son demasiado largas.
+   Cómo quedó: `pasos/intencion.py` (TONOS, PROSODIA, respiros, muletillas,
+   ritmo, pautas) + `voz_gratis._trozos` (parte en cada cambio de tono en
+   frontera de frase; edge-tts recibe `rate`, `pitch` y `volume` por trozo) +
+   `p4_voz.unir_bloques` (con voz gratis cada bloque empieza neutro, para que el
+   tono de uno no se arrastre al siguiente) + `p3_guion` (`pauta_ritmo` al
+   prompt, `pauta_tono` con voz gratis vía `marcas_tts.instrucciones(pauta_tono=)`,
+   muletillas en `_aplicar_marcas`, aviso de ritmo en `_avisos`) + pantalla
+   `selectorTonoLight` en `web/app.js` (el tono es la etiqueta `<emotion>` con
+   la que EMPIEZA el bloque; editar el texto a mano conserva el tono). Las
+   emociones son las mismas seis de Cartesia, así que el guion vale para las
+   dos voces. Solo texto del encargo y del bloque: NO es un param nuevo, no
+   mueve firmas. Prueba: `pasos/prueba_voz_gratis.py` (sección «punto E»).
+   Pendiente: probar a oído los valores de `intencion.PROSODIA` con la voz que
+   use David y ajustarlos si alguno suena exagerado; un tono a mitad de bloque
+   desde la pantalla (hoy solo el del bloque entero).
 F. **Movimiento de imágenes y transiciones**: mejor movimiento de cámara, cortes al
    ritmo de la voz, transiciones con intención y cosas que otros no hacen.
 G. **FIGURAS PLANAS PROPIAS (decidido 6-nov)**: personajes de colores lisos como el

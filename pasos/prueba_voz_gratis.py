@@ -38,6 +38,7 @@ os.environ.pop("ESTUDIO_SIMULAR", None)
 
 import ajustes  # noqa: E402
 import p4_voz  # noqa: E402
+import marcas_tts  # noqa: E402
 import voz_gratis  # noqa: E402
 
 _fallos = []
@@ -63,11 +64,13 @@ def igual(obtenido, esperado, mensaje):
 
 PASO_S = 0.3          # cada palabra dura 0,3 s en el doble
 PEDIDOS = []          # (texto, voz, velocidad) que ha recibido el «servicio»
+PROSODIAS = []        # (texto, velocidad, tono, volumen): el punto E
 
 
-async def _doble(edge, texto, voz, velocidad):
+async def _doble(edge, texto, voz, velocidad, pitch="+0Hz", volumen="+0%"):
     """Lo que devolveria Edge: un mp3 del largo justo y una marca por palabra."""
     PEDIDOS.append((texto, voz, velocidad))
+    PROSODIAS.append((texto, velocidad, pitch, volumen))
     palabras = texto.split()
     duracion = max(0.2, len(palabras) * PASO_S + 0.1)
     mp3 = subprocess.run(
@@ -113,12 +116,84 @@ def probar_trozos():
         'Uno dos. <break time="1s"/> Tres <speed ratio="0.8"/>cuatro. '
         '<break time="500ms"/><break time="500ms"/> La <spell>ONU</spell> habla.'
         '<emotion value="sad"/>')
-    igual([t for t, _s in trozos], ["Uno dos.", "Tres cuatro.", "La O N U habla."],
+    igual([t[0] for t in trozos], ["Uno dos.", "Tres cuatro.", "La O N U habla."],
           "se parte en cada pausa y no se locuta ninguna etiqueta")
-    igual([round(s, 2) for _t, s in trozos], [0.8, 0.8, 0.0],
+    igual([round(t[1], 2) for t in trozos], [0.8, 0.8, 0.0],
           "cada pausa mete 0,8x lo pedido, y dos seguidas se suman")
     igual(voz_gratis._trozos("<break time=\"1s\"/>"), [],        # noqa: SLF001
           "una pausa sin texto no deja nada que locutar")
+
+
+def probar_intencion():
+    """El punto E: el tono por frase, los respiros y la neutralidad por bloque."""
+    import intencion  # noqa: PLC0415
+    print("\n  EL TONO Y LAS PAUSAS (punto E)")
+    trozos = voz_gratis._trozos(                                # noqa: SLF001
+        '<emotion value="neutral"/>¿Sabías que Pedro lloró? Lo negó tres veces.'
+        '<break time="900ms"/><emotion value="sad"/><speed ratio="0.9"/>Y lloró '
+        'amargamente... Nadie lo vio.<speed ratio="1"/>')
+    igual([t[0] for t in trozos],
+          ["¿Sabías que Pedro lloró?", "Lo negó tres veces.", "Y lloró amargamente...",
+           "Nadie lo vio."], "se parte tras la pregunta, la pausa y los puntos suspensivos")
+    igual([round(t[1], 2) for t in trozos], [0.32, 0.72, 0.28, 0.0],
+          "un respiro tras la pregunta y el suspense; la pausa pedida, a 0,8x")
+    igual([t[2][2] for t in trozos], ["neutral", "neutral", "sad", "sad"],
+          "el tono cambia en la frontera de frase")
+    igual(voz_gratis._trozos('Pedro <emotion value="sad"/>lloró.')[0][2][2],  # noqa: SLF001
+          "neutral", "un cambio de tono a mitad de frase se ignora")
+    igual(intencion.prosodia(-15, 0.9, 1.0, "sad"), ("-39%", "-9Hz", "-10%"),
+          "triste: más lenta, más grave y más baja, sobre la velocidad de la voz")
+    igual(intencion.prosodia(0, 1, 1, "content"), ("+6%", "+7Hz", "+4%"),
+          "alegre: algo más viva y más aguda")
+    igual(intencion.prosodia(0), ("+0%", "+0Hz", "+0%"), "neutro: como siempre")
+
+    PROSODIAS.clear()
+    voz_gratis.toma('<emotion value="content"/>Buena noticia. <emotion value="scared"/>'
+                    'Pero llegaron los soldados.', "es-PE-AlexNeural", None, sr=44100)
+    igual([(p[2], p[3]) for p in PROSODIAS], [("+7Hz", "+4%"), ("+3Hz", "-14%")],
+          "cada frase se graba con la prosodia de su tono")
+
+    igual(intencion.tono_de('<emotion value="sad"/>Hola.'), "sad", "el tono del bloque")
+    igual(intencion.tono_de('Hola.'), "neutral", "sin etiqueta, neutro")
+    igual(intencion.con_tono('<emotion value="sad"/>Hola.', "calm"),
+          '<emotion value="calm"/>Hola.', "cambiar el tono de un bloque")
+    igual(intencion.con_tono('<emotion value="sad"/>Hola.', "neutral"), "Hola.",
+          "neutro quita la etiqueta")
+    bloques = [{"id": "B001", "texto": '<emotion value="sad"/>Murió.'},
+               {"id": "B002", "texto": "Al tercer día resucitó."}]
+    igual(p4_voz.unir_bloques(bloques, {"motor_voz": "gratis"}),
+          '<emotion value="sad"/>Murió. <emotion value="neutral"/>Al tercer día resucitó.',
+          "con la voz gratuita cada bloque empieza neutro")
+    igual(p4_voz.unir_bloques(bloques, {"motor_voz": "cartesia"}),
+          '<emotion value="sad"/>Murió. Al tercer día resucitó.',
+          "y Cartesia recibe el texto de siempre")
+
+    print("\n  EL GUION SIN MULETILLAS Y CON RITMO (punto E)")
+    for crudo, limpio in (
+            ("Bueno, Pedro negó. O sea, lo negó tres veces.", "Pedro negó. Lo negó tres veces."),
+            ("Era, básicamente, un pescador.", "Era un pescador."),
+            ("O sea que no fue así.", "Así que no fue así."),
+            ("La verdad es que nadie lo sabía.", "Nadie lo sabía."),
+            ('Fin.<break time="900ms"/>Pues, entonces vino.',
+             'Fin.<break time="900ms"/>Entonces vino.'),
+            ("Oye, Israel: Jehová nuestro Dios, Jehová uno es.",
+             "Oye, Israel: Jehová nuestro Dios, Jehová uno es."),
+            ("Este, a su vez, fue rey.", "Este, a su vez, fue rey.")):
+        igual(intencion.quitar_muletillas(crudo)[0], limpio, f"«{crudo[:34]}»")
+    igual(intencion.quitar_muletillas("O sea, so.", "en")[0], "O sea, so.",
+          "en otro idioma no se toca")
+    largas = intencion.revisar_ritmo(
+        [{"id": "B001", "texto": " ".join(["palabra"] * 20) + "."}], corto=True)
+    ok(largas and "B001" in largas[0], "en un vídeo corto avisa de una frase de 20 palabras")
+    ok(not intencion.revisar_ritmo(
+        [{"id": "B001", "texto": " ".join(["palabra"] * 20) + "."}], corto=False),
+       "en uno largo no")
+    texto = marcas_tts.instrucciones(True, motor="un sintetizador de voz",
+                                     pauta_tono=intencion.pauta_tono())
+    ok("EL TONO DE LA VOZ" in texto and "Cartesia" not in texto.split("\n")[1],
+       "con la voz gratuita, el guion pide decidir el tono de cada bloque")
+    ok("MULETILLAS" in intencion.pauta_ritmo(True) and "8-10 segundos"
+       in intencion.pauta_ritmo(True), "el ritmo de un vídeo corto")
 
 
 def probar_toma():
@@ -211,6 +286,7 @@ def main():
         sys.exit(2)
     probar_piezas()
     probar_trozos()
+    probar_intencion()
     probar_toma()
     probar_paso()
     print()

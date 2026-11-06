@@ -76,6 +76,7 @@ import requests
 
 try:
     from . import cadencia, cli_claude, comun, estadisticas, marcas_tts, presets_voz
+    from . import intencion
     from . import ajustes as ajustes_estudio
     from . import voz_gratis
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
@@ -83,6 +84,7 @@ except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
     import comun
     import cadencia
     import estadisticas
+    import intencion
     import marcas_tts
     import presets_voz
     import ajustes as ajustes_estudio
@@ -925,6 +927,21 @@ def _toma_real(texto, cfg, progreso):
     return motor.wav_desde_pcm(pcm), len(pcm) / (SR * 2), palabras
 
 
+def unir_bloques(bloques, cfg):
+    """El texto de la toma: los bloques seguidos.
+
+    Con la voz gratuita CADA BLOQUE EMPIEZA NEUTRO (punto E): el tono que puso
+    un bloque (`<emotion>`) no se arrastra al siguiente, igual que la velocidad
+    y el volumen, que `marcas_tts.sanear` ya cierra por bloque. Asi cambiar el
+    tono de un bloque desde la pantalla no cambia como suenan los demas.
+    Cartesia sigue con su texto de siempre (sus emociones se midieron asi).
+    """
+    if cfg.get("motor_voz") == "gratis":
+        return " ".join(intencion.con_tono_neutro_al_empezar(b["texto"])
+                        for b in bloques if str(b.get("texto") or "").strip())
+    return " ".join(b["texto"].strip() for b in bloques)
+
+
 def sintetizar_toma(texto, cfg, progreso=None):
     """Una toma continua de un texto -> (wav, duracion, palabras)."""
     if not texto.strip():
@@ -984,7 +1001,7 @@ def sintetizar_bloques(bloques, destino, cfg, avisar=None,
     anotados = [b for b in anotados if b["texto"].strip()]
     if not anotados:
         raise RuntimeError("el guion no tiene ni un bloque con texto que locutar")
-    texto = " ".join(b["texto"].strip() for b in anotados)
+    texto = unir_bloques(anotados, cfg)
 
     # Y todo lo demas trabaja sobre lo que se OYE. La cuenta de palabras, la
     # revision de tildes y el reparto de marcas cuentan la narracion, no el
@@ -1621,7 +1638,7 @@ def regrabar_seccion(bloques, seccion_id, cfg, meta, destino, peticion="",
                                     cwd=cwd, motivo=MOTIVO_TTS)
 
     # 2. se graba SOLO esa seccion, en su propio contexto
-    trozo = " ".join(b["texto"].strip() for b in nuevos if b["id"] in dentro)
+    trozo = unir_bloques([b for b in nuevos if b["id"] in dentro], cfg)
     avisa(0.35, f"grabando {seccion_id} ({len(trozo.split())} palabras)")
 
     def progreso(fraccion, mensaje=""):

@@ -1741,6 +1741,18 @@ input[type=range].ritmo {
 .parrafo-guion:hover > .cabecera button,
 .parrafo-guion > .cabecera button:focus { visibility: visible; }
 .parrafo-guion .pastilla.tocado { color: var(--acento); }
+/* El tono de la voz del bloque (punto E): discreto si es neutro, a la vista
+   si el bloque tiene uno; aparece entero al pasar por encima. */
+.parrafo-guion > .cabecera select.tono-bloque {
+  font-size: 12px; padding: 1px 4px; border-radius: 6px;
+  background: transparent; color: var(--tenue2);
+  border: 1px solid transparent; opacity: .55; cursor: pointer; max-width: 46vw;
+}
+.parrafo-guion:hover > .cabecera select.tono-bloque,
+.parrafo-guion > .cabecera select.tono-bloque:focus { opacity: 1; border-color: var(--linea); }
+.parrafo-guion > .cabecera select.tono-bloque.con-tono {
+  opacity: 1; color: var(--acento); border-color: var(--acento-borde);
+}
 
 /* El texto, en los dos estados. Mismo cuerpo y mismo interlineado en el área
    editable y en el párrafo del karaoke: si no, al generar el audio el guion
