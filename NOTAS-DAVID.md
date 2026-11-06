@@ -203,7 +203,7 @@ COMPLETA y pulida, calidad profesional, no en versión mínima; pero con ahorro-
 cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
 
 PLAN INMEDIATO (6-nov): primero los puntos A-F de «OPINIÓN DE DAVID» (abajo), un chat
-por punto. A (Modo ahorro) y B+B+ (subtítulos y textos TikTok) HECHOS; el siguiente es C. Mientras: David saca la clave de YouTube
+por punto. A (Modo ahorro), B+B+ (subtítulos y textos TikTok) y C (fidelidad bíblica) HECHOS; el siguiente es D. Mientras: David saca la clave de YouTube
 (gratis), prueba «💡 Ideas» y publica para tener datos («Mis vídeos»). Después,
 etapa 6 de la hoja de ruta (un solo prompt para todas las imágenes).
 
@@ -233,11 +233,37 @@ A. **Modo ahorro de Claude — HECHO (6-nov-2026)**.
    correrá con el modo puesto (hoy enseñan lo pedido y la estimación de tiempo
    sale algo larga).
 B. **Subtítulos — HECHO (6-nov-2026, junto con B+)**. Ver B+ abajo.
-C. **Fidelidad histórica y bíblica en los prompts de imagen**: personajes como los
-   describen fuentes serias (judíos del s. I en Judea/Galilea: aspecto mediterráneo
-   / Oriente Medio, ropa de la época; nada inventado), lugares y objetos reales.
-   Base: Reina-Valera 1960 para citas y hechos. Que cada prompt explique lo que
-   cuenta esa frase (si se habla de dos Belén → mapa con las dos y la distancia).
+C. **Fidelidad histórica y bíblica — HECHO (6-nov-2026)**.
+   Cómo se usa: no hay que tocar nada. Si el vídeo es de tema bíblico (lo detecta
+   solo por las palabras: Jesús, evangelio, apóstol, Moisés, Babilonia…), todo lo
+   que se dibuja sale fiel a la época; un vídeo que no es bíblico no cambia nada.
+   Qué sale: (1) el prompt de cada plano (el de «Copiar prompt», modo manual)
+   lleva «ÉPOCA» (sitios y objetos reales), «PERSONAS DE LA ÉPOCA» (judíos del
+   s. I: piel morena oliva, pelo oscuro rizado y corto, barba corta; túnica sin
+   teñir hasta la rodilla, manto con flecos, sandalias…) y «NO DIBUJES» (rasgos
+   europeos, ojos azules, ropa medieval, cúpulas, libros encuadernados…). Cinco
+   épocas: siglo I (por defecto), patriarcas, Egipto y éxodo, reyes de Israel,
+   exilio en Babilonia/Persia. (2) Si la frase compara lugares («hay dos Belén»),
+   «EXPLICA LO QUE SE CUENTA» pide un MAPA con los lugares rotulados y la
+   distancia real calculada (Belén de Judea–Belén de Galilea: ~115 km en línea
+   recta), y entonces el prompt deja escribir esos nombres. Si da una medida o una
+   fecha, pide enseñarla. Con muñecos, la parte de «personas» se quita sola.
+   (3) A Claude: el guion bíblico cita LITERAL la Reina-Valera 1960 (libro,
+   capítulo, versículo), separa Biblia de tradición («los tres reyes») y usa los
+   nombres de la RV1960; el reparto y los sitios del catálogo visual se describen
+   con el aspecto y la ropa de la época; la dirección y el redactor de planos
+   reciben la época, las distancias reales entre los lugares del guion y la orden
+   de que cada imagen EXPLIQUE su frase.
+   Cómo quedó: `pasos/fidelidad.py` (detección, épocas, nomenclátor de ~40 lugares
+   bíblicos con coordenadas y distancias, bloques de texto) + `subidas.prompt_para_copiar(contexto=)`
+   (lo llama `p6_assets.prompts_para_subir` con el texto de todo el vídeo) +
+   `catalogo_visual`, `direccion`, `redactor` (`fidelidad.insertar` antes del JSON)
+   + `p3_guion._instruccion` (`pauta_guion`) + `marioneta.solo_fondo`. Solo cambia
+   el TEXTO de los encargos: no es un param, NO mueve firmas ni deja nada obsoleto;
+   el prompt que arma `p6_assets` para OpenAI no se tocó a propósito (la fidelidad
+   le llega por las descripciones que escribe Claude). Prueba: `pasos/prueba_fidelidad.py`.
+   Pendiente: más lugares en el nomenclátor; elegir la época a mano en el encargo;
+   que el mapa lo dibuje el propio estudio (eso es el punto D).
 D. **Más explicativo en imagen**: mapas, distancias, fechas, líneas de tiempo,
    flechas/círculos que señalan (enlaza con la etapa 8 de la hoja de ruta).
 E. **Guion y voz con intención**: nada de muletillas («o sea»); ritmo para

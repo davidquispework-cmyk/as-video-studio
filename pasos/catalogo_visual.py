@@ -42,11 +42,12 @@ import unicodedata
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from . import cli_claude, comun, estadisticas
+    from . import cli_claude, comun, estadisticas, fidelidad
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
     import cli_claude
     import comun
     import estadisticas
+    import fidelidad
 
 PASO = "catalogo_visual"
 
@@ -838,6 +839,15 @@ def proponer(bloques, brief=None, ajuste=None, avisar=None, proyecto_id=None,
                                  regiones_mapa=", ".join(regiones_de_mapa())
                                                or "ninguna"),
         guion=guion)
+    # LA FIDELIDAD (punto C): en un video biblico, el reparto y los sitios
+    # como los cuentan la Biblia y la historia, no la pintura europea. Solo
+    # texto del encargo: no es un param y no mueve firmas.
+    instruccion = fidelidad.insertar(
+        instruccion,
+        fidelidad.pauta_claude((brief or {}).get("titulo"),
+                               (brief or {}).get("resumen") or (brief or {}).get("tema"),
+                               guion, para="catalogo"),
+        antes_de="DEVUELVE EXACTAMENTE ESTE JSON")
 
     palabras = sum(comun.contar_palabras(b.get("texto", "")) for b in bloques)
     prevision = estadisticas.estimar(PASO, tamano=palabras, ajuste=elegido)

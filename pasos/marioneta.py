@@ -314,6 +314,8 @@ def solo_fondo(prompt):
         if saltando and linea.startswith("- "):
             continue
         saltando = False
+        if linea.startswith("PERSONAS DE LA ÉPOCA"):   # la gente la pone el render
+            continue
         if linea.startswith("CONTINUIDAD:"):
             linea = linea.replace(" y aspecto de los personajes", "")
         lineas.append(linea)

@@ -103,12 +103,13 @@ import subprocess  # noqa: F401  (las pruebas sustituyen p3_guion.subprocess.Pop
 import time
 
 try:
-    from . import cli_claude, comun, cta, estadisticas, fuentes, marcas_tts
+    from . import cli_claude, comun, cta, estadisticas, fidelidad, fuentes, marcas_tts
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
     import cli_claude
     import comun
     import cta
     import estadisticas
+    import fidelidad
     import fuentes
     import marcas_tts
 
@@ -881,6 +882,14 @@ def _instruccion(transcript, metadatos, brief, anterior, opciones, correcciones,
     # Y va como una COMPROBACION, no como una regla. «Escribe entre X e Y» ya
     # esta dicho arriba y se olvida por el camino; «cuenta y recorta antes de
     # entregar» es algo que se puede hacer justo antes de responder.
+    # LA FIDELIDAD BIBLICA (punto C): en un video biblico, citas literales de
+    # la Reina-Valera 1960 y hechos de la Biblia, no de la tradicion. Solo
+    # texto del encargo: no mueve la firma del guion.
+    biblica = fidelidad.pauta_guion(
+        metadatos.get("titulo"), brief.get("titulo"), brief.get("resumen"),
+        " ".join(str(t.get("texto") or "") for t in (transcript or [])[:400]))
+    if biblica:
+        partes.extend(["", biblica])
     partes.extend([
         "",
         "== ANTES DE ENTREGAR, CUENTA ==",

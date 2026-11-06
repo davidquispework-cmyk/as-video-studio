@@ -59,10 +59,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import medios  # noqa: E402
 
 try:
-    from . import cli_claude, estadisticas
+    from . import cli_claude, estadisticas, fidelidad
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
     import cli_claude
     import estadisticas
+    import fidelidad
 
 PASO = "redactor"
 
@@ -483,6 +484,12 @@ def proponer(escenas, ajuste=None, avisar=None, proyecto_id=None, cwd=None,
         reparto=_reparto_legible(catalogo, dirigibles),
         cuantos=len(dirigibles),
         planos=_planos_legibles(dirigibles, catalogo))
+    # LA FIDELIDAD (punto C): ver `fidelidad.py`. Solo en videos biblicos.
+    instruccion = fidelidad.insertar(
+        instruccion,
+        fidelidad.pauta_claude(titulo, " ".join(str(e.get("narracion") or "")
+                                                for e in todos), para="planos"),
+        antes_de="DEVUELVE ESTE JSON")
 
     arranque = time.time()
     try:

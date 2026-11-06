@@ -34,6 +34,11 @@ import zipfile
 
 from PIL import Image, ImageOps
 
+try:
+    from . import fidelidad
+except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
+    import fidelidad
+
 #: Tamano final de cada plano, el mismo que pide el motor de imagen.
 TAMANOS = {"apaisado": (1536, 1024), "vertical": (1024, 1536),
            "cuadrado": (1024, 1024)}
@@ -213,13 +218,18 @@ def importar_zip(raiz_proyecto, datos, validos, tamano="apaisado"):
 # --------------------------------------------------- los prompts para copiar
 
 def prompt_para_copiar(escena, guia="", idioma="", formato="", fichas=None,
-                       sitio="", anterior=None):
+                       sitio="", anterior=None, contexto=""):
     """Un prompt corto y en limpio para pegar en Gemini, ChatGPT o similar.
 
     El prompt del motor esta escrito para gpt-image con sus referencias
     adjuntas ("reference image 3 is..."); pegado en un chat no sirve. Este
     dice lo mismo sin citar adjuntos: el estilo con palabras, que se ve en
     el plano y lo que se esta contando en ese momento.
+
+    `contexto` es el texto de todo el video: si es biblico, el prompt lleva la
+    epoca (gente, ropa, sitios y objetos reales, y lo que NO va) y lo que la
+    frase tiene que EXPLICAR -- dos lugares piden un mapa con su distancia --.
+    Ver `fidelidad.py`.
     """
     partes = []
     vertical = str(formato or "").lower().startswith("vert")
@@ -245,6 +255,9 @@ def prompt_para_copiar(escena, guia="", idioma="", formato="", fichas=None,
         for nombre in personajes:
             descr = fichas.get(nombre)
             partes.append(f"- {nombre}" + (f": {descr}" if descr else ""))
+    narrado = " ".join(str(escena.get("narracion") or "").split())
+    partes.extend(fidelidad.pauta_imagen(contexto, narrado,
+                                         con_gente=bool(personajes)))
     if anterior:
         partes.append(f"CONTINUIDAD: este plano va justo después de {anterior}. "
                       f"Si te dejo adjunta la imagen de {anterior}, usa el MISMO "
@@ -254,6 +267,11 @@ def prompt_para_copiar(escena, guia="", idioma="", formato="", fichas=None,
     if narracion:
         partes.append(f"LO QUE SE ESTÁ NARRANDO (no lo escribas en la imagen): "
                       f"«{narracion}»")
-    partes.append("Sin texto, sin letras, sin rótulos, sin marcos ni viñetas: "
-                  "una sola escena a sangre.")
+    if contexto and fidelidad.es_biblico(contexto) and fidelidad.pide_rotulos(narrado):
+        partes.append("Sin más texto que los nombres de los lugares y la "
+                      "distancia del mapa (cortos, grandes y bien escritos en "
+                      "español); sin marcos ni viñetas: una sola imagen a sangre.")
+    else:
+        partes.append("Sin texto, sin letras, sin rótulos, sin marcos ni viñetas: "
+                      "una sola escena a sangre.")
     return "\n".join(partes)

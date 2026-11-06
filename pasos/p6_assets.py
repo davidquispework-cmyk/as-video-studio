@@ -277,6 +277,10 @@ def prompts_para_subir(proyecto, params, plan=None):
     sets = {n: " ".join(str((f or {}).get("prompt") or (f or {}).get("descripcion")
                             or "").split())
             for n, f in (catalogo.get("sets") or {}).items()}
+    # EL TEXTO DE TODO EL VIDEO, para la fidelidad (`fidelidad.py`): decide si
+    # es biblico y de que epoca, plano a plano daria respuestas distintas.
+    contexto = " ".join(str(e.get("narracion") or "")
+                        for e in plan.get("escenas") or [])
     anterior = None
     salida = []
     for escena in plan.get("escenas") or []:
@@ -294,7 +298,7 @@ def prompts_para_subir(proyecto, params, plan=None):
                 fichas={n: reparto.get(n) for n in escena.get("personajes") or []
                         if reparto.get(n)},
                 sitio=sets.get(escena.get("set")) or "",
-                anterior=anterior),
+                anterior=anterior, contexto=contexto),
             "subida": sid in hechas,
             "mtime": (hechas.get(sid) or {}).get("mtime"),
         })
