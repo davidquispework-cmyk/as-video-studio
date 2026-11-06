@@ -236,6 +236,18 @@ E. **Guion y voz con intención**: nada de muletillas («o sea»); ritmo para
    con SSML (velocidad, tono, pausas) por frase; decidirlo en el guion.
 F. **Movimiento de imágenes y transiciones**: mejor movimiento de cámara, cortes al
    ritmo de la voz, transiciones con intención y cosas que otros no hacen.
+G. **ESTILO 3D LOW-POLY (lo que más ilusiona a David)**: personajes 3D de bloques
+   (three.js) que HABLAN (boca con el volumen de la voz), gesticulan y se mueven, en
+   escenarios 3D bíblicos (aldea, desierto, templo, mar, interior con lámpara) con
+   luz, bokeh y cámara que se mueve; objetos que muestran información (pergamino o
+   mapa con texto, como el monitor del vídeo viral «Mientras dormías» que vio en
+   redes). Programado UNA vez como estilo más del estudio (versión 3D de
+   `marioneta.py`, que ya decide quién habla y qué gesto hace): luego cada vídeo no
+   gasta más tokens y NO necesita imágenes de Gemini. Hacer por partes: (1)
+   prototipo: una escena + 2 personajes + medir cuánto tarda en renderizar en el VPS
+   SIN GPU (WebGL por software; si va lento: 30 fps, menos efectos); (2) biblioteca
+   de escenarios y personajes desde el reparto; (3) cámara y planos automáticos.
+   Va después de A y B (o antes de C-F si David lo pide).
 Luego seguir la HOJA DE RUTA por la etapa 6.
 
 ## Pendiente / ideas
