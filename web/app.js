@@ -2310,6 +2310,7 @@ function pintarConfig() {
     return;
   }
   caja.appendChild(bloquePruebaClaves());
+  caja.appendChild(seccionModoClaude());
   caja.appendChild(seccionModoVoz());
   caja.appendChild(seccionModoImagen());
   caja.appendChild(seccionModoClip());
@@ -2517,6 +2518,85 @@ function seccionModoImagen() {
   caja.appendChild(h('div', { clase: 'meta' },
     'Se aplica al momento y a todos los vídeos. Cambiarlo no borra ni rehace '
     + 'ninguna imagen que ya tengas.'));
+  return caja;
+}
+
+/* CUÁNTO SE GASTA DE LA CUENTA DE CLAUDE (punto A): potente / equilibrado /
+   ahorro. Es un ajuste del servidor (`modo_claude`) que `cli_claude.ejecutar`
+   lee en CADA llamada y solo BAJA el modelo y el esfuerzo pedidos: no toca
+   params ni firmas, así que cambiarlo no deja nada obsoleto. */
+const NOMBRE_MODELO = { haiku: 'Haiku', sonnet: 'Sonnet', opus: 'Opus' };
+const NOMBRE_ESFUERZO = { low: 'bajo', medium: 'medio', high: 'alto', xhigh: 'muy alto', max: 'máximo' };
+
+function seccionModoClaude() {
+  const datos = estadoConfig().ajustes;
+  const tabla = datos && datos.claude;
+  const modo = (datos && datos.ajustes && datos.ajustes.modo_claude) || 'equilibrado';
+  const caja = h('section', { clase: 'bloque-config' },
+    h('div', { clase: 'fila' },
+      h('h3', {}, 'Cuánto gasta Claude'),
+      h('span', { clase: 'crece' }),
+      datos ? pastillaEstado(modo === 'potente' ? 'parcial' : 'ok',
+        { potente: 'potente', equilibrado: 'equilibrado', ahorro: 'ahorro' }[modo] || modo)
+        : null));
+  if (!datos) return caja;
+  caja.appendChild(h('div', { clase: 'pista' },
+    'El guion, los prompts y las ideas los escribe Claude con tu cuenta. Opus '
+    + 'con esfuerzo muy alto en todo agota el límite del plan Pro en un par de '
+    + 'vídeos. Montar el vídeo, la voz gratis y las imágenes que subes tú no '
+    + 'gastan Claude en ningún modo.'));
+  const opciones = [
+    { id: 'ahorro', nombre: 'Ahorro — el que menos gasta',
+      texto: 'Todo en Sonnet con esfuerzo medio como mucho (Haiku donde basta). '
+        + 'Rinde varias veces más vídeos con el mismo plan; los prompts salen algo '
+        + 'menos finos.' },
+    { id: 'equilibrado', nombre: 'Equilibrado (recomendado)',
+      texto: 'Cada tarea con lo que necesita: casi todo Sonnet, y Opus solo en lo '
+        + 'que decide el vídeo entero (qué se ve en cada plano, los prompts, la '
+        + 'guía de estilo).' },
+    { id: 'potente', nombre: 'Potente — el que más gasta',
+      texto: 'Todo en Opus con esfuerzo muy alto. La mejor calidad, pero se come '
+        + 'el límite rápido: para cuando acabe de renovarse.' },
+  ];
+  opciones.forEach(op => {
+    const puesta = op.id === modo;
+    caja.appendChild(h('button', {
+      clase: 'fila-modo-imagen' + (puesta ? ' elegida' : ''),
+      disabled: puesta,
+      onclick: async () => {
+        const vista = estadoConfig();
+        try {
+          const r = await pedir(API.ajustes(), { method: 'PUT', cuerpo: { modo_claude: op.id } });
+          vista.ajustes = { ...(vista.ajustes || {}), ajustes: r.ajustes, costes: r.costes,
+                            claude: r.claude || (vista.ajustes || {}).claude };
+          toast({ ahorro: 'Modo ahorro: Claude gastará lo mínimo',
+                  equilibrado: 'Modo equilibrado: cada tarea con lo que necesita',
+                  potente: 'Modo potente: todo en Opus (gasta mucho)' }[op.id]);
+        } catch (e) { toast(e.message, true); }
+        repintarClaves();
+      },
+    },
+      h('span', { clase: 'nombre' }, (puesta ? '● ' : '○ ') + op.nombre),
+      h('span', { clase: 'meta' }, op.texto)));
+  });
+  if (tabla && Array.isArray(tabla.fases)) {
+    const celda = c => `${NOMBRE_MODELO[c.modelo] || c.modelo} · ${NOMBRE_ESFUERZO[c.esfuerzo] || c.esfuerzo}`;
+    const cuerpo = h('tbody', {}, ...tabla.fases.map(f => h('tr', {},
+      h('td', {}, f.nombre),
+      ...['ahorro', 'equilibrado', 'potente'].map(m =>
+        h('td', { clase: m === modo ? 'puesta' : '' }, celda(f[m]))))));
+    caja.appendChild(h('details', { clase: 'detalle-tecnico' },
+      h('summary', {}, 'Qué modelo usa cada tarea en cada modo'),
+      h('div', { clase: 'tabla-cli' },
+        h('table', { clase: 'tabla modos-claude' },
+          h('thead', {}, h('tr', {}, h('th', {}, 'Tarea'),
+            h('th', {}, 'Ahorro'), h('th', {}, 'Equilibrado'), h('th', {}, 'Potente'))),
+          cuerpo))));
+  }
+  caja.appendChild(h('div', { clase: 'meta' },
+    'Se aplica a la siguiente llamada, en todos los vídeos, y no deja nada '
+    + 'obsoleto. Si en una tarjeta eliges un modelo a mano, el modo solo lo baja, '
+    + 'nunca lo sube.'));
   return caja;
 }
 

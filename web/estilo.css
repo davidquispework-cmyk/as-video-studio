@@ -2578,3 +2578,6 @@ button.avisa:hover:not(:disabled) { border-color: var(--aviso); }
 .barra-fila .relleno { background: var(--acento); height: 100%; border-radius: 4px; }
 .barra-fila .relleno.mejor { background: var(--ok); }
 .estado-ideas { padding: 8px 10px; border-radius: 8px; background: var(--info-fondo); margin: 8px 0; font-size: 13px; }
+
+/* Cuánto gasta Claude: la columna del modo puesto, resaltada */
+.modos-claude td.puesta { font-weight: 700; color: var(--acento, inherit); }

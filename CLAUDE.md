@@ -46,6 +46,11 @@ La voz va igual: `ajustes.modo_voz` (gratis / cartesia), leído al locutar por
 `p4_voz.gratis`; con la gratuita, `listar_voces` devuelve el catálogo de
 `voz_gratis` y `sintetizar_toma` graba con él. `pruebas.ps1` pone
 `ESTUDIO_MODO_VOZ=cartesia` y la gratuita tiene `prueba_voz_gratis.py`.
+Y Claude igual: `ajustes.modo_claude` (potente / equilibrado / ahorro), leído en
+CADA llamada por `cli_claude.ejecutar` (`aplicar_modo`), que solo BAJA el modelo y
+el esfuerzo pedidos. No toques `por_defecto_de` para ahorrar: el modelo del guion
+acaba en sus params y moverlo movería firmas. `pruebas.ps1` pone
+`ESTUDIO_MODO_CLAUDE=potente`; el modo tiene `prueba_modo_claude.py`.
 
 ---
 

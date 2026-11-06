@@ -459,6 +459,121 @@ def por_defecto_de(fase):
             "recomendado": dict(ficha) if ficha else None}
 
 
+# ---------------------------------------------------------------- modo ahorro
+#
+# EL MODO DE CLAUDE: cuanto se gasta de la cuenta en cada llamada. Es un AJUSTE
+# (`ajustes.modo_claude`, en Configuracion) y se LEE AL LLAMAR, en `ejecutar`,
+# que es por donde pasa toda llamada al CLI. No es un param ni toca
+# `por_defecto_de`: el modelo de una fase llega a escribirse en los params (el
+# del guion, por ejemplo) y moverlo moveria firmas. Aqui solo se BAJA lo que se
+# iba a pedir; nunca se sube nada.
+#
+#   potente      lo de siempre: lo que pida cada fase (Opus muy alto por defecto).
+#   equilibrado  como mucho, lo recomendado para esa fase (`POR_FASE`): Sonnet
+#                casi todo y Opus solo donde un fallo se arrastra.
+#   ahorro       como mucho Sonnet con esfuerzo medio (Haiku donde ya bastaba).
+#
+# Con una cuenta Pro, Opus muy alto en cada fase agota el limite en un par de
+# videos: por eso el de fabrica es 'equilibrado'. Montar el video, las voces
+# gratis y las imagenes manuales no gastan Claude en ningun modo.
+MODOS_CLAUDE = ("potente", "equilibrado", "ahorro")
+
+# Quien llama dice `para="la direccion de los planos"`; esto lo traduce a su
+# fase de `POR_FASE`. Una llamada que no esta aqui (el asistente, las ideas, el
+# «probar») ya pide poco, y en los modos de ahorro se topa a Sonnet.
+PARA_A_FASE = (
+    ("redaccion del guion", "guion"),
+    ("instrucciones de guion", "tono"),
+    ("eleccion de voz", "voz_descrita"),
+    ("catalogo visual", "catalogo_visual"),
+    ("direccion de los planos", "direccion"),
+    ("prompts de los planos", "redactor"),
+    ("plan de cartelas", "plan_cartelas"),
+    ("reescritura del bloque", "revision_audio"),
+    ("microcambio", "revision_audio"),
+    ("agente de capturas", "capturas_agente"),
+    ("guia de estilo", "guia_estilo"),
+    ("que se puede conservar", "conservacion"),
+    ("reparto del repaso", "repaso"),
+    ("corrector del plano", "corrector_imagen"),
+)
+
+
+def fase_de(para):
+    """La fase de `POR_FASE` que corresponde a un `para`, o None."""
+    texto = str(para or "").lower()
+    for trozo, fase in PARA_A_FASE:
+        if trozo in texto:
+            return fase
+    return None
+
+
+def modo_claude():
+    """El modo puesto en Configuracion. Nunca lanza: ante la duda, el de fabrica."""
+    try:
+        try:
+            from . import ajustes                         # noqa: PLC0415
+        except ImportError:                               # pasos/ suelto en sys.path
+            import ajustes                                # noqa: PLC0415
+        modo = ajustes.leer().get("modo_claude")
+    except Exception:                                     # noqa: BLE001
+        modo = None
+    if modo not in MODOS_CLAUDE:
+        modo = os.environ.get("ESTUDIO_MODO_CLAUDE") or "equilibrado"
+    return modo if modo in MODOS_CLAUDE else "equilibrado"
+
+
+def tope_de(modo, fase):
+    """Lo maximo que corre esa fase en ese modo: (modelo, esfuerzo) o None."""
+    if modo == "potente":
+        return None
+    ficha = POR_FASE.get(str(fase)) if fase else None
+    if modo == "equilibrado":
+        if ficha:
+            return ficha["modelo"], ficha["esfuerzo"]
+        return "sonnet", "high"
+    modelo, esfuerzo = (ficha["modelo"], ficha["esfuerzo"]) if ficha \
+        else ("sonnet", "medium")
+    return (min(modelo, "sonnet", key=_orden_modelo),
+            min(esfuerzo, "medium", key=_orden_esfuerzo))
+
+
+def aplicar_modo(modelo, esfuerzo, para="", modo=None):
+    """(modelo, esfuerzo) que corren de verdad: lo pedido, topado por el modo.
+
+    Solo baja: si se pide menos que el tope, se queda lo pedido.
+    """
+    tope = tope_de(modo or modo_claude(), fase_de(para))
+    if not tope:
+        return modelo, esfuerzo
+    return (min(modelo, tope[0], key=_orden_modelo),
+            min(esfuerzo, tope[1], key=_orden_esfuerzo))
+
+
+def tabla_modos():
+    """Lo que corre cada fase en cada modo, para ensenarlo en Configuracion."""
+    nombres = {
+        "guion": "Escribir el guion", "tono": "Cómo escribe el canal",
+        "voz_descrita": "Elegir la voz", "catalogo_visual": "Reparto y sitios",
+        "direccion": "Qué se ve en cada plano", "redactor": "Prompts de los planos",
+        "plan_cartelas": "Cartelas", "revision_audio": "Retocar frases de la voz",
+        "capturas_agente": "Arreglar desde capturas", "guia_estilo": "Guía de estilo",
+        "conservacion": "Qué imágenes se conservan", "repaso": "Repaso con notas",
+        "corrector_imagen": "Corregir un plano",
+    }
+    filas = []
+    for fase, nombre in nombres.items():
+        pedido = por_defecto_de(fase)
+        fila = {"fase": fase, "nombre": nombre}
+        for modo in MODOS_CLAUDE:
+            m, e = aplicar_modo(pedido["modelo"], pedido["esfuerzo"],
+                                modo=modo, para=next(
+                                    (t for t, f in PARA_A_FASE if f == fase), ""))
+            fila[modo] = {"modelo": m, "esfuerzo": e}
+        filas.append(fila)
+    return {"modos": list(MODOS_CLAUDE), "puesto": modo_claude(), "fases": filas}
+
+
 def catalogo():
     """Lo que la interfaz necesita para pintar el selector, desde una sola fuente.
 
@@ -659,6 +774,13 @@ def ejecutar(instruccion, modelo=MODELO_POR_DEFECTO,
     """
     modelo = normalizar_modelo(modelo)
     esfuerzo = normalizar_esfuerzo(esfuerzo)
+    # EL MODO AHORRO, leido ahora y no al importar: se cambia en Configuracion
+    # y vale para la siguiente llamada, sin reiniciar nada.
+    pedido = (modelo, esfuerzo)
+    modelo, esfuerzo = aplicar_modo(modelo, esfuerzo, para)
+    if (modelo, esfuerzo) != pedido:
+        print(f"[cli] modo {modo_claude()}: {para} con {modelo}/{esfuerzo} "
+              f"(pedia {pedido[0]}/{pedido[1]})", flush=True)
     lista = cuentas()
     for indice, cuenta in enumerate(lista):
         try:

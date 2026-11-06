@@ -6118,7 +6118,8 @@ def leer_ajustes():
     return {"ajustes": AJUSTES.leer(),
             "calidades": list(AJUSTES.CALIDADES),
             "costes": AJUSTES.tabla_de_costes(),
-            "tamano": AJUSTES.TAMANO}
+            "tamano": AJUSTES.TAMANO,
+            "claude": CLI_CLAUDE.tabla_modos()}
 
 
 @app.put("/api/ajustes")
@@ -6129,7 +6130,8 @@ def guardar_ajustes(cuerpo: dict = Body(default=None)):
     except ValueError as fallo:
         raise ErrorApi(400, str(fallo))
     anotar_global("ajustes_guardados", {"ajustes": guardados})
-    return {"ajustes": guardados, "costes": AJUSTES.tabla_de_costes()}
+    return {"ajustes": guardados, "costes": AJUSTES.tabla_de_costes(),
+            "claude": CLI_CLAUDE.tabla_modos()}
 
 
 # ------------------------------------------------------------------ enlaces

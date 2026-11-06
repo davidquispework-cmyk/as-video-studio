@@ -71,6 +71,10 @@ MODOS_VOZ = ("gratis", "cartesia")
 #:           ademas de elegirlo hace falta la variable de entorno FAL_KEY.
 MODOS_CLIP = ("manual", "auto")
 
+#: CUANTO SE GASTA DE LA CUENTA DE CLAUDE (ver cli_claude.MODOS_CLAUDE). Se lee
+#: en cada llamada, no entra en ninguna firma. De fabrica, 'equilibrado'.
+MODOS_CLAUDE = ("potente", "equilibrado", "ahorro")
+
 #: El tamano con el que se generan los planos, y por tanto con el que hay que
 #: mirar la tabla de precios. Es el de `p6_assets` para 16:9.
 TAMANO = "1536x1024"
@@ -97,6 +101,9 @@ POR_DEFECTO = {
     "voz_gratis": "",
     # Los clips de video de los planos: manual (gratis) de fabrica.
     "modo_clip": "manual",
+    # Claude: lo recomendado por fase de fabrica; las suites que miran el
+    # modelo exacto fijan 'potente' con ESTUDIO_MODO_CLAUDE.
+    "modo_claude": os.environ.get("ESTUDIO_MODO_CLAUDE") or "equilibrado",
     # Si ya se ha pasado por la guia de inicio (las tarjetas que piden las
     # claves al entrar por primera vez). Vive aqui y no en el navegador
     # porque es de la instalacion, no de la pantalla: desde el movil no hay
@@ -121,6 +128,8 @@ def leer():
         salida["modo_imagen"] = POR_DEFECTO["modo_imagen"]
     if salida.get("modo_clip") not in MODOS_CLIP:
         salida["modo_clip"] = POR_DEFECTO["modo_clip"]
+    if salida.get("modo_claude") not in MODOS_CLAUDE:
+        salida["modo_claude"] = POR_DEFECTO["modo_claude"]
     salida["onboarding_visto"] = bool(salida.get("onboarding_visto"))
     return salida
 
@@ -152,6 +161,9 @@ def guardar(cambios):
         if clave == "modo_clip" and valor not in MODOS_CLIP:
             raise ValueError(
                 f"modo de clip {valor!r}: solo {', '.join(MODOS_CLIP)}")
+        if clave == "modo_claude" and valor not in MODOS_CLAUDE:
+            raise ValueError(
+                f"modo de Claude {valor!r}: solo {', '.join(MODOS_CLAUDE)}")
         if clave == "onboarding_visto" and not isinstance(valor, bool):
             raise ValueError("onboarding_visto es verdadero o falso")
         actual[clave] = valor

@@ -203,7 +203,7 @@ COMPLETA y pulida, calidad profesional, no en versión mínima; pero con ahorro-
 cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
 
 PLAN INMEDIATO (6-nov): primero los puntos A-F de «OPINIÓN DE DAVID» (abajo), un chat
-por punto, empezando por A (Modo ahorro). Mientras: David saca la clave de YouTube
+por punto. A (Modo ahorro) HECHO; el siguiente es B (con B+). Mientras: David saca la clave de YouTube
 (gratis), prueba «💡 Ideas» y publica para tener datos («Mis vídeos»). Después,
 etapa 6 de la hoja de ruta (un solo prompt para todas las imágenes).
 
@@ -214,10 +214,24 @@ notas.»
 
 ## OPINIÓN DE DAVID TRAS SU PRIMER VÍDEO (6-nov-2026) — hacer ANTES de la etapa 6
 Orden decidido, un chat por punto (cada uno completo y pulido):
-A. **Modo ahorro de Claude** (lo primero): el estudio corre TODO en Opus/xhigh
-   (`cli_claude.MODELO_POR_DEFECTO`/`por_defecto_de`) con la misma cuenta Pro de
-   David y se le acaba el límite. Interruptor en Configuración para usar el modelo
-   de `POR_FASE` (casi todo Sonnet). Montar el vídeo NO gasta Claude.
+A. **Modo ahorro de Claude — HECHO (6-nov-2026)**.
+   Cómo se usa: Configuración (engranaje) → «Cuánto gasta Claude» → tres botones:
+   **Ahorro** (todo Sonnet con esfuerzo medio como mucho, Haiku donde basta),
+   **Equilibrado** (el de fábrica: lo recomendado por tarea en `POR_FASE`, casi todo
+   Sonnet y Opus solo en dirección de planos, prompts, guía de estilo, repaso y
+   corrector) y **Potente** (todo Opus muy alto, como antes). Debajo, «Qué modelo usa
+   cada tarea en cada modo» (tabla). Vale desde la siguiente llamada, sin reiniciar.
+   Cómo quedó: ajuste `modo_claude` en `ajustes.json` (`pasos/ajustes.py`) que lee
+   `cli_claude.ejecutar` EN CADA LLAMADA (`aplicar_modo`): solo BAJA modelo/esfuerzo,
+   nunca sube; la fase sale del `para=` de cada llamada (`PARA_A_FASE`). No toca
+   params ni `por_defecto_de`, así que no mueve firmas ni deja nada obsoleto. En el
+   registro del servidor sale `[cli] modo ahorro: … con sonnet/medium (pedia
+   opus/xhigh)`. `GET /api/ajustes` trae `claude` (la tabla). Pantalla:
+   `seccionModoClaude` en `web/app.js`. `pruebas.ps1` fija `ESTUDIO_MODO_CLAUDE=potente`
+   para las suites viejas. Prueba: `pasos/prueba_modo_claude.py`.
+   Pendiente: que los selectores de modelo de cada tarjeta digan lo que de verdad
+   correrá con el modo puesto (hoy enseñan lo pedido y la estimación de tiempo
+   sale algo larga).
 B. **Subtítulos**: (1) mientras sale el cartel del gancho, NO subtitular debajo (se
    ve doble); igual con cualquier cartela/elemento que ya muestre la frase. (2)
    mayúsculas y minúsculas mezcladas al leer (palabra clave/cifras en otro formato
