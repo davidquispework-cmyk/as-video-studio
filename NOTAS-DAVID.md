@@ -203,8 +203,9 @@ COMPLETA y pulida, calidad profesional, no en versión mínima; pero con ahorro-
 (leer solo lo necesario, una prueba corta final). Innovar y contextualizar cada vez más:
 cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
 
-PLAN INMEDIATO (6-nov): primero los puntos A-F de «OPINIÓN DE DAVID» (abajo), un chat
-por punto. A (Modo ahorro), B+B+ (subtítulos y textos TikTok) y C (fidelidad bíblica) HECHOS; el siguiente es D. Mientras: David saca la clave de YouTube
+PLAN INMEDIATO (orden cambiado el 6-nov): primero los puntos de «OPINIÓN DE DAVID»
+(abajo), un chat por punto. A, B+B+ y C HECHOS. Nuevo orden: **G con D** (primera
+parte HECHA el 6-nov; falta la segunda parte de G), luego **E**, luego **F**. Mientras: David saca la clave de YouTube
 (gratis), prueba «💡 Ideas» y publica para tener datos («Mis vídeos»). Después,
 etapa 6 de la hoja de ruta (un solo prompt para todas las imágenes).
 
@@ -265,8 +266,9 @@ C. **Fidelidad histórica y bíblica — HECHO (6-nov-2026)**.
    le llega por las descripciones que escribe Claude). Prueba: `pasos/prueba_fidelidad.py`.
    Pendiente: más lugares en el nomenclátor; elegir la época a mano en el encargo;
    que el mapa lo dibuje el propio estudio (eso es el punto D).
-D. **Más explicativo en imagen**: mapas, distancias, fechas, líneas de tiempo,
-   flechas/círculos que señalan (enlaza con la etapa 8 de la hoja de ruta).
+D. **Más explicativo en imagen** — va DENTRO de G (ver G, primera parte: mapa con
+   distancia, línea de tiempo, reloj por porciones y tarjeta de versículo HECHOS).
+   Falta: flechas/círculos que señalan y comparaciones.
 E. **Guion y voz con intención**: nada de muletillas («o sea»); ritmo para
    retener todo el vídeo; pausas mejor puestas; el TONO de la voz cambia según la
    historia (alegre, lento, tenso/miedo) — con la voz gratis (edge-tts) se puede
@@ -297,6 +299,46 @@ G. **FIGURAS PLANAS PROPIAS (decidido 6-nov)**: personajes de colores lisos como
    casas, palmeras, pergamino, mapa, cadena…) que crece con cada vídeo. Gemini
    sobra (como mucho, un fondo). Objetivo de David: «lo mejor del mercado».
    (El 3D low-poly del vídeo viral queda como idea lejana.)
+   **PRIMERA PARTE — HECHA (6-nov-2026)**: el motor de motion graphics.
+   Cómo se usa: al crear el vídeo (o en «El encargo») → «Animación» →
+   «✏️ Motion graphics (papel)» o «🌙 Motion graphics (noche)». Luego montar el
+   vídeo (gratis: no se pide ninguna imagen nueva). Sale: el vídeo es UN SOLO
+   DIBUJO por el que viaja la cámara, sin cortes (al cambiar de plano se aleja un
+   poco, un camino de puntos une un sitio con el siguiente y lo anterior se queda
+   donde estaba, para no perderse). Cada plano explica su frase con una pieza
+   que entra con rebote (se pasa y vuelve, se estira al moverse y se aplasta al
+   llegar) en el momento en que la voz dice su palabra:
+   - **Versículo**: si la frase cita entre comillas y/o con referencia («Juan
+     14:23»), tarjeta con «JESÚS DIJO:», el texto que se va ENTINTANDO palabra a
+     palabra con la voz (las palabras clave en color), la pastilla «JUAN 14:23 ·
+     RVR1960» y una Biblia que se abre con destellos.
+   - **Línea de tiempo**: si dice años («en el año 70 d. C.», «586 a. C.», «hace
+     2000 años»): eje que se dibuja, tarjetas que caen, puntero que viaja y
+     «hace N años» contando. Con un solo año pone «HOY».
+   - **Mapa con distancia**: si nombra lugares (Belén, Nazaret, Roma…): costa,
+     mar de Galilea, Jordán y mar Muerto esquemáticos, chinchetas que caen, la
+     ruta que se dibuja y los km reales contando (Belén–Nazaret: 110 km). Un solo
+     lugar se sitúa respecto de Jerusalén. No repite el mismo mapa.
+   - **Reloj por porciones**: «hora tercera/sexta/novena» (= 9, 12, 15 h, como
+     contaban los judíos), «de la hora sexta a la novena» (3 horas), «5 horas al
+     día» (esfera de 24 h: «5 h = 21 % de tu día»).
+   - Si no hay nada de eso: la imagen del plano como **lámina** enmarcada que
+     sube rebotando, con iconos que saltan al decir su palabra (cruz, corazón,
+     Biblia, moneda, celular, corona, paloma, casa, vela, estrella, pan, cadena…).
+   Subtítulos, gancho y plantilla TikTok siguen encima igual. Con motion no hay
+   muñecos ni efectos de ambiente (eso va en la segunda parte).
+   Cómo quedó: `pasos/motion.py` (detección, piezas, cámara y el JS que anima) +
+   `p8_render` (capa `#mg`; sin transiciones entre planos) + `selectorMotion` en
+   `web/app.js` + `app.py` al crear. Param del render `motion` (`"papel"`,
+   `"noche"`, o `{"tema": "papel", "laminas": false}` para no usar imágenes); no
+   va en los defectos (no mueve firmas). En plan.json una escena puede llevar
+   `"motion": [piezas]` (storyboard a mano: texto, icono, versículo, mapa,
+   línea, reloj, lámina, con `en`, `entra` y `luego`) o `"motion": false`.
+   Prueba: `pasos/prueba_motion.py` (`--foto` pinta y comprueba que no hay corte).
+   **SEGUNDA PARTE (siguiente chat)**: que Claude escriba el storyboard de cada
+   plano con metáforas; figuras planas propias (muñecos) dentro del mundo; más
+   piezas (comparación, lista, contador, flechas y círculos que señalan); sonido
+   «whoosh» en los viajes y «pop» en cada pieza.
 B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Cómo se usa: al crear el vídeo (o en «El encargo») → «Gancho» → «⚡ Gancho +
    textos TikTok». Debajo salen dos filas nuevas: «Letra de los textos»

@@ -51,6 +51,30 @@ Leer antes NOTAS-DAVID.md (punto G y etapa 1 «Muñecos que gesticulan») y segu
 - Sin dependencias nuevas en la interfaz (JavaScript a pelo, sin `style=""`).
 - Una prueba ligera propia (`pasos/prueba_<algo>.py`) añadida a `pruebas.ps1`.
 
+## Lo que YA está hecho (primera parte, 6-nov-2026) — `pasos/motion.py`
+- Param del render `motion`: `true` | `"papel"` | `"noche"` | `{"tema", "laminas": false}`;
+  no va en los defectos (no mueve firmas). Pantalla: `selectorMotion` («Animación»).
+- UN MUNDO por vídeo: cada plano es una «parada» (`motion.paradas`); la cámara viaja
+  de una a otra (se aleja a mitad de viaje + camino de puntos) y lo anterior SE QUEDA.
+  Por eso con motion `p8_render` pone `cortes = {}` (ninguna transición) y rehacer un
+  plano arrastra al SIGUIENTE (su viaje empieza viendo este).
+- Cada página pinta el mundo en T = t_in + t (tiempos del VÍDEO, de `marcas`), con
+  su plano y los dos anteriores. JS en `motion.MOTION_JS`; curvas: `resorte` (se pasa
+  y vuelve), `eBack` (anticipación), estirar/aplastar en `mgPieza`; `luego` transforma.
+- Piezas automáticas (sin Claude, gratis), por prioridad: versículo (cita entre
+  comillas + referencia) > línea de tiempo (años) > mapa (lugares de `fidelidad`, con
+  distancia; no repite el mismo mapa; Jerusalén sola no) > reloj (hora tercera/sexta/
+  novena, «N horas al día» sobre 24 h) > lámina (la imagen del plano) + iconos que
+  saltan al decir su palabra (`PALABRAS_ICONO`). En plan.json `"motion": [piezas]`
+  manda (storyboard a mano); `"motion": false` = solo lámina.
+- Prueba: `pasos/prueba_motion.py` (`--foto` pinta y comprueba que no hay corte).
+
+## Lo siguiente (segunda parte)
+Que Claude escriba el storyboard por plano (`"motion": [...]` en plan.json) con
+metáforas; muñecos/figuras planas DENTRO del mundo (hoy, con motion, no hay muñecos
+ni ambiente); más piezas (comparación, lista, contador, balanza, cadena); sonido
+«whoosh» en cada viaje de cámara y «pop» en cada pieza.
+
 ## Ideas para más adelante
 3D low-poly como el vídeo viral (lejano); mapas antiguos animados (viajes de
 Pablo); línea de tiempo animada; acuarela animada (etapa 8 de la hoja de ruta).

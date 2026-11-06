@@ -6922,6 +6922,7 @@ function vistaElegidoLight() {
     duracionLight(e, undefined, () => pintarCosteDelEncargoLight(e, aviso)),
     selectorFormato(e.formato, v => { e.formato = v; }),
     selectorDibujo(e.marioneta, v => { e.marioneta = v; }),
+    selectorMotion(e.motion, v => { e.motion = v; }),
     selectorGancho(e.gancho, v => { e.gancho = v; pintarLight(); }),
     selectorLetras(e, () => {}),
     selectorPlantilla(e, true, pintarLight)));
@@ -6985,6 +6986,33 @@ function selectorDibujo(valor, alCambiar) {
   });
   return h('div', { clase: 'campo' }, h('label', {}, 'Dibujo'), tira,
     h('div', { clase: 'pista' }, 'Con muñecos, el prompt de cada imagen pide SOLO EL FONDO (sin personas).'));
+}
+
+/* EL MOTION GRAPHICS (pasos/motion.py, punto G). El vídeo es un solo mundo
+   dibujado por el que viaja la cámara, sin cortes; cada plano explica su frase
+   con una pieza animada (versículo RVR1960, mapa con distancia, línea de
+   tiempo, reloj) o enseña su imagen como lámina. Va al param `motion` del
+   render (false, 'papel' o 'noche') y solo se escribe si alguien lo toca:
+   cambiarlo es gratis, solo pide volver a montar. */
+function selectorMotion(valor, alCambiar) {
+  const actual = valor === true ? 'papel' : (valor || false);
+  const tira = h('div', { clase: 'tira-modos formatos' });
+  [
+    { id: false, nombre: '🖼 Imagen con zoom', pista: 'Como siempre: la imagen de cada plano con su movimiento de cámara' },
+    { id: 'papel', nombre: '✏️ Motion graphics (papel)', pista: 'Todo dibujado: piezas que entran con rebote al ritmo de la voz y cámara que viaja sin cortes. Fondo claro' },
+    { id: 'noche', nombre: '🌙 Motion graphics (noche)', pista: 'Lo mismo con fondo oscuro, para historias tensas o de noche' },
+  ].forEach(op => {
+    tira.appendChild(h('button', {
+      clase: 'mini' + (actual === op.id ? ' activo' : ''), title: op.pista,
+      'data-id': String(op.id),
+      onclick: () => {
+        tira.querySelectorAll('button').forEach(b => b.classList.toggle('activo', b.dataset.id === String(op.id)));
+        alCambiar(op.id);
+      },
+    }, op.nombre));
+  });
+  return h('div', { clase: 'campo' }, h('label', {}, 'Animación'), tira,
+    h('div', { clase: 'pista' }, 'Con motion graphics, si la frase cita un versículo, nombra lugares, años u horas, sale explicado con su pieza (tarjeta del versículo, mapa con la distancia, línea de tiempo, reloj); si no, la imagen del plano como lámina. Gratis: solo se vuelve a montar.'));
 }
 
 /* EL GANCHO (pasos/gancho.py): cartel grande «¿Sabías…?» con destello en los
@@ -7324,6 +7352,7 @@ async function crearYGenerarLight(estilo) {
         indicaciones: e.indicaciones,
         cta: e.cta,
         marioneta: !!e.marioneta,
+        motion: e.motion || false,
         gancho: !!e.gancho,
         letra: e.letra || '',
         resalte: e.resalte || '',
@@ -7390,6 +7419,7 @@ const CAMPOS_ENCARGO = [
   { clave: 'indicaciones', paso: 'guion', param: 'prompt_general' },
   { clave: 'cta', paso: 'guion', param: 'cta' },
   { clave: 'marioneta', paso: 'render', param: 'marioneta' },
+  { clave: 'motion', paso: 'render', param: 'motion' },
   { clave: 'gancho', paso: 'callouts', param: 'gancho' },
   { clave: 'letra', paso: 'callouts', param: 'letra' },
   { clave: 'resalte', paso: 'callouts', param: 'resalte' },
@@ -7428,6 +7458,7 @@ function pedidoDelVideoLight() {
     indicaciones: String(params('guion').prompt_general || ''),
     cta: ctaLeida(params('guion').cta),
     marioneta: !!params('render').marioneta,
+    motion: params('render').motion || false,
     gancho: !!params('callouts').gancho,
     letra: String(params('callouts').letra || ''),
     resalte: String(params('callouts').resalte || ''),
@@ -7484,6 +7515,7 @@ function vistaEncargoVideoLight() {
     duracionLight(e, estilo),
     selectorFormato(e.formato, valor => { e.formato = valor; programarGuardadoEncargo(); }),
     selectorDibujo(e.marioneta, valor => { e.marioneta = valor; programarGuardadoEncargo(); }),
+    selectorMotion(e.motion, valor => { e.motion = valor; programarGuardadoEncargo(); }),
     selectorGancho(e.gancho, valor => { e.gancho = valor; programarGuardadoEncargo(); pintarLight(); }),
     selectorLetras(e, programarGuardadoEncargo),
     selectorPlantilla(e, false, () => { programarGuardadoEncargo(); pintarLight(); })));

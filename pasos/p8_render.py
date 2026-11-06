@@ -53,6 +53,7 @@ import clips as clips_video  # noqa: E402
 import estadisticas  # noqa: E402
 import letras  # noqa: E402
 import marioneta  # noqa: E402
+import motion  # noqa: E402
 import medios  # noqa: E402
 import plantilla_tiktok  # noqa: E402
 import sonido  # noqa: E402
@@ -344,6 +345,7 @@ html,body{margin:0;padding:0;background:#0b0c09;overflow:hidden}
    lleva. #delante va entre la camara y el subtitulo (z-index 1). */
 __AMBCSS__
 __MARCSS__
+__MGCSS__
 </style></head><body>
 <!-- DOS CAPAS, Y LA DIFERENCIA ES EN QUE LADO DEL TRANSFORM ESTAN.
      #capa va DENTRO de #camara, asi que la escala el zoom: ahi vive lo que
@@ -360,6 +362,7 @@ __MARCSS__
   </div>
   __AMBFUERA__
   __MARHTML__
+  __MGHTML__
   <div id="capafija">__CAPAFIJA__</div>
 </div>
 <script>
@@ -432,6 +435,11 @@ __AMBJS__
 const MAR = __MAR__;
 __MARJS__
 
+// EL MOTION GRAPHICS (pasos/motion.py): null = el plano sale como siempre.
+// Con el, #camara se oculta y el plano es una parada del mundo vectorial.
+const MG = __MG__;
+__MGJS__
+
 function pintar(t){
   const u = DUR > 0 ? Math.min(1, Math.max(0, t/DUR)) : 0;
   const v = ventana(u), s = W / v[2];
@@ -448,6 +456,7 @@ function pintar(t){
     'px) scale(' + s.toFixed(6) + ')';
   if (AMB) ambiente(t, v, s);
   if (MAR) marionetas(t);
+  if (MG) motionPintar(t);
   if (svg && svg.setCurrentTime) svg.setCurrentTime(t);
   if (svgFijo && svgFijo.setCurrentTime) svgFijo.setCurrentTime(t);
   if (CLIP && CLIP.length){
@@ -472,7 +481,7 @@ def _url_local(ruta):
 
 
 def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
-               amb=None, fotos_clip=None, mar=None):
+               amb=None, fotos_clip=None, mar=None, mg=None):
     ancho, alto = [int(v) for v in p["resolucion"]]
     hw, hh = mov.get("hyperframe_px") or [3072, 2048]
     duracion = float(escena["t_out"]) - float(escena["t_in"])
@@ -482,7 +491,13 @@ def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
         hyper = amb["fondo"]
     dentro, fuera, css = ambiente.html_capas(amb, hw, hh, ancho, alto)
     mar_html, mar_css = marioneta.html_capa(mar, ancho, alto)
+    mg_html, mg_css = motion.html_capa(mg, ancho, alto)
+    mg_json = motion.json_conf(mg) if mg else ""
     html = (PAGINA
+            .replace("__MGCSS__", mg_css)
+            .replace("__MGHTML__", mg_html)
+            .replace("__MGJS__", motion.MOTION_JS if mg else "")
+            .replace("__MG__", mg_json or "null")
             .replace("__MARCSS__", mar_css)
             .replace("__MARHTML__", mar_html)
             .replace("__MARJS__", marioneta.MARIONETA_JS if mar else "")
@@ -499,7 +514,7 @@ def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
             .replace("__FONDO__", _url_local(hyper))
             .replace("__CAPA__", capa_svg)
             .replace("__CAPAFIJA__", capa_fija or "")
-            .replace("__LETRASCSS__", letras.css_para(capa_fija))
+            .replace("__LETRASCSS__", letras.css_para((capa_fija or "") + mg_json))
             .replace("__MOV__", json.dumps({"ventana_ini": mov["ventana_ini"],
                                             "ventana_fin": mov["ventana_fin"]}))
             .replace("__FPS__", str(int(fps)))
@@ -1071,7 +1086,7 @@ def renderizar_plano(tarea, navegador=None):
                         os.path.join(carpeta, "escena.html"),
                         capa_fija=tarea.get("capa_fija") or "", fps=fps,
                         amb=tarea.get("ambiente"), fotos_clip=fotos_clip,
-                        mar=tarea.get("marioneta"))
+                        mar=tarea.get("marioneta"), mg=tarea.get("motion"))
 
     navegador.abrir(pagina)
     for numero in range(total):
@@ -1359,8 +1374,22 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
     # resuelve aqui, al renderizar, contra la paleta elegida en esta pantalla.
     cortes = transiciones.resolver(escenas, p,
                                    semilla=(plan.get("semilla") or 0))
+    # MOTION GRAPHICS (pasos/motion.py): la camara viaja de un plano al
+    # siguiente sin cortar, asi que NINGUN plano cuece transicion: el ultimo
+    # fotograma de uno ya es el primero del otro.
+    con_motion = bool(motion.tema_de(p))
+    if con_motion:
+        cortes = {}
     pedidas = set(unidades) if unidades is not None else None
     arrastrados = []
+    if pedidas is not None and con_motion:
+        # el plano siguiente EMPIEZA viendo lo que dejo este (su viaje sale de
+        # aqui): si este cambia, el siguiente se rehace con el
+        ids = [e["id"] for e in escenas]
+        for k, sid_ in enumerate(ids[:-1]):
+            if f"escena:{sid_}" in set(unidades) and f"escena:{ids[k + 1]}" not in pedidas:
+                pedidas.add(f"escena:{ids[k + 1]}")
+                arrastrados.append(ids[k + 1])
     if pedidas is not None:
         # EL UNICO ARRASTRE QUE SOBREVIVE, y no es «rehacer lo que depende»:
         # es «el fichero producido seria incorrecto». El clip que entra lleva
@@ -1405,7 +1434,18 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
     # LOS MUÑECOS (pasos/marioneta.py), si el video es de ese estilo: la
     # imagen es solo el fondo y cada personaje se pinta encima y gesticula.
     # Sin recorte de figura: el fondo no trae gente que separar.
-    con_munecos = bool(p.get("marioneta"))
+    con_munecos = bool(p.get("marioneta")) and not con_motion
+    confs_motion = {}
+    if con_motion:
+        laminas = {}
+        for e in escenas:
+            m_ = movimientos.get(e.get("id")) or {}
+            hy = m_.get("hyperframe")
+            hy = hy if hy and os.path.isabs(hy) else os.path.join(base_callouts, hy or "")
+            if m_.get("hyperframe") and os.path.exists(hy):
+                px = m_.get("hyperframe_px") or [3072, 2048]
+                laminas[e["id"]] = {"href": _url_local(hy), "ancho": px[0], "alto": px[1]}
+        confs_motion = motion.preparar(escenas, p, laminas, ancho, alto)
     fichas_reparto = _fichas_reparto(proyecto) if con_munecos else {}
     for indice, escena in enumerate(escenas):
         sid = escena["id"]
@@ -1431,7 +1471,7 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
         hyper = mov.get("hyperframe")
         hyper = (hyper if hyper and os.path.isabs(hyper)
                  else os.path.join(base_callouts, hyper or ""))
-        if not os.path.exists(hyper):
+        if not os.path.exists(hyper) and not con_motion:
             raise RuntimeError(f"{sid}: falta el hyperframe {hyper}")
         capa = os.path.join(base_callouts, mov.get("capa") or "")
         svg = ""
@@ -1466,7 +1506,9 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
         ruta_clip = clips_video.ruta_de(proyecto.raiz, sid)
         con_clip = os.path.isfile(ruta_clip) and p.get("clips", True)
         amb = None
-        if p.get("ambiente", "auto") not in ("no", False, None) and con_clip:
+        if con_motion:
+            pass   # el mundo vectorial no lleva ambiente de foto
+        elif p.get("ambiente", "auto") not in ("no", False, None) and con_clip:
             try:
                 amb = ambiente.configurar(escena, hyper,
                                           os.path.join(trabajo, "ambiente"),
@@ -1499,10 +1541,14 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
             if mar and amb:
                 amb["sin_balanceo"] = True   # los muñecos ya se mueven
             print(f"[render] {sid}: {marioneta.resumen(mar)}", flush=True)
+        mg = confs_motion.get(sid) if con_motion else None
+        if con_motion:
+            print(f"[render] {sid}: {motion.resumen(mg)}", flush=True)
         tareas.append({
+            "motion": mg,
             "marioneta": mar,
             "ambiente": amb,
-            "clip_video": ruta_clip if con_clip else None,
+            "clip_video": ruta_clip if con_clip and not con_motion else None,
             "id": sid, "escena": {"id": sid, "t_in": escena["t_in"],
                                   "t_out": escena["t_out"]},
             "mov": {"ventana_ini": mov["ventana_ini"],
