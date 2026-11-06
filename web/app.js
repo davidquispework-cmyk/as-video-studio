@@ -2918,7 +2918,7 @@ async function probarCuentaCLI(cid) {
    tarjeta de la guía. */
 const NOMBRES_PROVEEDOR = {
   openai: 'OpenAI — imágenes', cartesia: 'Cartesia — voz', jamendo: 'Jamendo — música',
-  freesound: 'FreeSound — efectos', claude: 'Claude',
+  freesound: 'FreeSound — efectos', youtube: 'YouTube — análisis', claude: 'Claude',
 };
 
 function bloquePruebaClaves() {
@@ -3120,7 +3120,9 @@ function seccionOtrasClaves(ficha) {
   [['jamendo', 'Jamendo — música', 'el Client ID de tu aplicación en '
     + 'developer.jamendo.com'],
    ['freesound', 'FreeSound — efectos', 'la API key de tu cuenta en '
-    + 'freesound.org/apiv2/apply']].forEach(([id, titulo, pista]) => {
+    + 'freesound.org/apiv2/apply'],
+   ['youtube', 'YouTube — análisis', 'la clave de API de Google Cloud con «YouTube '
+    + 'Data API v3» habilitada (la usa la pestaña 💡 Ideas)']].forEach(([id, titulo, pista]) => {
     const puesta = ((ficha[id] || {}).puesta) || false;
     const cola = (ficha[id] || {}).cola || '';
     const campo = h('input', {
@@ -4853,6 +4855,528 @@ function llenarFiltroBitacora() {
   sel.value = previo || 'todos';
 }
 
+/* ============================================ ANÁLISIS / IDEAS (etapa 5)
+ *
+ * La pestaña «📊 Análisis / 💡 Ideas» (pasos/analista.py + /api/analisis/*):
+ *   💡 Ideas      Claude propone vídeos con gancho, duración, formato y material;
+ *                 «Crear este vídeo» los pasa al encargo de un vídeo nuevo.
+ *   📊 El nicho   lo que más crece en YouTube para las búsquedas del nicho,
+ *                 medido (vistas/día, duración, títulos, hora) y con consejos.
+ *   🎵 TikTok     enlaces de referencia (TikTok no tiene API pública).
+ *   📈 Mis vídeos el canal de YouTube con sus cifras + la retención a mano o
+ *                 pegando la exportación de YouTube Studio.
+ * No toca ningún proyecto ni ninguna firma: vive en `analisis.json`. */
+APP.analisis = { datos: null, cargando: false, error: '', pestana: 'ideas',
+  tema: '', cuantas: 5, formato: 'vertical', sondeo: null, ocupado: false,
+  verDescartadas: false, borrador: {} };
+
+const API_ANALISIS = `${BASE}/api/analisis`;
+
+async function cargarAnalisis() {
+  const a = APP.analisis;
+  a.cargando = true;
+  try {
+    a.datos = await pedir(API_ANALISIS);
+    a.error = '';
+  } catch (e) {
+    a.error = e.message;
+  } finally {
+    a.cargando = false;
+  }
+  vigilarIdeas();
+  if (APP.light.vista === 'analisis') pintarLight();
+}
+
+/* Las ideas tardan medio minuto o un minuto: se pregunta cada 3 s, nunca con
+   una petición larga (el proxy corta a los 60 s). */
+function vigilarIdeas() {
+  const a = APP.analisis;
+  const pensando = a.datos && a.datos.trabajo && a.datos.trabajo.estado === 'pensando';
+  if (pensando && !a.sondeo) {
+    a.sondeo = setInterval(async () => {
+      try {
+        const datos = await pedir(API_ANALISIS);
+        const antes = a.datos && a.datos.trabajo && a.datos.trabajo.estado;
+        a.datos = datos;
+        if (datos.trabajo.estado !== 'pensando') {
+          clearInterval(a.sondeo); a.sondeo = null;
+          if (antes === 'pensando' && datos.trabajo.estado === 'hecho') {
+            toast(`💡 ${datos.trabajo.nuevas} ideas nuevas`);
+          }
+        }
+        if (APP.light.vista === 'analisis' && a.pestana === 'ideas') pintarLight();
+      } catch (e) { /* un fallo de red suelto: se vuelve a preguntar */ }
+    }, 3000);
+  } else if (!pensando && a.sondeo) {
+    clearInterval(a.sondeo); a.sondeo = null;
+  }
+}
+
+/* Una llamada que devuelve la ficha entera: se guarda, se repinta y se dice. */
+/* LO ESCRITO SOBREVIVE AL REPINTADO. La pantalla se vuelve a construir cada
+   vez que algo cambia (y cada 3 s mientras Claude piensa): un campo suelto se
+   vaciaría a medio escribir. Cada campo guarda su texto en `borrador` y lleva
+   `data-foco`, así que el cursor tampoco se va. */
+function entradaAnalisis(clave, props, defecto, area) {
+  const a = APP.analisis;
+  const nodo = h(area ? 'textarea' : 'input', Object.assign({}, props, {
+    oninput: ev => { a.borrador[clave] = ev.target.value; },
+  }));
+  nodo.dataset.foco = `analisis-${clave}`;
+  nodo.value = a.borrador[clave] !== undefined ? a.borrador[clave] : (defecto || '');
+  return nodo;
+}
+
+function olvidarBorrador(prefijo) {
+  const b = APP.analisis.borrador;
+  Object.keys(b).forEach(k => { if (k.startsWith(prefijo)) delete b[k]; });
+}
+
+async function accionAnalisis(url, metodo, cuerpo, aviso, limpiar) {
+  const a = APP.analisis;
+  if (a.ocupado) return null;
+  a.ocupado = true;
+  pintarLight();
+  try {
+    const datos = await pedir(url, { method: metodo, cuerpo });
+    if (datos && datos.tiene_clave_youtube !== undefined) a.datos = datos;
+    if (aviso) toast(typeof aviso === 'function' ? aviso(datos) : aviso);
+    if (limpiar) olvidarBorrador(limpiar);
+    return datos;
+  } catch (e) {
+    toast(e.message, true);
+    return null;
+  } finally {
+    a.ocupado = false;
+    pintarLight();
+  }
+}
+
+function vistaAnalisis() {
+  const a = APP.analisis;
+  const caja = h('div', { clase: 'light-form analisis' });
+  caja.appendChild(h('div', { clase: 'light-cab' },
+    h('h2', {}, '📊 Análisis / 💡 Ideas'),
+    h('span', { clase: 'meta' }, 'qué pega, cómo van tus vídeos y qué hacer después')));
+  if (!a.datos) {
+    if (a.error) {
+      caja.appendChild(cajaError(`No se ha podido leer el análisis: ${a.error}`));
+      caja.appendChild(h('button', { clase: 'primario', onclick: () => cargarAnalisis() }, 'Reintentar'));
+    } else {
+      caja.appendChild(h('div', { clase: 'cargando' }, 'cargando el análisis…'));
+      if (!a.cargando) cargarAnalisis();
+    }
+    return caja;
+  }
+  const tira = h('div', { clase: 'tira-modos' });
+  [['ideas', '💡 Ideas'], ['nicho', '📊 El nicho'], ['tiktok', '🎵 TikTok'], ['mios', '📈 Mis vídeos']]
+    .forEach(([id, nombre]) => tira.appendChild(h('button', {
+      clase: 'mini' + (a.pestana === id ? ' activo' : ''),
+      onclick: () => { a.pestana = id; pintarLight(); },
+    }, nombre)));
+  caja.appendChild(tira);
+  if (a.pestana === 'nicho') caja.appendChild(pestanaNicho(a.datos));
+  else if (a.pestana === 'tiktok') caja.appendChild(pestanaTiktok(a.datos));
+  else if (a.pestana === 'mios') caja.appendChild(pestanaMios(a.datos));
+  else caja.appendChild(pestanaIdeas(a.datos));
+  return caja;
+}
+
+function listaConsejos(consejos) {
+  if (!consejos || !consejos.length) return null;
+  return h('ul', { clase: 'consejos' }, consejos.map(c => h('li', {}, c)));
+}
+
+function enlaceFuera(texto, url) {
+  return h('a', { href: url, target: '_blank', rel: 'noopener' }, texto);
+}
+
+/* La clave de YouTube: gratis, de Google Cloud. Se guarda en el mismo almacén
+   que las demás (`/api/claves`, campo `youtube`), nunca en analisis.json. */
+function avisoClaveYoutube(d) {
+  if (d.tiene_clave_youtube) return null;
+  const campo = h('input', { type: 'password', placeholder: 'pega aquí la clave (AIza…)' });
+  return h('div', { clase: 'aviso-clave' },
+    h('b', {}, '🔑 Falta la clave de YouTube (gratis)'),
+    h('ol', {},
+      h('li', {}, 'Entra en ', enlaceFuera('console.cloud.google.com', 'https://console.cloud.google.com/'),
+        ' con tu cuenta de Google y crea un proyecto (arriba, «Seleccionar proyecto» → «Proyecto nuevo»).'),
+      h('li', {}, 'Ve a ', enlaceFuera('Biblioteca → YouTube Data API v3',
+        'https://console.cloud.google.com/apis/library/youtube.googleapis.com'), ' y pulsa «Habilitar».'),
+      h('li', {}, 'Ve a ', enlaceFuera('Credenciales', 'https://console.cloud.google.com/apis/credentials'),
+        ' → «Crear credenciales» → «Clave de API». Cópiala y pégala aquí.')),
+    h('div', { clase: 'fila-clave' }, campo,
+      h('button', {
+        clase: 'primario mini',
+        onclick: async () => {
+          const clave = campo.value.trim();
+          if (!clave) { toast('pega la clave', true); return; }
+          try {
+            await pedir(API.claves(),
+              { method: 'PUT', cuerpo: { youtube: { clave } } });
+            toast('clave de YouTube guardada');
+            cargarAnalisis();
+          } catch (e) { toast(e.message, true); }
+        },
+      }, 'Guardar')),
+    h('div', { clase: 'pista' }, 'Es gratis: 10.000 unidades al día, y una búsqueda del nicho gasta ~600.'));
+}
+
+/* ------------------------------------------------------------ 💡 ideas */
+
+function pestanaIdeas(d) {
+  const a = APP.analisis;
+  const caja = h('div', {});
+  const t = d.trabajo || {};
+  const pensando = t.estado === 'pensando';
+  const tema = h('input', {
+    type: 'text', value: a.tema, placeholder: 'opcional: los viajes de Pablo, mujeres de la Biblia…',
+    oninput: ev => { a.tema = ev.target.value; },
+  });
+  tema.dataset.foco = 'analisis-tema';
+  const cuantas = h('div', { clase: 'tira-modos formatos' });
+  [3, 5, 8].forEach(n => cuantas.appendChild(h('button', {
+    clase: 'mini' + (a.cuantas === n ? ' activo' : ''),
+    onclick: () => { a.cuantas = n; pintarLight(); },
+  }, String(n))));
+  const formato = h('div', { clase: 'tira-modos formatos' });
+  [['vertical', '📱 TikTok / Shorts'], ['horizontal', '🖥 YouTube largo'], ['', 'Me da igual']]
+    .forEach(([id, nombre]) => formato.appendChild(h('button', {
+      clase: 'mini' + (a.formato === id ? ' activo' : ''),
+      onclick: () => { a.formato = id; pintarLight(); },
+    }, nombre)));
+  const sinDatos = !(d.nicho.videos || []).length && !d.mios.length && !d.tiktok.length;
+  caja.appendChild(bloqueLight('Pensar ideas', 'Claude lee el nicho, tus referencias y tus números',
+    h('div', { clase: 'campo' }, h('label', {}, 'Tema'), cajaCampo(tema, { clase: 'linea' })),
+    h('div', { clase: 'campo' }, h('label', {}, 'Cuántas'), cuantas),
+    h('div', { clase: 'campo' }, h('label', {}, 'Para'), formato),
+    sinDatos ? h('div', { clase: 'pista' }, 'Consejo: busca antes el nicho (📊) para que las '
+      + 'ideas se apoyen en datos reales y no solo en la intuición.') : null,
+    h('div', { clase: 'fila' }, h('button', {
+      clase: 'primario', disabled: pensando || a.ocupado,
+      onclick: async () => {
+        const r = await accionAnalisis(`${API_ANALISIS}/ideas`, 'POST',
+          { tema: a.tema, cuantas: a.cuantas,
+            formato: a.formato === 'vertical' ? 'vertical 9:16 para TikTok/Shorts'
+              : (a.formato === 'horizontal' ? 'horizontal 16:9 para YouTube' : '') });
+        if (r && r.trabajo) { a.datos.trabajo = r.trabajo; vigilarIdeas(); pintarLight(); }
+      },
+    }, pensando ? 'Pensando…' : '💡 Pensar ideas'))));
+  if (pensando) {
+    const s = Math.max(0, Math.round(Date.now() / 1000 - (t.inicio || 0)));
+    caja.appendChild(h('div', { clase: 'estado-ideas' },
+      `💭 Claude está pensando (${s} s). Suele tardar menos de un minuto; puedes seguir usando el estudio.`));
+  } else if (t.estado === 'error') {
+    caja.appendChild(cajaError(`Las ideas no han salido: ${t.error}`));
+  }
+  const todas = d.ideas || [];
+  const visibles = todas.filter(i => a.verDescartadas || i.estado !== 'descartada');
+  visibles.sort((x, y) => (y.estado === 'favorita') - (x.estado === 'favorita'));
+  if (!todas.length && !pensando) {
+    caja.appendChild(h('div', { clase: 'pista' }, 'Todavía no hay ideas. Pulsa «Pensar ideas».'));
+  }
+  visibles.forEach(idea => caja.appendChild(tarjetaIdea(idea)));
+  const descartadas = todas.filter(i => i.estado === 'descartada').length;
+  if (descartadas) {
+    caja.appendChild(h('button', {
+      clase: 'mini fantasma',
+      onclick: () => { a.verDescartadas = !a.verDescartadas; pintarLight(); },
+    }, a.verDescartadas ? 'Ocultar descartadas' : `Ver descartadas (${descartadas})`));
+  }
+  return caja;
+}
+
+function tarjetaIdea(idea) {
+  const estado = idea.estado || 'nueva';
+  const marcar = est => accionAnalisis(`${API_ANALISIS}/ideas/${idea.id}`, 'PUT', { estado: est });
+  return h('div', { clase: `tarjeta-idea ${estado}` },
+    h('h4', {}, (estado === 'favorita' ? '⭐ ' : '') + idea.titulo
+      + (estado === 'usada' ? '  ✅' : '')),
+    idea.gancho ? h('div', { clase: 'gancho-idea' }, `«${idea.gancho}»`) : null,
+    h('div', { clase: 'chips' },
+      h('span', { clase: 'chip fuerte' }, `⏱ ${mmssJs(idea.duracion_s)}`),
+      h('span', { clase: 'chip' }, idea.formato === 'horizontal' ? '🖥 16:9' : '📱 9:16'),
+      idea.plantilla_tiktok ? h('span', { clase: 'chip' }, 'Plantilla TikTok') : null,
+      h('span', { clase: 'chip' }, idea.dibujo === 'munecos' ? '🧍 Muñecos' : '🎨 Realista'),
+      idea.miniatura ? h('span', { clase: 'chip' }, `🖼 «${idea.miniatura}»`) : null),
+    idea.por_que ? h('div', { clase: 'por-que' }, `📊 ${idea.por_que}`) : null,
+    h('details', {},
+      h('summary', {}, 'Ver material, estilo y hashtags'),
+      idea.material ? h('div', { clase: 'material-idea' }, idea.material) : null,
+      idea.estilo ? h('div', { clase: 'pista' }, `🎨 Estilo: ${idea.estilo}`) : null,
+      idea.indicaciones ? h('div', { clase: 'pista' }, `🎬 Cómo contarlo: ${idea.indicaciones}`) : null,
+      idea.clips ? h('div', { clase: 'pista' }, `🎞 Clips: ${idea.clips}`) : null,
+      (idea.hashtags || []).length ? h('div', { clase: 'pista' }, idea.hashtags.join(' ')) : null),
+    h('div', { clase: 'acciones' },
+      h('button', { clase: 'primario mini', onclick: () => crearDesdeIdea(idea) }, '🎬 Crear este vídeo'),
+      h('button', {
+        clase: 'mini', title: 'Copiar título, gancho y hashtags',
+        onclick: () => copiarTexto([idea.titulo, idea.gancho, (idea.hashtags || []).join(' ')]
+          .filter(Boolean).join('\n\n')),
+      }, '📋 Copiar'),
+      h('button', { clase: 'mini fantasma', onclick: () => marcar(estado === 'favorita' ? 'nueva' : 'favorita') },
+        estado === 'favorita' ? '☆ Quitar favorita' : '⭐ Favorita'),
+      estado === 'descartada'
+        ? h('button', { clase: 'mini fantasma', onclick: () => marcar('nueva') }, '↺ Recuperar')
+        : h('button', { clase: 'mini fantasma', onclick: () => marcar('descartada') }, 'Descartar')));
+}
+
+function mmssJs(s) {
+  const n = Math.round(Number(s) || 0);
+  return `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
+}
+
+async function copiarTexto(texto) {
+  try { await navigator.clipboard.writeText(texto); toast('Copiado'); }
+  catch (e) { copiarPrompt(texto); }
+}
+
+/* «Crear este vídeo»: la idea rellena el formulario de un vídeo NUEVO (el
+   mismo que se rellena a mano) y se va allí. No crea nada ni genera nada:
+   David revisa, elige el estilo si hace falta y pulsa Generar. */
+function crearDesdeIdea(idea) {
+  const v = APP.light.video;
+  v.encargo = null;
+  const e = encargoVideoLight();
+  e.nombre = idea.titulo || '';
+  e.duracion_objetivo_s = Number(idea.duracion_s) || 75;
+  e.formato = idea.formato === 'horizontal' ? 'horizontal' : 'vertical';
+  e.material = idea.material || idea.titulo || '';
+  e.indicaciones = [
+    idea.gancho ? `Empieza EXACTAMENTE con esta frase, es el gancho: «${idea.gancho}»` : '',
+    idea.indicaciones || '',
+    idea.clips ? `Momentos que merecen un clip animado: ${idea.clips}` : '',
+  ].filter(Boolean).join('\n');
+  e.gancho = true;
+  e.marioneta = idea.dibujo === 'munecos';
+  if (idea.plantilla_tiktok) {
+    e.tiktok = true;
+    if (!e.cta) e.cta = ctaPorDefecto();
+    if (!e.cta.cta_final.puesto) {
+      e.cta.cta_final = { puesto: true, texto: e.cta.cta_final.texto
+        || 'que me sigan para no perderse la próxima historia' };
+    }
+  }
+  if (idea.estado !== 'usada') {
+    pedir(`${API_ANALISIS}/ideas/${idea.id}`, { method: 'PUT', cuerpo: { estado: 'usada' } })
+      .then(datos => { APP.analisis.datos = datos; }).catch(() => {});
+  }
+  const estilo = estiloElegido();
+  v.vista = 'encargo';
+  if (estilo) {
+    irALight('elegido', { abierto: estilo.id });
+    toast(`Idea puesta en el encargo con «${estilo.nombre}». Revísala y pulsa Generar.`);
+  } else {
+    irALight('galeria');
+    toast('Elige un estilo: la idea ya está puesta en el encargo del vídeo nuevo.');
+  }
+}
+
+/* ------------------------------------------------------------ 📊 el nicho */
+
+function pestanaNicho(d) {
+  const a = APP.analisis;
+  const caja = h('div', {});
+  caja.appendChild(avisoClaveYoutube(d));
+  const cfg = d.config || {};
+  const busquedas = entradaAnalisis('cfg-busquedas', { rows: 4 }, (cfg.busquedas || []).join('\n'), true);
+  const region = entradaAnalisis('cfg-region', { type: 'text', placeholder: 'todas', maxlength: 2 }, cfg.region || '');
+  const dias = h('select', {}, [30, 90, 180, 365].map(n =>
+    h('option', { value: String(n) }, `últimos ${n} días`)));
+  dias.value = APP.analisis.borrador['cfg-dias'] || String(cfg.dias || 90);
+  dias.addEventListener('change', () => { APP.analisis.borrador['cfg-dias'] = dias.value; });
+  caja.appendChild(bloqueLight('Qué buscar', 'una búsqueda por línea (máx. 8)',
+    h('div', { clase: 'campo' }, cajaCampo(busquedas, { clase: 'area' })),
+    h('div', { clase: 'rejilla-campos' },
+      h('div', { clase: 'campo' }, h('label', {}, 'País (PE, MX…)'), region),
+      h('div', { clase: 'campo' }, h('label', {}, 'Publicados en'), dias)),
+    h('div', { clase: 'fila' },
+      h('button', {
+        clase: 'primario', disabled: a.ocupado || !d.tiene_clave_youtube,
+        onclick: async () => {
+          const ok = await accionAnalisis(`${API_ANALISIS}/config`, 'PUT',
+            { busquedas: busquedas.value, region: region.value, dias: Number(dias.value) });
+          if (ok) accionAnalisis(`${API_ANALISIS}/nicho`, 'POST', { forzar: true },
+            datos => `Medidos ${(datos.nicho.videos || []).length} vídeos`, 'cfg-');
+        },
+      }, a.ocupado ? 'Buscando…' : '🔎 Buscar ahora'),
+      d.nicho.ultima ? h('span', { clase: 'meta' },
+        ` última búsqueda: ${new Date(d.nicho.ultima * 1000).toLocaleString()}`) : null)));
+  const r = d.nicho.resumen || {};
+  if (!r.total) {
+    caja.appendChild(h('div', { clase: 'pista' }, 'Todavía no se ha buscado el nicho.'));
+    return caja;
+  }
+  caja.appendChild(bloqueLight('Lo que dicen los datos',
+    `${r.total} vídeos medidos · mediana ${r.vistas_dia_mediana} vistas/día`,
+    listaConsejos(r.consejos)));
+  if ((r.tramos || []).length) {
+    const max = Math.max(...r.tramos.map(t => t.vistas_dia), 1);
+    const mejor = Math.max(...r.tramos.filter(t => t.videos >= 2).map(t => t.vistas_dia), 0);
+    caja.appendChild(bloqueLight('Duración', 'mediana de vistas por día según lo que dura',
+      h('div', { clase: 'barras' }, r.tramos.map(t => {
+        const relleno = h('div', { clase: 'relleno' + (t.vistas_dia === mejor ? ' mejor' : '') });
+        relleno.style.width = `${Math.max(2, Math.round(100 * t.vistas_dia / max))}%`;
+        return h('div', { clase: 'barra-fila' },
+          h('span', {}, t.tramo), h('div', { clase: 'pista-barra' }, relleno),
+          h('span', { clase: 'meta' }, `${t.vistas_dia}/día · ${t.videos}`));
+      }))));
+  }
+  if ((r.palabras || []).length) {
+    caja.appendChild(bloqueLight('Palabras de los mejores títulos', '',
+      h('div', { clase: 'chips' }, r.palabras.map(p => h('span', { clase: 'chip' }, p)))));
+  }
+  caja.appendChild(bloqueLight('Los que más crecen', 'ordenados por vistas al día',
+    h('div', { clase: 'lista-videos' }, (d.nicho.videos || []).slice(0, 30).map(v =>
+      h('div', { clase: 'fila-video' },
+        v.miniatura ? h('img', { src: v.miniatura, alt: '', loading: 'lazy' }) : null,
+        h('div', { clase: 'datos' },
+          h('div', { clase: 'tit' }, enlaceFuera(v.titulo, v.url)),
+          h('div', { clase: 'meta' }, `${v.canal} · ${v.vistas_dia} vistas/día · `
+            + `${Number(v.vistas).toLocaleString()} vistas · ${mmssJs(v.duracion_s)}`)))))));
+  return caja;
+}
+
+/* ------------------------------------------------------------ 🎵 TikTok */
+
+function pestanaTiktok(d) {
+  const a = APP.analisis;
+  const caja = h('div', {});
+  const campos = {
+    url: entradaAnalisis('tk-url', { type: 'url', placeholder: 'https://www.tiktok.com/@cuenta/video/…' }),
+    vistas: entradaAnalisis('tk-vistas', { type: 'text', placeholder: '120k' }),
+    me_gusta: entradaAnalisis('tk-me_gusta', { type: 'text', placeholder: '8,5k' }),
+    duracion: entradaAnalisis('tk-duracion', { type: 'text', placeholder: '1:05' }),
+    notas: entradaAnalisis('tk-notas', { type: 'text', placeholder: 'qué te gustó: el gancho, el ritmo…' }),
+  };
+  caja.appendChild(bloqueLight('Guardar un TikTok de referencia',
+    'TikTok no tiene API pública de tendencias: pega los vídeos del nicho que te llamen la atención',
+    h('div', { clase: 'rejilla-campos' },
+      h('div', { clase: 'campo ancho' }, h('label', {}, 'Enlace'), campos.url),
+      h('div', { clase: 'campo' }, h('label', {}, 'Vistas'), campos.vistas),
+      h('div', { clase: 'campo' }, h('label', {}, 'Me gusta'), campos.me_gusta),
+      h('div', { clase: 'campo' }, h('label', {}, 'Duración'), campos.duracion),
+      h('div', { clase: 'campo ancho' }, h('label', {}, 'Notas'), campos.notas)),
+    h('div', { clase: 'fila' }, h('button', {
+      clase: 'primario', disabled: a.ocupado,
+      onclick: () => accionAnalisis(`${API_ANALISIS}/tiktok`, 'POST',
+        Object.fromEntries(Object.entries(campos).map(([k, n]) => [k, n.value.trim()])),
+        'Guardado: Claude lo tendrá en cuenta al pensar ideas', 'tk-'),
+    }, '➕ Guardar')),
+    h('div', { clase: 'pista' }, 'Para ver qué está de moda: ',
+      enlaceFuera('TikTok Creative Center', 'https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/es'),
+      ' (hashtags, canciones y vídeos top por país).')));
+  if (!d.tiktok.length) {
+    caja.appendChild(h('div', { clase: 'pista' }, 'Aún no has guardado ninguno.'));
+    return caja;
+  }
+  caja.appendChild(h('div', { clase: 'lista-videos' }, d.tiktok.map(t =>
+    h('div', { clase: 'fila-video' },
+      t.miniatura ? h('img', { src: t.miniatura, alt: '', loading: 'lazy' }) : null,
+      h('div', { clase: 'datos' },
+        h('div', { clase: 'tit' }, enlaceFuera(t.titulo || t.url, t.url)),
+        h('div', { clase: 'meta' }, [t.autor && `@${t.autor}`,
+          t.vistas != null && `${Number(t.vistas).toLocaleString()} vistas`,
+          t.me_gusta != null && `${Number(t.me_gusta).toLocaleString()} me gusta`,
+          t.duracion_s && mmssJs(t.duracion_s)].filter(Boolean).join(' · ')),
+        t.notas ? h('div', { clase: 'pista' }, t.notas) : null),
+      h('button', {
+        clase: 'mini fantasma peligro', title: 'Quitar',
+        onclick: () => accionAnalisis(`${API_ANALISIS}/tiktok/${t.id}`, 'DELETE'),
+      }, '×')))));
+  return caja;
+}
+
+/* ------------------------------------------------------------ 📈 mis vídeos */
+
+function pestanaMios(d) {
+  const a = APP.analisis;
+  const caja = h('div', {});
+  caja.appendChild(avisoClaveYoutube(d));
+  const canal = entradaAnalisis('canal', { type: 'text', placeholder: '@tucanal' }, (d.config || {}).canal || '');
+  caja.appendChild(bloqueLight('Tu canal de YouTube',
+    d.canal && d.canal.titulo ? `${d.canal.titulo} · ${Number(d.canal.suscriptores).toLocaleString()} suscriptores`
+      : 'trae vistas, me gusta y comentarios de cada vídeo',
+    h('div', { clase: 'fila-clave' }, canal, h('button', {
+      clase: 'primario mini', disabled: a.ocupado || !d.tiene_clave_youtube,
+      onclick: async () => {
+        const ok = await accionAnalisis(`${API_ANALISIS}/config`, 'PUT', { canal: canal.value });
+        if (ok) accionAnalisis(`${API_ANALISIS}/mios/youtube`, 'POST', {},
+          datos => `${datos.resultado.videos} vídeos leídos (${datos.resultado.nuevos} nuevos)`);
+      },
+    }, a.ocupado ? 'Leyendo…' : '🔄 Traer mis vídeos')),
+    h('div', { clase: 'pista' }, 'La retención («% visto» y «en qué segundo se van») no la da la API '
+      + 'pública: escríbela en cada vídeo o pega la exportación de YouTube Studio aquí abajo.')));
+  const rm = d.resumen_mios || {};
+  if (rm.consejos && rm.consejos.length) {
+    caja.appendChild(bloqueLight('Cómo vas', rm.total ? `${rm.total} vídeos · `
+      + `${Number(rm.vistas_total || 0).toLocaleString()} vistas` : '', listaConsejos(rm.consejos)));
+  }
+  const campos = {
+    titulo: entradaAnalisis('mio-titulo', { type: 'text', placeholder: 'título' }),
+    url: entradaAnalisis('mio-url', { type: 'url', placeholder: 'enlace (opcional)' }),
+    duracion_s: entradaAnalisis('mio-duracion', { type: 'text', placeholder: '1:10' }),
+    vistas: entradaAnalisis('mio-vistas', { type: 'text', placeholder: '3400' }),
+    retencion_pct: entradaAnalisis('mio-ret', { type: 'text', placeholder: '65' }),
+    abandono_s: entradaAnalisis('mio-ab', { type: 'text', placeholder: '8' }),
+  };
+  const csv = entradaAnalisis('csv', { rows: 4, placeholder: 'Pega aquí el CSV (o la tabla copiada) de YouTube Studio' }, '', true);
+  caja.appendChild(bloqueLight('Añadir a mano', 'un TikTok, o un vídeo con su retención',
+    h('div', { clase: 'rejilla-campos' },
+      h('div', { clase: 'campo ancho' }, h('label', {}, 'Título'), campos.titulo),
+      h('div', { clase: 'campo ancho' }, h('label', {}, 'Enlace'), campos.url),
+      h('div', { clase: 'campo' }, h('label', {}, 'Duración'), campos.duracion_s),
+      h('div', { clase: 'campo' }, h('label', {}, 'Vistas'), campos.vistas),
+      h('div', { clase: 'campo' }, h('label', {}, '% visto'), campos.retencion_pct),
+      h('div', { clase: 'campo' }, h('label', {}, 'Se van en el s'), campos.abandono_s)),
+    h('div', { clase: 'fila' }, h('button', {
+      clase: 'mini', disabled: a.ocupado,
+      onclick: () => accionAnalisis(`${API_ANALISIS}/mios`, 'POST',
+        Object.fromEntries(Object.entries(campos).map(([k, n]) => [k, n.value.trim()])), 'Añadido', 'mio-'),
+    }, '➕ Añadir')),
+    h('details', {},
+      h('summary', {}, 'Pegar la exportación de YouTube Studio'),
+      h('div', { clase: 'pista' }, 'YouTube Studio → Analytics → Modo avanzado → Exportar vista '
+        + 'actual → CSV. Abre «Datos de la tabla.csv» y pega todo su contenido.'),
+      cajaCampo(csv, { clase: 'area' }),
+      h('button', {
+        clase: 'mini', disabled: a.ocupado,
+        onclick: () => accionAnalisis(`${API_ANALISIS}/mios/csv`, 'POST', { texto: csv.value },
+          datos => `${datos.resultado.actualizados} actualizados, ${datos.resultado.anadidos} añadidos`, 'csv'),
+      }, 'Importar'))));
+  caja.appendChild(h('div', { clase: 'lista-videos' }, d.mios.map(m => filaMio(m))));
+  return caja;
+}
+
+function filaMio(m) {
+  const ret = entradaAnalisis(`ret-${m.id}`, { type: 'text', placeholder: '% visto', title: '% del vídeo que se ve de media' },
+    m.retencion_pct != null ? String(m.retencion_pct) : '');
+  const ab = entradaAnalisis(`ab-${m.id}`, { type: 'text', placeholder: 'se van s', title: 'segundo en que se va la gente' },
+    m.abandono_s != null ? String(m.abandono_s) : '');
+  return h('div', { clase: 'fila-video' },
+    m.miniatura ? h('img', { src: m.miniatura, alt: '', loading: 'lazy' }) : null,
+    h('div', { clase: 'datos' },
+      h('div', { clase: 'tit' }, m.url ? enlaceFuera(m.titulo || m.url, m.url) : (m.titulo || '—')),
+      h('div', { clase: 'meta' }, [m.plataforma === 'tiktok' ? 'TikTok' : (m.plataforma === 'youtube' ? 'YouTube' : ''),
+        m.vistas != null && `${Number(m.vistas).toLocaleString()} vistas`,
+        m.vistas_dia && `${m.vistas_dia}/día`,
+        m.me_gusta != null && `${Number(m.me_gusta).toLocaleString()} me gusta`,
+        m.duracion_s && mmssJs(m.duracion_s),
+        m.retencion_pct != null && `${Math.round(m.retencion_pct)} % visto`,
+        m.abandono_s && `se van en el s ${m.abandono_s}`].filter(Boolean).join(' · ')),
+      h('div', { clase: 'editar-ret' }, ret, ab,
+        h('button', {
+          clase: 'mini',
+          onclick: () => accionAnalisis(`${API_ANALISIS}/mios/${m.id}`, 'PUT',
+            { retencion_pct: ret.value.trim(), abandono_s: ab.value.trim() }, 'Guardado', `ret-${m.id}`)
+            .then(() => olvidarBorrador(`ab-${m.id}`)),
+        }, 'Guardar'))),
+    h('button', {
+      clase: 'mini fantasma peligro', title: 'Quitar de la lista',
+      onclick: () => accionAnalisis(`${API_ANALISIS}/mios/${m.id}`, 'DELETE'),
+    }, '×'));
+}
+
 /* ------------------------------------------------------------------ arranque */
 
 async function nuevoProyecto() {
@@ -5273,6 +5797,7 @@ const ICONOS_NAV = {
   guion: 'M6 3h12v18H6z M9 8h6 M9 12h6 M9 16h4',
   diapositivas: 'M3 6h18v12H3z M8 6v12 M16 6v12',
   video: 'M3 5h18v14H3z M10 9l5 3-5 3z',
+  ideas: 'M9 18h6 M10 21h4 M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z',
 };
 
 
@@ -5315,7 +5840,7 @@ function navLight() {
   const hayVideo = dentro && (!!v.audio || hayMp4Light());
 
   const paradas = [
-    { id: 'estilos', texto: 'Estilos', puede: true, activa: !dentro,
+    { id: 'estilos', texto: 'Estilos', puede: true, activa: !dentro && APP.light.vista !== 'analisis',
       porque: 'tus estilos y tus vídeos',
       ir: () => { pararPrevia(); recordarVideoLight(''); irALight('galeria'); } },
     /* EL ENCARGO: lo que se le pidió al redactor, tal cual está guardado en el
@@ -5344,7 +5869,11 @@ function navLight() {
       ir: () => { v.vista = 'previa'; pintarLight(); } },
     { id: 'video', texto: 'Vídeo', puede: hayVideo, activa: sub === 'video',
       porque: hayVideo ? 'el montaje y el repaso' : 'todavía no hay nada montado',
-      ir: () => { pararPrevia(); v.vista = 'video'; pintarLight(); } },
+      ir: () => { pararPrevia(); v.vista = 'video'; pintarLight(); } },    /* ANÁLISIS / IDEAS: no es de un vídeo, es del canal. Siempre abierta: de
+       ahí sale el siguiente vídeo («Crear este vídeo» rellena el encargo). */
+    { id: 'ideas', texto: 'Ideas', puede: true, activa: APP.light.vista === 'analisis',
+      porque: 'qué pega en el nicho, cómo van tus vídeos e ideas nuevas',
+      ir: () => { pararPrevia(); irALight('analisis'); cargarAnalisis(); } },
   ];
 
   const barra = h('nav', { clase: 'nav-light', 'aria-label': 'Pasos del vídeo' });
@@ -5511,6 +6040,7 @@ function pintarLightAhora() {
     if (APP.light.vista === 'crear') contenido.appendChild(vistaCrearLight());
     else if (APP.light.vista === 'generando') contenido.appendChild(vistaGenerandoLight());
     else if (APP.light.vista === 'preset') contenido.appendChild(vistaPresetLight());
+    else if (APP.light.vista === 'analisis') contenido.appendChild(vistaAnalisis());
     else if (APP.light.vista === 'elegido') {
       /* TRES VISTAS DENTRO DE «elegido», y la elige LO QUE HAY: el encargo
          mientras no haya vídeo, el guion en cuanto lo hay, y el vídeo cuando se

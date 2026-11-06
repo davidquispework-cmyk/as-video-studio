@@ -2142,7 +2142,7 @@ body.modo-light #panel > .contenido {
 
 .nav-light {
   position: sticky; bottom: 0; z-index: 20;
-  display: grid; grid-template-columns: repeat(5, 1fr);
+  display: grid; grid-template-columns: repeat(6, 1fr);
   background: var(--panel); border-top: 1px solid var(--linea);
   /* `auto` arriba la empuja al fondo cuando sobra sitio; de borde a borde a los
      lados, cancelando el relleno lateral del panel. Va TODO en la abreviada: el
@@ -2532,3 +2532,49 @@ button.avisa:hover:not(:disabled) { border-color: var(--aviso); }
 /* Plantilla TikTok: lo que falta para que cuente (vertical, más de 1:00) */
 .pista.aviso { color: var(--aviso); }
 .duraciones-rapidas { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
+
+
+/* ============================================ ANÁLISIS / IDEAS (pasos/analista.py) */
+.analisis > .tira-modos { flex-wrap: wrap; }
+.analisis .consejos { margin: 0; padding: 10px 12px 10px 28px; background: var(--info-fondo);
+  border: 1px solid var(--acento-borde); border-radius: 8px; line-height: 1.45; }
+.analisis .consejos li { margin: 3px 0; }
+.analisis .aviso-clave { padding: 10px 12px; background: var(--aviso-fondo); color: var(--aviso-texto);
+  border: 1px solid var(--aviso-borde); border-radius: 8px; margin-bottom: 12px; line-height: 1.45; }
+.analisis .aviso-clave ol { margin: 6px 0 8px; padding-left: 20px; }
+.analisis .aviso-clave a, .analisis .lista-videos a { color: var(--acento); }
+.analisis .fila-clave { display: flex; gap: 6px; }
+.analisis .fila-clave input { flex: 1; min-width: 0; }
+.analisis .rejilla-campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.analisis .rejilla-campos input, .analisis .rejilla-campos select { width: 100%; }
+.analisis .rejilla-campos .ancho { grid-column: 1 / -1; }
+.tarjeta-idea { border: 1px solid var(--linea); background: var(--hueco); border-radius: 10px;
+  padding: 12px 14px; margin-bottom: 12px; }
+.tarjeta-idea.favorita { border-color: var(--aviso); }
+.tarjeta-idea.usada { opacity: .7; }
+.tarjeta-idea h4 { font-size: 15px; margin: 0 0 6px; line-height: 1.3; }
+.tarjeta-idea .gancho-idea { font-size: 14px; color: var(--texto); border-left: 3px solid var(--acento);
+  padding: 2px 0 2px 9px; margin: 6px 0; }
+.tarjeta-idea .por-que { color: var(--tenue); font-size: 13px; line-height: 1.4; }
+.tarjeta-idea details { margin-top: 8px; }
+.tarjeta-idea details summary { cursor: pointer; color: var(--acento); font-size: 13px; }
+.tarjeta-idea .material-idea { white-space: pre-wrap; font-size: 13px; line-height: 1.5; margin: 6px 0; }
+.tarjeta-idea .acciones { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0; }
+.chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--boton);
+  border: 1px solid var(--linea); color: var(--tenue); }
+.chip.fuerte { color: var(--acento); border-color: var(--acento-borde); }
+.lista-videos { display: flex; flex-direction: column; gap: 8px; }
+.fila-video { display: flex; gap: 10px; align-items: flex-start; padding: 8px; border: 1px solid var(--linea-suave);
+  border-radius: 8px; background: var(--hueco); }
+.fila-video img { width: 96px; height: 54px; object-fit: cover; border-radius: 5px; flex: none; background: var(--lienzo); }
+.fila-video .datos { flex: 1; min-width: 0; font-size: 13px; line-height: 1.4; }
+.fila-video .datos .tit { font-weight: 600; overflow-wrap: anywhere; }
+.fila-video .editar-ret { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; align-items: center; }
+.fila-video .editar-ret input { width: 80px; }
+.barras { display: flex; flex-direction: column; gap: 5px; }
+.barra-fila { display: grid; grid-template-columns: 110px 1fr 90px; gap: 8px; align-items: center; font-size: 12px; }
+.barra-fila .pista-barra { background: var(--boton); border-radius: 4px; height: 12px; overflow: hidden; }
+.barra-fila .relleno { background: var(--acento); height: 100%; border-radius: 4px; }
+.barra-fila .relleno.mejor { background: var(--ok); }
+.estado-ideas { padding: 8px 10px; border-radius: 8px; background: var(--info-fondo); margin: 8px 0; font-size: 13px; }

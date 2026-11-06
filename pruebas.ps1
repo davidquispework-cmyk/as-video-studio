@@ -81,7 +81,7 @@ $suites = @(
   'pasos\prueba_piezas.py', 'pasos\prueba_conservar.py',
   'pasos\prueba_encuadres.py', 'pasos\prueba_presets.py',
   'pasos\prueba_presets_light.py', 'pasos\prueba_regresiones.py',
-  'pasos\prueba_subidas.py', 'pasos\prueba_voz_gratis.py', 'pasos\prueba_clips.py', 'pasos\prueba_marioneta.py', 'pasos\prueba_gancho.py', 'pasos\prueba_plantilla_tiktok.py'
+  'pasos\prueba_subidas.py', 'pasos\prueba_voz_gratis.py', 'pasos\prueba_clips.py', 'pasos\prueba_marioneta.py', 'pasos\prueba_gancho.py', 'pasos\prueba_plantilla_tiktok.py', 'pasos\prueba_analista.py'
 )
 
 $fallos = 0

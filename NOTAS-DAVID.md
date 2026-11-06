@@ -147,13 +147,42 @@ Todo gratis; lo de pago, preparado y apagado (ver «Decisión de dinero»).
    (`volcarEncargoLight` solo guardaba ingesta/brief/guion; ahora también callouts y
    render). Pendiente: que el guion de TikTok tenga un ritmo propio (frases más
    cortas) y que el golpe pueda elegirse entre varios.
-5. **Agente analista + ideas** (pestaña nueva «📊 Análisis / 💡 Ideas» DENTRO de Shaddai
-   Studio, no otra plataforma): (a) qué pega en el nicho (Biblia, historia, «¿sabías
-   que…?») en YouTube (API oficial gratis) y TikTok (enlaces/capturas que pase David):
-   gancho, duración, título, miniatura, ritmo, temas; (b) cómo van los vídeos de David
-   (vistas, retención, en qué segundo se va la gente); (c) propone ideas con gancho,
-   duración y estilo, y un botón «Crear este vídeo» las pasa al encargo. Sustituye a la
-   antigua «ideas desde tendencias» (usar la skill tendencias-redes).
+5. **Agente analista + ideas — HECHA (6-nov-2026)**.
+   Cómo se usa: barra de abajo → «💡 Ideas» (siempre a mano, no hace falta abrir un
+   vídeo). Cuatro pestañas:
+   - **📊 El nicho**: escribe las búsquedas (una por línea; vienen puestas las del
+     nicho bíblico), país y días → «🔎 Buscar ahora». Mide en YouTube los vídeos que
+     más crecen (vistas/día) y da consejos: qué duración crece más, qué títulos
+     (pregunta, cifra, «sabías»), palabras repetidas, mejor hora y día (hora de Lima),
+     interacción. Gráfico de duración y lista de los 30 mejores con miniatura.
+   - **🎵 TikTok**: pega enlaces de TikToks que te gusten (+ vistas, duración, notas);
+     el título y el autor salen solos. Enlace a TikTok Creative Center para ver
+     tendencias. (TikTok no tiene API pública: no se puede automatizar más, legalmente.)
+   - **📈 Mis vídeos**: pon tu @ de YouTube → «🔄 Traer mis vídeos» (vistas, me gusta,
+     comentarios). La retención la escribes en cada vídeo («% visto» y «se van en el
+     s») o pegas la exportación de YouTube Studio (Analytics → Modo avanzado →
+     Exportar → CSV). Los TikTok, a mano. Da consejos («la gente se va en el s 8…»).
+   - **💡 Ideas**: tema opcional, cuántas (3/5/8), para TikTok o YouTube largo →
+     «💡 Pensar ideas» (Claude, ~1 min). Cada idea: título, gancho de 3 s, por qué
+     (con el dato), duración, formato, muñecos/realista, estilo, MATERIAL con citas
+     bíblicas, cómo contarlo, clips, hashtags y texto de miniatura. Botones:
+     «🎬 Crear este vídeo» (rellena el encargo del vídeo nuevo: nombre, duración,
+     formato, material, indicaciones con el gancho, gancho, muñecos y plantilla TikTok;
+     tú eliges el estilo y pulsas Generar), «📋 Copiar», «⭐ Favorita», «Descartar».
+     No repite ideas ya propuestas.
+   **Hace falta la clave de YouTube (gratis)**: la pantalla explica los 3 pasos
+   (console.cloud.google.com → habilitar «YouTube Data API v3» → Credenciales → Clave
+   de API) y la guarda ahí mismo. Cuota: 10.000/día; una búsqueda del nicho gasta
+   ~600 y se guarda 6 h. Sin la clave, TikTok, «a mano» e Ideas funcionan igual.
+   Cómo quedó: `pasos/analista.py` (todo el cálculo + ideas con el CLI, sonnet/medium,
+   en segundo plano; la pantalla pregunta cada 3 s) + rutas `/api/analisis/*` en
+   `app.py` + clave `youtube` en `claves.py` (y «Probar» en `comprobar_claves.py`) +
+   pantalla `vistaAnalisis` en `web/app.js` (parada «ideas» de `navLight`). Los datos
+   van en `analisis.json` junto a `ajustes.json` (en el VPS `datos/analisis.json`;
+   `asvs actualizar` no lo toca). No toca proyectos ni firmas. Prueba:
+   `pasos/prueba_analista.py`. Pendiente: retención automática con OAuth de YouTube
+   Analytics (curva segundo a segundo); histórico del nicho día a día; leer
+   capturas de TikTok con Claude.
 6. **Un solo prompt para todas las imágenes**: un texto con todas las escenas y la
    ficha fija de cada personaje para pedirle a Gemini las imágenes de una vez.
 7. **Publicar más fácil**: título, descripción y hashtags listos para copiar +
@@ -173,9 +202,10 @@ COMPLETA y pulida, calidad profesional, no en versión mínima; pero con ahorro-
 (leer solo lo necesario, una prueba corta final). Innovar y contextualizar cada vez más:
 cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
 
-PLAN INMEDIATO (6-nov): David prueba un vídeo con la plantilla TikTok (gancho + 2-3
-clips), lo publica en TikTok/YouTube Shorts (para tener datos reales), y luego chat
-nuevo para la etapa 5 (Agente analista + ideas).
+PLAN INMEDIATO (6-nov): David saca la clave de YouTube (gratis), busca el nicho en
+«💡 Ideas», pide ideas y crea un vídeo con «Crear este vídeo» (plantilla TikTok). Lo
+publica y apunta sus cifras en «Mis vídeos». Luego chat nuevo para la etapa 6 (un
+solo prompt para todas las imágenes).
 
 Mensaje que David pega en cada chat nuevo (con el repo as-video-studio elegido):
 «Lee NOTAS-DAVID.md y la skill ahorro-claude. Haz la siguiente etapa de la HOJA DE
@@ -185,5 +215,5 @@ notas.»
 ## Pendiente / ideas
 1. Catálogo de la mamá: faltan nombre de tienda, WhatsApp, prendas y fotos.
 2. Web del negocio.
-3. Web de tendencias YouTube/TikTok + ideas → Shaddai Studio.
+3. Tendencias + ideas: HECHO dentro del estudio (etapa 5, pestaña «💡 Ideas»).
 4. Tesis y presentaciones cuando las pida.

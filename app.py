@@ -7394,6 +7394,111 @@ def cerrar_charla(cid: str):
     return {"cerrada": _asistente().olvidar(cid)}
 
 
+# ------------------------------------------------- el analista y las ideas
+# La pestaña «📊 Análisis / 💡 Ideas» (pasos/analista.py): qué pega en el nicho
+# (YouTube, API oficial gratis), referencias de TikTok, cómo van los vídeos
+# propios, e ideas de Claude que se pasan al encargo. No es un paso del grafo
+# ni toca ningún proyecto: vive en `analisis.json`, junto a los ajustes.
+
+def _analista():
+    import analista  # noqa: PLC0415  (suelto, como ajustes: solo biblioteca estándar + requests)
+    return analista
+
+
+def _con_analista(funcion, *args, **kwargs):
+    modulo = _analista()
+    try:
+        return funcion(*args, **kwargs)
+    except modulo.ErrorAnalista as fallo:
+        raise ErrorApi(400, str(fallo))
+
+
+@app.get("/api/analisis")
+def leer_analisis():
+    """Todo lo de la pestaña: nicho, TikTok, mis vídeos, ideas y el trabajo en marcha."""
+    return _analista().ficha()
+
+
+@app.put("/api/analisis/config")
+def config_analisis(cuerpo: dict = Body(default=None)):
+    """Búsquedas del nicho, región, días hacia atrás y el @ del canal."""
+    _con_analista(_analista().guardar_config, _cuerpo(cuerpo))
+    return _analista().ficha()
+
+
+@app.post("/api/analisis/nicho")
+def buscar_nicho_analisis(cuerpo: dict = Body(default=None)):
+    """Busca el nicho en YouTube (con caché de 6 h salvo `forzar`)."""
+    forzar = bool(_cuerpo(cuerpo).get("forzar"))
+    _con_analista(_analista().buscar_nicho, forzar)
+    anotar_global("analisis_nicho", {"forzar": forzar})
+    return _analista().ficha()
+
+
+@app.post("/api/analisis/tiktok", status_code=201)
+def anadir_tiktok_analisis(cuerpo: dict = Body(default=None)):
+    """Guarda un vídeo de TikTok de referencia (enlace + cifras opcionales)."""
+    _con_analista(_analista().anadir_tiktok, _cuerpo(cuerpo))
+    return _analista().ficha()
+
+
+@app.post("/api/analisis/mios", status_code=201)
+def anadir_mio_analisis(cuerpo: dict = Body(default=None)):
+    """Un vídeo propio escrito a mano (TikTok, o la retención de uno de YouTube)."""
+    _con_analista(_analista().guardar_mio, _cuerpo(cuerpo))
+    return _analista().ficha()
+
+
+@app.put("/api/analisis/mios/{ident}")
+def cambiar_mio_analisis(ident: str, cuerpo: dict = Body(default=None)):
+    _con_analista(_analista().guardar_mio, _cuerpo(cuerpo), ident)
+    return _analista().ficha()
+
+
+@app.post("/api/analisis/mios/youtube")
+def canal_analisis():
+    """Trae los vídeos del canal de YouTube con sus cifras públicas."""
+    resultado = _con_analista(_analista().sincronizar_canal)
+    anotar_global("analisis_canal", resultado)
+    return {**_analista().ficha(), "resultado": resultado}
+
+
+@app.post("/api/analisis/mios/csv")
+def csv_analisis(cuerpo: dict = Body(default=None)):
+    """La exportación de YouTube Studio pegada: rellena la retención."""
+    resultado = _con_analista(_analista().importar_csv, _cuerpo(cuerpo).get("texto"))
+    return {**_analista().ficha(), "resultado": resultado}
+
+
+@app.post("/api/analisis/ideas", status_code=202)
+def pedir_ideas_analisis(cuerpo: dict = Body(default=None)):
+    """Pide ideas a Claude; se sigue con GET /api/analisis (campo `trabajo`)."""
+    datos = _cuerpo(cuerpo)
+    modulo = _analista()
+    if not modulo.simulado():
+        listo, motivo, _, _, _ = _asistente_listo()
+        if not listo:
+            raise ErrorApi(409, f"Claude no puede contestar todavía: {motivo}")
+    trabajo = _con_analista(modulo.pedir_ideas, datos.get("tema"), datos.get("cuantas"),
+                            datos.get("formato"))
+    anotar_global("analisis_ideas", {"tema": str(datos.get("tema") or "")[:80]})
+    return {"trabajo": trabajo}
+
+
+@app.put("/api/analisis/ideas/{ident}")
+def marcar_idea_analisis(ident: str, cuerpo: dict = Body(default=None)):
+    """Marca una idea: nueva, favorita, usada o descartada."""
+    _con_analista(_analista().marcar_idea, ident, str(_cuerpo(cuerpo).get("estado") or ""))
+    return _analista().ficha()
+
+
+@app.delete("/api/analisis/{lista}/{ident}")
+def quitar_de_analisis(lista: str, ident: str):
+    """Quita una referencia de TikTok, un vídeo propio o una idea."""
+    _con_analista(_analista().quitar, lista, ident)
+    return _analista().ficha()
+
+
 # ----------------------------------------------------------- presets de canal
 # Lo que se decide una vez por canal (idioma, estilo grafico, ritmo, voz) y se
 # repite igual en todos sus videos. Viven FUERA de los proyectos porque un canal
