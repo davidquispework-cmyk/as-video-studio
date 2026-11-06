@@ -10285,6 +10285,14 @@ def _sembrar_video_light(ctx, datos):
     # palabra. Param del paso callouts, y tambien solo si lo pidieron.
     if datos.get("gancho"):
         ctx.estado.actualizar_params("callouts", {"gancho": True})
+    # LA LETRA Y EL RESALTE de los textos estilo TikTok (pasos/letras.py y
+    # gancho.py). Solo si se eligieron: sin ellos, Montserrat y subrayado.
+    letra = str(datos.get("letra") or "").strip().lower()
+    if letra in ("montserrat", "bebas", "lilita", "playfair", "estilo"):
+        ctx.estado.actualizar_params("callouts", {"letra": letra})
+    resalte = str(datos.get("resalte") or "").strip().lower()
+    if resalte in ("subrayado", "recuadro", "color"):
+        ctx.estado.actualizar_params("callouts", {"resalte": resalte})
     # LA PLANTILLA TIKTOK (pasos/plantilla_tiktok.py): barra de progreso,
     # «Sígueme» al final y golpe de sonido. `true` o el texto de debajo de
     # «SÍGUEME». Param de callouts, solo si lo pidieron.
@@ -10807,6 +10815,18 @@ def _portada_sellada():
         # ninguna otra aparicion del nombre dentro del documento
         html = html.replace(f'"{nombre}"', f'"{nombre}?v={sello}"', 1)
     return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/fuentes/{nombre}")
+def fuente_web(nombre: str):
+    """Las letras estilo TikTok (motores/fuentes), para que los botones de
+    «Letra de los textos» se vean con su propia letra. Solo las de la lista."""
+    import letras                                              # noqa: PLC0415
+    for clave, ficha in letras.LETRAS.items():
+        if ficha["fichero"] == nombre and os.path.isfile(letras.ruta(clave)):
+            return FileResponse(letras.ruta(clave), media_type="font/ttf", headers={
+                "Cache-Control": "public, max-age=604800"})
+    raise ErrorApi(404, f"no existe: {nombre}")
 
 
 @app.get("/{fichero}")

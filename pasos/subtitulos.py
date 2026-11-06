@@ -373,8 +373,9 @@ def de_escena(escena, cap_linea=CAP_LINEA, idioma=None, texto="",
         # ninguno: miente sobre lo unico que promete.
         return []
     t_in = float(escena.get("t_in") or 0.0)
+    cifras = _cifras_de(palabras, idioma)
     rangos = list(tramos(palabras, cap_linea=cap_linea, cap_trozo=cap_trozo,
-                         intocables=_cifras_de(palabras, idioma)))
+                         intocables=cifras))
     dibujados = [limpiar_texto(palabras[a:b], idioma) for a, b in rangos]
     if texto:
         dibujados = repartir_escrito(dibujados, texto)
@@ -396,11 +397,26 @@ def de_escena(escena, cap_linea=CAP_LINEA, idioma=None, texto="",
         if con_palabras:
             dibujadas = escrito.split()
             try:
-                if len(dibujadas) == b - a:
+                # cada palabra DIBUJADA con los indices de las DICHAS que la
+                # forman: «dos mil» se dibuja «2000» y dura lo que las dos
+                # juntas (antes se repartia a partes iguales y se adelantaba)
+                grupos, i = [], a
+                for x, y in sorted(cifras):
+                    if x < a or y > b:
+                        continue
+                    while i < x:
+                        grupos.append((i, i + 1))
+                        i += 1
+                    grupos.append((x, y))
+                    i = y
+                while i < b:
+                    grupos.append((i, i + 1))
+                    i += 1
+                if len(dibujadas) == len(grupos):
                     trozo["palabras"] = [
-                        (round(float(marcas[i][0]) - t_in, 3),
-                         round(float(marcas[i][1]) - t_in, 3))
-                        for i in range(a, b)]
+                        (round(float(marcas[x][0]) - t_in, 3),
+                         round(float(marcas[y - 1][1]) - t_in, 3))
+                        for x, y in grupos]
                 else:
                     raise ValueError
             except (TypeError, ValueError, IndexError):

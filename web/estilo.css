@@ -2581,3 +2581,14 @@ button.avisa:hover:not(:disabled) { border-color: var(--aviso); }
 
 /* Cuánto gasta Claude: la columna del modo puesto, resaltada */
 .modos-claude td.puesta { font-weight: 700; color: var(--acento, inherit); }
+
+/* LETRAS ESTILO TIKTOK (pasos/letras.py): los botones de «Letra de los textos»
+   se ven con su propia letra. Las sirve app.py en /fuentes/. */
+@font-face { font-family: 'Shaddai Montserrat'; src: url('fuentes/Montserrat-Black.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'Shaddai Bebas'; src: url('fuentes/BebasNeue-Regular.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'Shaddai Lilita'; src: url('fuentes/LilitaOne-Regular.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'Shaddai Playfair'; src: url('fuentes/PlayfairDisplay-ExtraBold.ttf') format('truetype'); font-display: swap; }
+.mini.letra-montserrat { font-family: 'Shaddai Montserrat', sans-serif; font-weight: normal; }
+.mini.letra-bebas { font-family: 'Shaddai Bebas', sans-serif; font-weight: normal; font-size: 1.1em; letter-spacing: .02em; }
+.mini.letra-lilita { font-family: 'Shaddai Lilita', sans-serif; font-weight: normal; }
+.mini.letra-playfair { font-family: 'Shaddai Playfair', serif; font-weight: normal; }

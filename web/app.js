@@ -6922,7 +6922,8 @@ function vistaElegidoLight() {
     duracionLight(e, undefined, () => pintarCosteDelEncargoLight(e, aviso)),
     selectorFormato(e.formato, v => { e.formato = v; }),
     selectorDibujo(e.marioneta, v => { e.marioneta = v; }),
-    selectorGancho(e.gancho, v => { e.gancho = v; }),
+    selectorGancho(e.gancho, v => { e.gancho = v; pintarLight(); }),
+    selectorLetras(e, () => {}),
     selectorPlantilla(e, true, pintarLight)));
 
   caja.appendChild(bloqueLight('El material',
@@ -6994,7 +6995,7 @@ function selectorGancho(valor, alCambiar) {
   const tira = h('div', { clase: 'tira-modos formatos' });
   [
     { id: false, nombre: 'Subtítulos normales', pista: 'Como siempre' },
-    { id: true, nombre: '⚡ Gancho + palabra a palabra', pista: '«¿Sabías…?» grande al empezar; subtítulos palabra a palabra con la clave resaltada y cifras grandes' },
+    { id: true, nombre: '⚡ Gancho + textos TikTok', pista: '«¿Sabías…?» grande al empezar; subtítulos palabra a palabra con letra TikTok, la clave subrayada, cifras que cuentan y tachados' },
   ].forEach(op => {
     tira.appendChild(h('button', {
       clase: 'mini' + (!!valor === op.id ? ' activo' : ''), title: op.pista,
@@ -7007,6 +7008,50 @@ function selectorGancho(valor, alCambiar) {
   });
   return h('div', { clase: 'campo' }, h('label', {}, 'Gancho'), tira,
     h('div', { clase: 'pista' }, 'Estilo TikTok: el texto grande sale de la primera frase del guion. Cambiarlo es gratis (solo se vuelve a montar).'));
+}
+
+/* LOS TEXTOS ESTILO TIKTOK (pasos/letras.py y gancho.py): qué letra llevan el
+   cartel y los subtítulos palabra a palabra, y cómo se marca la palabra clave.
+   Solo se ve con el gancho puesto. Params `letra` y `resalte` de callouts, que
+   solo se escriben si alguien los toca ('' = Montserrat y subrayado). Cambiarlo
+   es gratis: solo se vuelve a montar. */
+const LETRAS_TIKTOK = [
+  { id: 'montserrat', nombre: 'Montserrat Black', clase: 'letra-montserrat', pista: 'La de TikTok: gruesa y limpia' },
+  { id: 'bebas', nombre: 'BEBAS NEUE', clase: 'letra-bebas', pista: 'Alta y estrecha, todo en mayúsculas: titular' },
+  { id: 'lilita', nombre: 'Lilita One', clase: 'letra-lilita', pista: 'Redonda y simpática: dibujos y muñecos' },
+  { id: 'playfair', nombre: 'Playfair', clase: 'letra-playfair', pista: 'Con serifa, elegante: historia y reflexión' },
+  { id: 'estilo', nombre: 'La del estilo', clase: '', pista: 'La letra del estilo, como antes' },
+];
+const RESALTES_TIKTOK = [
+  { id: 'subrayado', nombre: 'Subrayado', pista: 'Una raya de color se dibuja debajo de la palabra clave' },
+  { id: 'recuadro', nombre: 'Recuadro', pista: 'Un recuadro de color se dibuja detrás de la palabra clave' },
+  { id: 'color', nombre: 'Solo color', pista: 'La palabra clave cambia de color, sin raya ni recuadro' },
+];
+
+function selectorLetras(e, alCambiar) {
+  if (!e.gancho) return h('div', { clase: 'oculto' });
+  const tira = (lista, clave, defecto) => {
+    const fila = h('div', { clase: 'tira-modos formatos' });
+    const actual = e[clave] || defecto;
+    lista.forEach(op => {
+      fila.appendChild(h('button', {
+        clase: 'mini ' + (op.clase || '') + (actual === op.id ? ' activo' : ''),
+        title: op.pista, 'data-id': op.id,
+        onclick: () => {
+          fila.querySelectorAll('button').forEach(b => b.classList.toggle('activo', b.dataset.id === op.id));
+          e[clave] = op.id;
+          alCambiar();
+        },
+      }, op.nombre));
+    });
+    return fila;
+  };
+  return h('div', { clase: 'campo' },
+    h('label', {}, 'Letra de los textos'), tira(LETRAS_TIKTOK, 'letra', 'montserrat'),
+    h('label', {}, 'Palabra clave'), tira(RESALTES_TIKTOK, 'resalte', 'subrayado'),
+    h('div', { clase: 'pista' }, 'Las cifras suben como un contador justo cuando la voz las dice, '
+      + 'y en «no fue X, sino Y» la X se TACHA en rojo. Mientras sale el cartel del gancho '
+      + 'no hay subtítulo debajo. Cambiarlo es gratis (solo se vuelve a montar).'));
 }
 
 /* LA PLANTILLA TIKTOK / SHORTS (pasos/plantilla_tiktok.py): barra de progreso
@@ -7280,6 +7325,8 @@ async function crearYGenerarLight(estilo) {
         cta: e.cta,
         marioneta: !!e.marioneta,
         gancho: !!e.gancho,
+        letra: e.letra || '',
+        resalte: e.resalte || '',
         tiktok: e.tiktok || false,
       },
     });
@@ -7344,6 +7391,8 @@ const CAMPOS_ENCARGO = [
   { clave: 'cta', paso: 'guion', param: 'cta' },
   { clave: 'marioneta', paso: 'render', param: 'marioneta' },
   { clave: 'gancho', paso: 'callouts', param: 'gancho' },
+  { clave: 'letra', paso: 'callouts', param: 'letra' },
+  { clave: 'resalte', paso: 'callouts', param: 'resalte' },
   { clave: 'tiktok', paso: 'callouts', param: 'tiktok' },
 ];
 
@@ -7380,6 +7429,8 @@ function pedidoDelVideoLight() {
     cta: ctaLeida(params('guion').cta),
     marioneta: !!params('render').marioneta,
     gancho: !!params('callouts').gancho,
+    letra: String(params('callouts').letra || ''),
+    resalte: String(params('callouts').resalte || ''),
     tiktok: params('callouts').tiktok || false,
   };
   v.pedido = {
@@ -7433,7 +7484,8 @@ function vistaEncargoVideoLight() {
     duracionLight(e, estilo),
     selectorFormato(e.formato, valor => { e.formato = valor; programarGuardadoEncargo(); }),
     selectorDibujo(e.marioneta, valor => { e.marioneta = valor; programarGuardadoEncargo(); }),
-    selectorGancho(e.gancho, valor => { e.gancho = valor; programarGuardadoEncargo(); }),
+    selectorGancho(e.gancho, valor => { e.gancho = valor; programarGuardadoEncargo(); pintarLight(); }),
+    selectorLetras(e, programarGuardadoEncargo),
     selectorPlantilla(e, false, () => { programarGuardadoEncargo(); pintarLight(); })));
 
   caja.appendChild(bloqueLight('El material',

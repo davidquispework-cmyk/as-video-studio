@@ -43,6 +43,14 @@ FUENTES = {
     "segoe ui": (_ttf("segoeui.ttf"), _ttf("segoeuib.ttf")),
 }
 
+# Las letras estilo TikTok (pasos/letras.py) van DENTRO del repo, no en la
+# carpeta del sistema: se registran por su familia ("shaddai montserrat"...).
+try:
+    import letras as _letras  # noqa: E402
+    _letras.registrar(FUENTES)
+except Exception:  # noqa: BLE001  -- sin ellas, las de siempre
+    pass
+
 _fuentes = {}
 
 

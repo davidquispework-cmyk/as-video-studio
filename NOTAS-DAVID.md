@@ -203,7 +203,7 @@ COMPLETA y pulida, calidad profesional, no en versión mínima; pero con ahorro-
 cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
 
 PLAN INMEDIATO (6-nov): primero los puntos A-F de «OPINIÓN DE DAVID» (abajo), un chat
-por punto. A (Modo ahorro) HECHO; el siguiente es B (con B+). Mientras: David saca la clave de YouTube
+por punto. A (Modo ahorro) y B+B+ (subtítulos y textos TikTok) HECHOS; el siguiente es C. Mientras: David saca la clave de YouTube
 (gratis), prueba «💡 Ideas» y publica para tener datos («Mis vídeos»). Después,
 etapa 6 de la hoja de ruta (un solo prompt para todas las imágenes).
 
@@ -232,11 +232,7 @@ A. **Modo ahorro de Claude — HECHO (6-nov-2026)**.
    Pendiente: que los selectores de modelo de cada tarjeta digan lo que de verdad
    correrá con el modo puesto (hoy enseñan lo pedido y la estimación de tiempo
    sale algo larga).
-B. **Subtítulos**: (1) mientras sale el cartel del gancho, NO subtitular debajo (se
-   ve doble); igual con cualquier cartela/elemento que ya muestre la frase. (2)
-   mayúsculas y minúsculas mezcladas al leer (palabra clave/cifras en otro formato
-   se ve desordenado): un solo criterio, limpio. (3) revisar sincronía palabra a
-   palabra. (4) el cartel del gancho cortó la frase en «Y…?»: que corte bien.
+B. **Subtítulos — HECHO (6-nov-2026, junto con B+)**. Ver B+ abajo.
 C. **Fidelidad histórica y bíblica en los prompts de imagen**: personajes como los
    describen fuentes serias (judíos del s. I en Judea/Galilea: aspecto mediterráneo
    / Oriente Medio, ropa de la época; nada inventado), lugares y objetos reales.
@@ -274,12 +270,41 @@ G. **FIGURAS PLANAS PROPIAS (decidido 6-nov)**: personajes de colores lisos como
    casas, palmeras, pergamino, mapa, cadena…) que crece con cada vídeo. Gemini
    sobra (como mucho, un fondo). Objetivo de David: «lo mejor del mercado».
    (El 3D low-poly del vídeo viral queda como idea lejana.)
-B+. **Textos estilo TikTok** (van con B): fuentes con estilo (Google Fonts tipo
-   Montserrat Black, Bebas Neue, Lilita One), palabra marcada en rojo (subrayado o
-   recuadro que se dibuja), TACHADO animado (lo falso tachado → lo verdadero),
-   CONTADORES que suben hasta la cifra justo cuando la voz la dice. Referencias:
-   Drive de David, carpeta «IMAGENES DE IDEAS DE TIKTOK» (5 fotos); NO abrirlas por
-   el conector de Drive (base64 = muchísimos tokens): pedirle que las pegue en el chat.
+B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
+   Cómo se usa: al crear el vídeo (o en «El encargo») → «Gancho» → «⚡ Gancho +
+   textos TikTok». Debajo salen dos filas nuevas: «Letra de los textos»
+   (Montserrat Black —la de TikTok, por defecto—, Bebas Neue —todo mayúsculas—,
+   Lilita One —redonda, para muñecos—, Playfair —con serifa, historia— o «La del
+   estilo») y «Palabra clave» (Subrayado —por defecto—, Recuadro o Solo color).
+   Cambiarlo es gratis: volver a montar.
+   Qué sale: subtítulos palabra a palabra con contorno negro (sin caja), cada
+   palabra da un saltito al decirse; la clave en rojo (o el acento del estilo si
+   es vivo) con raya/recuadro que se dibuja; las cifras CUENTAN desde 0 (un año,
+   desde 50 antes: 1606→1656) y llegan a su valor justo al acabar de decirlas
+   (solo de 10 para arriba); en «no fue X, sino Y» y «no es X, es Y» la X se
+   TACHA en rojo y la Y es la clave. En el texto corregido a mano de un
+   subtítulo: `~~palabra~~` la tacha, `*palabra*` la hace clave.
+   Arreglos de B: (1) mientras sale el cartel del gancho NO hay subtítulo
+   debajo, y el cartel dura lo que tarda la voz en decirlo (1,8-5 s); lo que se
+   dice detrás no se pierde. (2) Un solo criterio: todo en minúsculas normales
+   («DIOS» → «Dios»), todo del mismo tamaño; solo cambia el color. (3) Sincronía:
+   una cifra dicha con varias palabras («dos mil» → «2000») dura lo que esas
+   palabras, ya no se reparte a ojo. (4) El cartel ya no corta en «y…?»: corta
+   en una coma o detrás de una palabra con contenido (hasta 12 palabras entra
+   entera).
+   Cómo quedó: `pasos/letras.py` (fuentes en `motores/fuentes/`, licencia OFL,
+   dentro del repo: mide Python y dibuja el navegador con el MISMO fichero; la
+   página del render las carga con `@font-face` y espera a que estén) +
+   `pasos/gancho.py` (cartel_de, preparar, contrastes, contador, bloque_palabras
+   reescrito colocando cada palabra a mano, tras_el_cartel) +
+   `p7_callouts._subtitulos_gancho` + `subtitulos.de_escena` (tiempos de cifras)
+   + `p8_render` (`__LETRASCSS__`, `LETRAS_OK`). Params de callouts `letra` y
+   `resalte`; no van en los defectos (no mueven firmas). Pantalla:
+   `selectorLetras` en `web/app.js` (+ ruta `/fuentes/<fichero>` en `app.py`
+   para que los botones se vean con su letra). Prueba: `pasos/prueba_gancho.py`.
+   Pendiente: detectar más formas de «lo falso → lo verdadero» (p. ej. «mito»,
+   «en realidad»); elegir la palabra clave a mano desde la pantalla; posición
+   del subtítulo elegible (centro / abajo).
 Luego seguir la HOJA DE RUTA por la etapa 6.
 
 ## Pendiente / ideas

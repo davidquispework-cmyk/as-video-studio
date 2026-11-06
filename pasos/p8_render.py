@@ -51,6 +51,7 @@ import ambiente  # noqa: E402
 import cartelas  # noqa: E402
 import clips as clips_video  # noqa: E402
 import estadisticas  # noqa: E402
+import letras  # noqa: E402
 import marioneta  # noqa: E402
 import medios  # noqa: E402
 import plantilla_tiktok  # noqa: E402
@@ -253,7 +254,8 @@ class Navegador:
         limite = time.time() + 30
         while time.time() < limite:
             listo = self.evaluar("document.readyState === 'complete' && "
-                                 "typeof pintar === 'function'")
+                                 "typeof pintar === 'function' && "
+                                 "window.LETRAS_OK !== false")
             if listo:
                 return
             time.sleep(0.1)
@@ -318,6 +320,7 @@ def _puerto_libre():
 # ----------------------------------------------------------------- pagina
 
 PAGINA = """<!doctype html><html><head><meta charset="utf-8"><style>
+__LETRASCSS__
 html,body{margin:0;padding:0;background:#0b0c09;overflow:hidden}
 #lienzo{position:relative;width:__W__px;height:__H__px;overflow:hidden}
 #camara{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
@@ -366,6 +369,11 @@ __MARCSS__
 // ultimo fotograma del plano anterior y una opacidad encima; eso daba para un
 // fundido y para un destello, y para nada mas, porque el shader necesita las
 // dos imagenes como TEXTURAS y de un div no se saca una textura.
+// LAS LETRAS ESTILO TIKTOK (pasos/letras.py): se piden ya y `abrir` espera a
+// que esten, o el primer fotograma saldria con la letra de repuesto.
+window.LETRAS_OK = false;
+Promise.all(Array.from(document.fonts || []).map(f => f.load().catch(() => 0)))
+  .then(() => { window.LETRAS_OK = true; }, () => { window.LETRAS_OK = true; });
 const MOV = __MOV__, W = __W__, H = __H__, HW = __HW__, HH = __HH__;
 const DUR = __DUR__, FPS = __FPS__;
 // AQUI VIVIA `FOTOGRAMAS`, la tira de imagenes de un plano de metraje grabado.
@@ -491,6 +499,7 @@ def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
             .replace("__FONDO__", _url_local(hyper))
             .replace("__CAPA__", capa_svg)
             .replace("__CAPAFIJA__", capa_fija or "")
+            .replace("__LETRASCSS__", letras.css_para(capa_fija))
             .replace("__MOV__", json.dumps({"ventana_ini": mov["ventana_ini"],
                                             "ventana_fin": mov["ventana_fin"]}))
             .replace("__FPS__", str(int(fps)))

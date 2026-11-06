@@ -49,6 +49,7 @@ import comun  # noqa: E402
 import estadisticas  # noqa: E402
 import subtitulos  # noqa: E402
 import gancho  # noqa: E402
+import letras  # noqa: E402
 import plantilla_tiktok  # noqa: E402
 import medios  # noqa: E402
 import tipografia  # noqa: E402
@@ -744,42 +745,92 @@ def capa_fija_de(escena, p, banda=None, salida=SALIDA, primera=False):
     return _envoltorio_fijo("".join(x for x in piezas if x), salida), fichas
 
 
+def _medidor_exacto(familia, tam):
+    """Mide con el AVANCE exacto de la fuente, sin el margen de seguridad de
+    `tipografia.medir`: en el palabra a palabra cada palabra se coloca a mano y
+    el 4 % de mas por palabra abria huecos entre ellas. Se puede porque la
+    letra es el MISMO fichero en Python y en el navegador (pasos/letras.py)."""
+    tipo = tipografia.fuente(familia, tam)
+
+    def medir(texto):
+        try:
+            return float(tipo.getlength(str(texto or "")))
+        except AttributeError:                                 # Pillow antiguo
+            caja = tipo.getbbox(str(texto or ""))
+            return float(caja[2] - caja[0])
+    return medir
+
+
+def _acento_tiktok(paleta):
+    """El color de la clave: el acento del estilo si se ve, si no rojo TikTok.
+
+    Un acento apagado (gris, beige, casi negro) no resalta nada encima de una
+    imagen; lo pidio David: «palabra marcada en rojo».
+    """
+    rgb = _rgb((paleta or {}).get("acento"))
+    if rgb and _saturacion(rgb) >= 90 and 70 <= _luz(rgb) <= 225:
+        return "#%02x%02x%02x" % rgb
+    return gancho.ROJO
+
+
 def _subtitulos_gancho(escena, p, banda, tam, paleta, diseno, tapa, salida,
                        primera):
-    """Subtitulos palabra a palabra y, en el primer plano, el cartel grande.
+    """Subtitulos palabra a palabra estilo TikTok y, en el primer plano, el
+    cartel grande (sin subtitulo debajo mientras esta: ver gancho.py).
 
     En vertical los trozos van mas cortos (dos a cuatro palabras), como en el
     formato TikTok; en horizontal se respeta el troceo de siempre.
     """
-    fuente_nombre = (diseno or {}).get("fuente") or "Verdana"
-    acento = (paleta or {}).get("acento") or gancho.AMARILLO
-    if str(acento).lower() in ("#ffffff", "#fff", "#000000", "#000"):
-        acento = gancho.AMARILLO
+    ficha = letras.de_params(p)
+    if ficha:
+        fuente_nombre = f"'{ficha['familia']}', Verdana, sans-serif"
+        familia, peso = ficha["familia"], "normal"
+        tam = int(round(tam * ficha["escala"]))
+        medir = _medidor_exacto(familia, tam)
+        medidor_cartel = lambda t: _medidor_exacto(familia, t)  # noqa: E731
+        mayus = ficha["mayus"]
+    else:
+        fuente_nombre = (diseno or {}).get("fuente") or "Verdana"
+        peso = SUB_PESO
+        medir = _medidor(fuente_nombre, tam, negrita=SUB_PESO >= 600)
+        medidor_cartel = lambda t: _medidor(fuente_nombre, t, negrita=True)  # noqa: E731
+        mayus = False
+    acento = _acento_tiktok(paleta)
+    resalte = str(p.get("resalte") or "subrayado").strip().lower()
     cap = cap_subtitulo(tam, banda)
     trozos = subtitulos.de_escena(
         escena, idioma=p.get("idioma"), cap_linea=cap,
         cap_trozo=cap_trozo_subtitulo(cap, salida),
         texto=texto_subtitulo_de(p, f"escena:{escena.get('id')}"),
         con_palabras=True)
-    medir = _medidor(fuente_nombre, tam, negrita=SUB_PESO >= 600)
-    radio = min(float((diseno or {}).get("radio") or 0), tam * 0.5)
-    piezas = [gancho.bloque_palabras(
-        x, banda, tam, medir, fuente=fuente_nombre, peso=SUB_PESO,
-        color=(paleta or {}).get("texto") or "#ffffff", acento=acento,
-        opacidad=tapa, radio=radio, partir=subtitulos.dos_lineas)
-        for x in trozos]
+    # se prepara con el plano ENTERO antes de quitar lo que tapa el cartel: un
+    # «no fue X, sino Y» puede empezar debajo del cartel y acabar despues
+    trozos = gancho.preparar(trozos, mayus=mayus)
+    cartel = ""
     propio = escena.get("gancho", p.get("gancho"))
     if primera and propio is not False:
-        texto = gancho.texto_de(escena.get("narracion"),
-                                propio if isinstance(propio, str) else None)
-        try:
-            dur = float(escena.get("t_out")) - float(escena.get("t_in") or 0)
-        except (TypeError, ValueError):
-            dur = gancho.DURACION_S
-        piezas.append(gancho.svg_cartel(
-            texto, salida, lambda t: _medidor(fuente_nombre, t, negrita=True),
-            fuente=fuente_nombre, acento=acento,
-            duracion=min(gancho.DURACION_S, dur)))
+        texto, dichas = gancho.cartel_de(escena.get("narracion"),
+                                         propio if isinstance(propio, str) else None)
+        dur = gancho.duracion_cartel(escena, dichas)
+        cartel = gancho.svg_cartel(
+            texto, salida, medidor_cartel, fuente=fuente_nombre, acento=acento,
+            duracion=dur, peso=peso if ficha else "900", resalte=resalte)
+        if cartel:
+            # MIENTRAS ESTA EL CARTEL NO HAY SUBTITULO: decia lo mismo dos veces
+            trozos = gancho.tras_el_cartel(trozos, dur, dichas)
+    # con la caja en "auto" el estilo TikTok va sin caja (contorno negro)
+    crudo = p.get("subtitulo_caja", "auto")
+    if isinstance(crudo, bool) or crudo in (None, "", "auto"):
+        tapa = 0.0
+    radio = min(float((diseno or {}).get("radio") or 0), tam * 0.5)
+    piezas = [gancho.bloque_palabras(
+        x, banda, tam, medir, fuente=fuente_nombre, peso=peso,
+        color="#ffffff", acento=acento,
+        opacidad=tapa, radio=radio, partir=subtitulos.dos_lineas,
+        resalte=resalte)
+        for x in trozos]
+    if cartel:
+        piezas.append(cartel)
     return piezas
 
 
