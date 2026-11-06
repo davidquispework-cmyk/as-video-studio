@@ -63,7 +63,7 @@ El VPS no tiene GPU: nada de modelos de vídeo locales. Todo a coste 0:
    `clips_video`). Mejorados los prompts: el de imagen lleva la descripción fija de
    cada personaje y del sitio + «continuidad» con el plano anterior (adjuntar su
    imagen en Gemini/ChatGPT); el de clip dice qué se mueve, la cámara y qué evitar.
-3. **Etapa 3**: personajes «marioneta» SVG por piezas (brazos articulados) con gestos.
+3. **Etapa 3 — HECHA (6-nov-2026)**: ver «Muñecos que gesticulan» en la hoja de ruta.
 
 ## Decisión de dinero (5-nov-2026)
 Por ahora TODO GRATIS: imágenes y clips a mano (manual), voz gratis, efectos del render.
@@ -76,10 +76,23 @@ tiempo ahorraría al pagar: imágenes automáticas baratas (~0,5-1 $ por vídeo 
 Regla: cada chat nuevo hace SOLO la siguiente etapa sin hacer, pruebas ligeras, sube a
 main, da `asvs actualizar` y marca aquí la etapa como HECHA (con fecha y cómo quedó).
 Todo gratis; lo de pago, preparado y apagado (ver «Decisión de dinero»).
-1. **Muñecos que gesticulan** (= etapa 3 de animación): personajes marioneta SVG por
-   piezas (cabeza, torso, brazos articulados) con gestos (señalar, levantar brazos,
-   girar cabeza), como ESTILO OPCIONAL al crear un vídeo; el realista (imágenes +
-   clips) se queda igual. Inspiración: muñecos geométricos con túnica.
+1. **Muñecos que gesticulan — HECHA (6-nov-2026)** (= etapa 3 de animación).
+   Cómo se usa: al crear el vídeo (o en «El encargo») → «Dibujo» → «🧍 Muñecos que
+   gesticulan». Entonces el prompt de cada imagen pide SOLO EL FONDO (sin personas) y
+   el render pinta encima a los personajes del plano (máx. 3) como muñecos SVG con
+   túnica: cabeza que gira, brazos con codo, parpadeo, boca que se mueve en el que
+   habla, sombra. El gesto sale solo de la narración: oró/alabó/gloria → levanta los
+   brazos; señaló/mirad → señala; caminó/fue/llegó → camina; dijo/habló → habla; los
+   demás escuchan (asienten). El aspecto sale de la ficha del reparto (color de
+   túnica, mujer → velo, barba, anciano → canas, ángel → alas y aureola).
+   Cómo quedó: `pasos/marioneta.py` + página de `p8_render` (capa `#munecos`, fija en
+   pantalla, encima del fondo y debajo del subtítulo) + param del render
+   `marioneta: true` (sin él, el realista de siempre; no va en los defectos para no
+   mover firmas). En plan.json una escena puede llevar `"gesto": "senalar"` o
+   `{"Pedro": "brazos"}` o `"marioneta": false`. Un plano con clip no lleva muñecos.
+   Cambiarlo en un vídeo hecho solo pide volver a montar (gratis). Prueba:
+   `pasos/prueba_marioneta.py`. Pendiente: que la boca siga la voz de verdad; elegir
+   el gesto por plano desde la pantalla (va bien con la etapa 2).
 2. **Botón de efectos por plano**: en la tarjeta del plano elegir/quitar efectos de
    ambiente (fuego, lluvia, agua, nubes, rayos, luz, ninguno). Ya existe
    `"ambiente": [...]` por escena en plan.json: falta la pantalla.

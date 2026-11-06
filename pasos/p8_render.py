@@ -51,6 +51,7 @@ import ambiente  # noqa: E402
 import cartelas  # noqa: E402
 import clips as clips_video  # noqa: E402
 import estadisticas  # noqa: E402
+import marioneta  # noqa: E402
 import medios  # noqa: E402
 import sonido  # noqa: E402
 import transiciones  # noqa: E402
@@ -338,6 +339,7 @@ html,body{margin:0;padding:0;background:#0b0c09;overflow:hidden}
 /* AMBIENTE (pasos/ambiente.py): canvas y figura recortada, si el plano los
    lleva. #delante va entre la camara y el subtitulo (z-index 1). */
 __AMBCSS__
+__MARCSS__
 </style></head><body>
 <!-- DOS CAPAS, Y LA DIFERENCIA ES EN QUE LADO DEL TRANSFORM ESTAN.
      #capa va DENTRO de #camara, asi que la escala el zoom: ahi vive lo que
@@ -353,6 +355,7 @@ __AMBCSS__
     <div id="capa">__CAPA__</div>
   </div>
   __AMBFUERA__
+  __MARHTML__
   <div id="capafija">__CAPAFIJA__</div>
 </div>
 <script>
@@ -416,6 +419,10 @@ const CLIP = __CLIP__;
 const AMB = __AMB__;
 __AMBJS__
 
+// LOS MUÑECOS DEL PLANO (pasos/marioneta.py): null = sin muñecos.
+const MAR = __MAR__;
+__MARJS__
+
 function pintar(t){
   const u = DUR > 0 ? Math.min(1, Math.max(0, t/DUR)) : 0;
   const v = ventana(u), s = W / v[2];
@@ -431,6 +438,7 @@ function pintar(t){
     'translate(' + (-v[0]*s).toFixed(3) + 'px,' + (-v[1]*s).toFixed(3) +
     'px) scale(' + s.toFixed(6) + ')';
   if (AMB) ambiente(t, v, s);
+  if (MAR) marionetas(t);
   if (svg && svg.setCurrentTime) svg.setCurrentTime(t);
   if (svgFijo && svgFijo.setCurrentTime) svgFijo.setCurrentTime(t);
   if (CLIP && CLIP.length){
@@ -455,7 +463,7 @@ def _url_local(ruta):
 
 
 def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
-               amb=None, fotos_clip=None):
+               amb=None, fotos_clip=None, mar=None):
     ancho, alto = [int(v) for v in p["resolucion"]]
     hw, hh = mov.get("hyperframe_px") or [3072, 2048]
     duracion = float(escena["t_out"]) - float(escena["t_in"])
@@ -464,7 +472,12 @@ def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
     if amb and amb.get("fondo"):
         hyper = amb["fondo"]
     dentro, fuera, css = ambiente.html_capas(amb, hw, hh, ancho, alto)
+    mar_html, mar_css = marioneta.html_capa(mar, ancho, alto)
     html = (PAGINA
+            .replace("__MARCSS__", mar_css)
+            .replace("__MARHTML__", mar_html)
+            .replace("__MARJS__", marioneta.MARIONETA_JS if mar else "")
+            .replace("__MAR__", json.dumps(mar) if mar else "null")
             .replace("__AMBCSS__", css)
             .replace("__AMBDENTRO__", dentro)
             .replace("__AMBFUERA__", fuera)
@@ -1047,7 +1060,8 @@ def renderizar_plano(tarea, navegador=None):
                         tarea["hyper"], {"resolucion": tarea["resolucion"]},
                         os.path.join(carpeta, "escena.html"),
                         capa_fija=tarea.get("capa_fija") or "", fps=fps,
-                        amb=tarea.get("ambiente"), fotos_clip=fotos_clip)
+                        amb=tarea.get("ambiente"), fotos_clip=fotos_clip,
+                        mar=tarea.get("marioneta"))
 
     navegador.abrir(pagina)
     for numero in range(total):
@@ -1267,6 +1281,23 @@ def _correr_lotes_en_procesos(lotes, trabajo, avisar, total_planos,
 OPCIONES_EJECUCION = ("solo_montar",)
 
 
+def _fichas_reparto(proyecto):
+    """{nombre: descripcion} del reparto del video, para vestir a los muñecos."""
+    try:
+        import p6_assets
+        try:
+            from nucleo.estado import Estado
+            params = Estado(proyecto).params("assets") or {}
+        except Exception:  # noqa: BLE001  -- sin estado, el catalogo del guion
+            params = {}
+        catalogo = p6_assets._catalogo_de(params, proyecto)
+        return {n: str((f or {}).get("descripcion") or "")
+                for n, f in (catalogo.get("reparto") or {}).items()}
+    except Exception as e:  # noqa: BLE001  -- sin fichas se visten por el nombre
+        print(f"[render] muñecos sin fichas del reparto ({e})", flush=True)
+        return {}
+
+
 def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
     """Renderiza los clips que toquen y rehace el MP4 final.
 
@@ -1361,6 +1392,11 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
     clips = []
     tareas = []
     sesion_recorte = None
+    # LOS MUÑECOS (pasos/marioneta.py), si el video es de ese estilo: la
+    # imagen es solo el fondo y cada personaje se pinta encima y gesticula.
+    # Sin recorte de figura: el fondo no trae gente que separar.
+    con_munecos = bool(p.get("marioneta"))
+    fichas_reparto = _fichas_reparto(proyecto) if con_munecos else {}
     for indice, escena in enumerate(escenas):
         sid = escena["id"]
         uid = f"escena:{sid}"
@@ -1427,17 +1463,28 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
                 print(f"[render] {sid}: sin ambiente ({e})", flush=True)
                 amb = None
         elif p.get("ambiente", "auto") not in ("no", False, None):
-            if sesion_recorte is None and p.get("profundidad", True):
+            if con_munecos:
+                p_amb = dict(p, profundidad=False)
+            else:
+                p_amb = p
+            if sesion_recorte is None and p_amb.get("profundidad", True):
                 sesion_recorte = ambiente.sesion_recorte() or False
             try:
                 amb = ambiente.configurar(escena, hyper,
-                                          os.path.join(trabajo, "ambiente"), p,
+                                          os.path.join(trabajo, "ambiente"), p_amb,
                                           sesion_recorte or None)
             except Exception as e:  # el plano sale sin ambiente, y se dice
                 print(f"[render] {sid}: sin ambiente ({e})", flush=True)
                 amb = None
 
+        mar = None
+        if con_munecos and not con_clip:
+            mar = marioneta.configurar(escena, fichas_reparto)
+            if mar and amb:
+                amb["sin_balanceo"] = True   # los muñecos ya se mueven
+            print(f"[render] {sid}: {marioneta.resumen(mar)}", flush=True)
         tareas.append({
+            "marioneta": mar,
             "ambiente": amb,
             "clip_video": ruta_clip if con_clip else None,
             "id": sid, "escena": {"id": sid, "t_in": escena["t_in"],

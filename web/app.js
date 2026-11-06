@@ -6307,7 +6307,8 @@ function vistaElegidoLight() {
       { pista: 'La crisis del agua en el sur', ayuda: 'Es el nombre del proyecto y '
         + 'lo que el guionista lee como «de qué va este vídeo».' }),
     duracionLight(e, undefined, () => pintarCosteDelEncargoLight(e, aviso)),
-    selectorFormato(e.formato, v => { e.formato = v; })));
+    selectorFormato(e.formato, v => { e.formato = v; }),
+    selectorDibujo(e.marioneta, v => { e.marioneta = v; })));
 
   caja.appendChild(bloqueLight('El material',
     'de dónde salen los hechos que se van a contar',
@@ -6346,6 +6347,29 @@ const FORMATOS_VIDEO = [
   { id: 'horizontal', nombre: 'Horizontal 16:9', pista: 'YouTube, pantalla' },
   { id: 'vertical', nombre: 'Vertical 9:16', pista: 'Shorts, Reels, TikTok' },
 ];
+
+/* EL ESTILO DE DIBUJO (pasos/marioneta.py). «Muñecos»: la imagen de cada plano
+   es solo el fondo y el render pinta encima a los personajes como marionetas
+   que hablan, señalan, levantan los brazos o caminan. Va al param `marioneta`
+   del render, y solo se escribe si alguien lo toca. */
+function selectorDibujo(valor, alCambiar) {
+  const tira = h('div', { clase: 'tira-modos formatos' });
+  [
+    { id: false, nombre: '🖼 Realista', pista: 'Los personajes vienen dibujados en cada imagen (y en los clips)' },
+    { id: true, nombre: '🧍 Muñecos que gesticulan', pista: 'La imagen es solo el fondo; los personajes son muñecos que se mueven' },
+  ].forEach(op => {
+    tira.appendChild(h('button', {
+      clase: 'mini' + (!!valor === op.id ? ' activo' : ''), title: op.pista,
+      'data-id': String(op.id),
+      onclick: () => {
+        tira.querySelectorAll('button').forEach(b => b.classList.toggle('activo', b.dataset.id === String(op.id)));
+        alCambiar(op.id);
+      },
+    }, op.nombre));
+  });
+  return h('div', { clase: 'campo' }, h('label', {}, 'Dibujo'), tira,
+    h('div', { clase: 'pista' }, 'Con muñecos, el prompt de cada imagen pide SOLO EL FONDO (sin personas).'));
+}
 
 function selectorFormato(valor, alCambiar) {
   const actual = valor === 'vertical' ? 'vertical' : 'horizontal';
@@ -6546,6 +6570,7 @@ async function crearYGenerarLight(estilo) {
         guion_propio: !!e.guion_propio,
         indicaciones: e.indicaciones,
         cta: e.cta,
+        marioneta: !!e.marioneta,
       },
     });
     const pid = (datos.proyecto || {}).id;
@@ -6607,6 +6632,7 @@ const CAMPOS_ENCARGO = [
   { clave: 'guion_propio', paso: 'guion', param: 'guion_propio' },
   { clave: 'indicaciones', paso: 'guion', param: 'prompt_general' },
   { clave: 'cta', paso: 'guion', param: 'cta' },
+  { clave: 'marioneta', paso: 'render', param: 'marioneta' },
 ];
 
 /* Las tres ranuras completas a partir de lo guardado, que puede faltar entero
@@ -6640,6 +6666,7 @@ function pedidoDelVideoLight() {
     guion_propio: !!params('guion').guion_propio,
     indicaciones: String(params('guion').prompt_general || ''),
     cta: ctaLeida(params('guion').cta),
+    marioneta: !!params('render').marioneta,
   };
   v.pedido = {
     pid: v.pid,
@@ -6690,7 +6717,8 @@ function vistaEncargoVideoLight() {
   caja.appendChild(bloqueLight('El vídeo', 'cómo se llama y cuánto dura',
     nombre,
     duracionLight(e, estilo),
-    selectorFormato(e.formato, valor => { e.formato = valor; programarGuardadoEncargo(); })));
+    selectorFormato(e.formato, valor => { e.formato = valor; programarGuardadoEncargo(); }),
+    selectorDibujo(e.marioneta, valor => { e.marioneta = valor; programarGuardadoEncargo(); })));
 
   caja.appendChild(bloqueLight('El material',
     'de dónde salen los hechos que se van a contar',

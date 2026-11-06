@@ -5042,6 +5042,7 @@ def _ficha_subidas(ctx):
     con_clip = CLIPS.listar(ctx.proyecto.raiz)
     plan = PASOS_MODULOS.p6_assets.plan_actual(ctx.proyecto) or {}
     escenas = {e.get("id"): e for e in plan.get("escenas") or []}
+    munecos = bool((ctx.estado.params("render") or {}).get("marioneta"))
     for f in planos:
         info = con_clip.get(f["id"])
         f["clip"] = bool(info)
@@ -5049,6 +5050,10 @@ def _ficha_subidas(ctx):
         f["clip_segundos"] = (info or {}).get("segundos")
         f["prompt_clip"] = CLIPS.prompt_para_copiar(
             escenas.get(f["id"]) or {}, plan.get("formato") or "")
+        # CON MUÑECOS la imagen es SOLO EL FONDO: los personajes los pinta el
+        # render encima (pasos/marioneta.py); si vinieran dibujados, saldrian dos veces.
+        if munecos and f.get("prompt"):
+            f["prompt"] = PASOS_MODULOS.marioneta.solo_fondo(f["prompt"])
     auto, motivo = CLIPS.automatico_disponible()
     return {"modo": AJUSTES.modo_imagen(), "planos": planos,
             "modo_clip": AJUSTES.leer().get("modo_clip", "manual"),
@@ -10092,6 +10097,11 @@ def _sembrar_video_light(ctx, datos):
     if guion:
         _validar_params("guion", guion, ctx)
         ctx.estado.actualizar_params("guion", guion)
+    # EL ESTILO DE DIBUJO: con muñecos (pasos/marioneta.py) la imagen es solo
+    # el fondo y el render pinta encima a los personajes, que gesticulan. Solo
+    # se escribe si lo pidieron: el realista es la falta del param.
+    if datos.get("marioneta"):
+        ctx.estado.actualizar_params("render", {"marioneta": True})
     return avisos
 
 
