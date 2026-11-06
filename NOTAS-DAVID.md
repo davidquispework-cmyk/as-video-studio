@@ -236,18 +236,26 @@ E. **Guion y voz con intención**: nada de muletillas («o sea»); ritmo para
    con SSML (velocidad, tono, pausas) por frase; decidirlo en el guion.
 F. **Movimiento de imágenes y transiciones**: mejor movimiento de cámara, cortes al
    ritmo de la voz, transiciones con intención y cosas que otros no hacen.
-G. **ESTILO 3D LOW-POLY (lo que más ilusiona a David)**: personajes 3D de bloques
-   (three.js) que HABLAN (boca con el volumen de la voz), gesticulan y se mueven, en
-   escenarios 3D bíblicos (aldea, desierto, templo, mar, interior con lámpara) con
-   luz, bokeh y cámara que se mueve; objetos que muestran información (pergamino o
-   mapa con texto, como el monitor del vídeo viral «Mientras dormías» que vio en
-   redes). Programado UNA vez como estilo más del estudio (versión 3D de
-   `marioneta.py`, que ya decide quién habla y qué gesto hace): luego cada vídeo no
-   gasta más tokens y NO necesita imágenes de Gemini. Hacer por partes: (1)
-   prototipo: una escena + 2 personajes + medir cuánto tarda en renderizar en el VPS
-   SIN GPU (WebGL por software; si va lento: 30 fps, menos efectos); (2) biblioteca
-   de escenarios y personajes desde el reparto; (3) cámara y planos automáticos.
-   Va después de A y B (o antes de C-F si David lo pide).
+G. **FIGURAS PLANAS PROPIAS (decidido 6-nov)**: personajes de colores lisos como el
+   vídeo «¿Se les debe rezar a los santos?» (cabeza redonda, cara simple, túnica en
+   campana), pero con DISEÑO PROPIO, dibujados por código (SVG, evolución de
+   `marioneta.py`) para que se muevan pieza a pieza: boca al hablar, parpadeo,
+   brazos, caminar, arrodillarse, girar. José, María, Pedro… salen del reparto.
+   Fondos de Gemini en el MISMO estilo plano («ilustración vectorial plana, sin
+   personas») o escenarios SVG. Segundo estilo opcional: PALITOS (stick figure) para
+   vídeos de reflexión con metáforas («PECADO» como bola con cadena).
+   LO QUE MANDA ES LLAMAR LA ATENCIÓN, no la marca: NADA de lámpara ni dorado
+   obligatorios. Colores vivos y con mucho contraste, caras MUY expresivas (ojos
+   grandes, sorpresa, miedo, alegría exagerados), algo que cambia cada 2-3 s
+   (zoom de golpe, objeto que entra, texto que salta), efectos de sonido al ritmo,
+   metáforas visuales sorprendentes.
+   (El 3D low-poly del vídeo viral queda como idea lejana.)
+B+. **Textos estilo TikTok** (van con B): fuentes con estilo (Google Fonts tipo
+   Montserrat Black, Bebas Neue, Lilita One), palabra marcada en rojo (subrayado o
+   recuadro que se dibuja), TACHADO animado (lo falso tachado → lo verdadero),
+   CONTADORES que suben hasta la cifra justo cuando la voz la dice. Referencias:
+   Drive de David, carpeta «IMAGENES DE IDEAS DE TIKTOK» (5 fotos); NO abrirlas por
+   el conector de Drive (base64 = muchísimos tokens): pedirle que las pegue en el chat.
 Luego seguir la HOJA DE RUTA por la etapa 6.
 
 ## Pendiente / ideas
