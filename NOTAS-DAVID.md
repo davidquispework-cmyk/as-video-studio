@@ -123,14 +123,38 @@ Todo gratis; lo de pago, preparado y apagado (ver «Decisión de dinero»).
    Prueba: `pasos/prueba_gancho.py` (`--foto` pide Playwright de Python).
    Pendiente: escribir el texto del cartel desde la pantalla; un golpe de sonido
    al empezar.
-4. **Plantilla TikTok**: vertical 9:16, ~1:05 (Creator Rewards), barra de progreso,
-   llamada a seguir al final.
-5. **Un solo prompt para todas las imágenes**: un texto con todas las escenas y la
+4. **Plantilla TikTok**: vertical 9:16, barra de progreso, llamada a seguir al final y
+   golpe de sonido al empezar. DURACIÓN FLEXIBLE: NO fija en 1:05. Siempre algo más de
+   1:00 (Creator Rewards exige >1 min), pero David elige la duración objetivo al crear
+   el vídeo (1:10, 1:30, 2-3 min…) y el guion se ajusta a ella.
+5. **Agente analista + ideas** (pestaña nueva «📊 Análisis / 💡 Ideas» DENTRO de Shaddai
+   Studio, no otra plataforma): (a) qué pega en el nicho (Biblia, historia, «¿sabías
+   que…?») en YouTube (API oficial gratis) y TikTok (enlaces/capturas que pase David):
+   gancho, duración, título, miniatura, ritmo, temas; (b) cómo van los vídeos de David
+   (vistas, retención, en qué segundo se va la gente); (c) propone ideas con gancho,
+   duración y estilo, y un botón «Crear este vídeo» las pasa al encargo. Sustituye a la
+   antigua «ideas desde tendencias» (usar la skill tendencias-redes).
+6. **Un solo prompt para todas las imágenes**: un texto con todas las escenas y la
    ficha fija de cada personaje para pedirle a Gemini las imágenes de una vez.
-6. **Subir el MP4 terminado a Google Drive** al acabar (David tiene el conector).
-7. **Ideas de vídeos desde tendencias** (skill tendencias-redes) → Shaddai Studio.
-8. (De pago, apagado) imágenes automáticas baratas (~0,5-1 $/vídeo, fal.ai/Replicate).
-9. (De pago, ya preparado y apagado) clips automáticos fal.ai (`modo_clip=auto`).
+7. **Publicar más fácil**: título, descripción y hashtags listos para copiar +
+   miniatura automática para YouTube + subir el MP4 terminado a Google Drive.
+8. **Más estilos y más contexto** (innovar siempre, no solo muñecos): acuarela
+   animada, mapas antiguos animados (viajes de Pablo), línea de tiempo animada para
+   fechas; boca de los muñecos que siga la voz; gesto de los muñecos elegible por plano;
+   varias versiones del gancho para probar cuál retiene más. El estudio elige o propone
+   el estilo que mejor cuenta cada tema.
+9. (De pago, apagado) imágenes automáticas baratas (~0,5-1 $/vídeo, fal.ai/Replicate).
+10. (De pago, ya preparado y apagado) clips automáticos fal.ai (`modo_clip=auto`).
+
+VISIÓN (David, 6-nov): llevar el estudio AL TOPE, el mejor estudio de creación de
+contenido: de la idea al vídeo publicado en un solo sitio (Análisis/Ideas → Encargo y
+guion → Voz → Imágenes y clips → Edición automática → Publicar). Cada etapa se hace
+COMPLETA y pulida, calidad profesional, no en versión mínima; pero con ahorro-claude
+(leer solo lo necesario, una prueba corta final). Innovar y contextualizar cada vez más:
+cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
+
+PLAN INMEDIATO (6-nov): David prueba el vídeo de Jesús con gancho + 2-3 clips, lo publica
+en TikTok/YouTube Shorts (para tener datos reales), y luego chat nuevo para la etapa 4.
 
 Mensaje que David pega en cada chat nuevo (con el repo as-video-studio elegido):
 «Lee NOTAS-DAVID.md y la skill ahorro-claude. Haz la siguiente etapa de la HOJA DE
