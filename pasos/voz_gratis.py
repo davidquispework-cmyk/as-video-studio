@@ -243,7 +243,8 @@ def porcentaje_velocidad(velocidad):
 def _trozos(texto):
     """El texto anotado -> [[lo que se dice, silencio despues en s, prosodia]].
 
-    prosodia = (speed, volume, emocion) en vigor para ese trozo. Se parte en
+    prosodia = (speed, volume, emocion, matiz) en vigor para ese trozo; el
+    matiz es el de la frase (`intencion.matiz`). Se parte en
     cada <break> (Edge no lo entiende y lo leeria en voz alta) y en cada cambio
     de speed/volume/emotion, que `marcas_tts.sanear` solo deja en frontera de
     frase. Y dentro de cada trozo, tras una pregunta o unos puntos suspensivos
@@ -288,7 +289,13 @@ def _trozos(texto):
         partes = intencion.respiros(dicho)
         for indice, (trozo, respiro) in enumerate(partes):
             ultimo = indice == len(partes) - 1
-            limpios.append([trozo, silencio if ultimo else respiro, tono])
+            # y dentro, cada frase con su MATIZ (la pregunta sube, el remate
+            # corto baja, la cita pesa): las seguidas con el mismo, juntas
+            frases = intencion.frases_con_matiz(trozo)
+            for k, (frase, matiz) in enumerate(frases):
+                fin = k == len(frases) - 1
+                limpios.append([frase, (silencio if ultimo else respiro) if fin else 0.0,
+                                tono + (matiz,)])
     return limpios
 
 
@@ -349,7 +356,7 @@ def toma(texto, voz, velocidad=None, sr=44100, avisar=None):
         hechas = [0]
 
         async def uno(texto_trozo, tono):
-            rate, pitch, volumen = intencion.prosodia(base, *tono)
+            rate, pitch, volumen = intencion.prosodia(base, *tono[:3], extra=tono[3])
             async with semaforo:
                 resultado = await _sintetizar_trozo(edge, texto_trozo, voz, rate,
                                                     pitch, volumen)

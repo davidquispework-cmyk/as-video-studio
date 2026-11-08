@@ -47,10 +47,11 @@ import re
 from datetime import date
 
 try:
+    import citas
     import fidelidad
     import motion_mas
 except ImportError:  # importado como paquete (pasos.motion)
-    from . import fidelidad, motion_mas
+    from . import citas, fidelidad, motion_mas
 
 TEMAS = {
     # DISEÑO PROPIO: papel claro con tinta índigo (no negra) y acentos vivos
@@ -277,19 +278,19 @@ def cita_de(voz):
     comillas («…», “…” o "…"): el guion bíblico ya la cita literal de la
     RVR1960 (punto C), así que la tarjeta enseña lo mismo que se oye.
     """
-    m = LIBRO_RE.search(voz.texto)
+    # LA CITA, con `citas.buscar` (8-nov-2026): antes una expresion que solo
+    # sabia contar hasta 24, asi que «Mateo veintisiete, versiculo cuarenta y
+    # seis» o «Salmo ciento diecinueve» no sacaban tarjeta
     ref, i_ref, fin_ref = None, None, None
-    if m:
-        orden, libro, cap, v1, v2 = m.groups()
-        nombre = dict(LIBROS)[libro]
-        if _n(cap) and _n(v1):
-            ref = f"{nombre} {_n(cap)}:{_n(v1)}"
-            if v2 and _n(v2):
-                ref += f"-{_n(v2)}"
-            if orden:
-                ref = f"{_n(orden)} {ref}"
-            i_ref = voz.indice_de(m.start())
-            fin_ref = voz.indice_de(m.end() - 1)
+    for c in citas.buscar(voz.crudas):
+        if not c["v1"]:
+            continue
+        nombre = "Salmos" if c["libro"] == "Salmo" else c["libro"]
+        ref = f"{nombre} {c['ref']}"
+        if c["orden"]:
+            ref = f"{c['orden']} {ref}"
+        i_ref, fin_ref = c["inicio"], c["fin"] - 1
+        break
     # las comillas, sobre las palabras CRUDAS
     abre = cierra = None
     for i, w in enumerate(voz.crudas):

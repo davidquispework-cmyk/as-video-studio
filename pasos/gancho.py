@@ -38,6 +38,11 @@ PUNTO B y B+ DE LAS NOTAS (6-nov-2026), lo que cambio y por que:
 """
 import re
 
+try:
+    from . import citas
+except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
+    import citas
+
 #: Cuanto dura el cartel grande del principio, en segundos.
 DURACION_S = 3.0
 
@@ -552,7 +557,9 @@ def bloque_palabras(trozo, banda, tam, medir, fuente="Verdana", peso=600,
             elif es_clave and resalte != "color" and i not in tachar:
                 extra += _trazo(-w / 2, tam * 0.16, w, max(3.0, tam * 0.12),
                                 acento, d0 + 0.05)
-            ficha = contador(palabra) if cifra else None
+            # el numero de una cita («Salmo 68») no sube contando: es una cita
+            ficha = (contador(palabra) if cifra and not (
+                i > 0 and citas.es_libro(vistas[i - 1])) else None)
             if ficha:
                 c1 = min(max(d1, d0 + 0.5), d0 + 1.2, max(d0 + 0.2, hasta_t - 0.05))
                 pasos = _pasos_contador(ficha, d0, c1)

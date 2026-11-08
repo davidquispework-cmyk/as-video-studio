@@ -141,29 +141,40 @@ def probar_intencion():
           "el tono cambia en la frontera de frase")
     igual(voz_gratis._trozos('Pedro <emotion value="sad"/>lloró.')[0][2][2],  # noqa: SLF001
           "neutral", "un cambio de tono a mitad de frase se ignora")
-    igual(intencion.prosodia(-15, 0.9, 1.0, "sad"), ("-39%", "-9Hz", "-10%"),
+    igual(intencion.prosodia(-15, 0.9, 1.0, "sad"), ("-43%", "-12Hz", "-12%"),
           "triste: más lenta, más grave y más baja, sobre la velocidad de la voz")
-    igual(intencion.prosodia(0, 1, 1, "content"), ("+6%", "+7Hz", "+4%"),
+    igual(intencion.prosodia(0, 1, 1, "content"), ("+9%", "+10Hz", "+6%"),
           "alegre: algo más viva y más aguda")
     igual(intencion.prosodia(0), ("+0%", "+0Hz", "+0%"), "neutro: como siempre")
 
     PROSODIAS.clear()
-    voz_gratis.toma('<emotion value="content"/>Buena noticia. <emotion value="scared"/>'
-                    'Pero llegaron los soldados.', "es-PE-AlexNeural", None, sr=44100)
-    igual([(p[2], p[3]) for p in PROSODIAS], [("+7Hz", "+4%"), ("+3Hz", "-14%")],
-          "cada frase se graba con la prosodia de su tono")
+    voz_gratis.toma('<emotion value="content"/>Era la mejor noticia de toda su vida. '
+                    '<emotion value="scared"/>Pero de noche llegaron los soldados del templo. '
+                    '¿Qué iban a hacer?', "es-PE-AlexNeural", None, sr=44100)
+    igual([(p[2], p[3]) for p in PROSODIAS], [("+10Hz", "+6%"), ("+4Hz", "-16%"),
+                                              ("+10Hz", "-16%")],
+          "cada frase se graba con la prosodia de su tono, y la pregunta sube")
+    igual(intencion.matiz("Y lloró."), (-9, -3, 3), "el remate corto, despacio")
+    igual(intencion.tono_automatico("Jesús murió en la cruz y lloraron."), "sad",
+          "sin etiqueta, el tono sale de lo que cuenta: muerte -> triste")
+    igual(intencion.tono_automatico("Al tercer día resucitó: un milagro."), "content",
+          "resurrección -> alegre")
+    igual(intencion.tono_automatico("Era pescador en Galilea."), "neutral",
+          "sin pistas, neutro")
 
     igual(intencion.tono_de('<emotion value="sad"/>Hola.'), "sad", "el tono del bloque")
-    igual(intencion.tono_de('Hola.'), "neutral", "sin etiqueta, neutro")
+    igual(intencion.tono_de('Hola.'), "auto", "sin etiqueta, automático")
     igual(intencion.con_tono('<emotion value="sad"/>Hola.', "calm"),
           '<emotion value="calm"/>Hola.', "cambiar el tono de un bloque")
-    igual(intencion.con_tono('<emotion value="sad"/>Hola.', "neutral"), "Hola.",
-          "neutro quita la etiqueta")
+    igual(intencion.con_tono('<emotion value="sad"/>Hola.', "auto"), "Hola.",
+          "automático quita la etiqueta")
+    igual(intencion.con_tono('Hola.', "neutral"), '<emotion value="neutral"/>Hola.',
+          "neutro a propósito se escribe")
     bloques = [{"id": "B001", "texto": '<emotion value="sad"/>Murió.'},
                {"id": "B002", "texto": "Al tercer día resucitó."}]
     igual(p4_voz.unir_bloques(bloques, {"motor_voz": "gratis"}),
-          '<emotion value="sad"/>Murió. <emotion value="neutral"/>Al tercer día resucitó.',
-          "con la voz gratuita cada bloque empieza neutro")
+          '<emotion value="sad"/>Murió. <emotion value="content"/>Al tercer día resucitó.',
+          "con la voz gratuita cada bloque empieza con SU tono (automático si no trae)")
     igual(p4_voz.unir_bloques(bloques, {"motor_voz": "cartesia"}),
           '<emotion value="sad"/>Murió. Al tercer día resucitó.',
           "y Cartesia recibe el texto de siempre")
@@ -204,7 +215,8 @@ def probar_toma():
         "es-PE-AlexNeural", "slow", sr=44100)
     igual(len(PEDIDOS), 2, "un pedido por trozo")
     igual({v for _t, v, _r in PEDIDOS}, {"es-PE-AlexNeural"}, "con la voz pedida")
-    igual({r for _t, _v, r in PEDIDOS}, {"-15%"}, "y su velocidad")
+    igual({r for _t, _v, r in PEDIDOS} <= {"-15%", "-24%"}, True,
+          "y su velocidad (el remate corto, un poco más despacio)")
     igual([p["w"] for p in palabras],
           ["Diez", "millones", "esperaban", "Nadie", "sabia", "nada"],
           "todas las palabras, en orden")

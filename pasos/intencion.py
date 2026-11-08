@@ -30,6 +30,7 @@ Tres cosas, las tres gratis y sin tocar ningun param (no mueven firmas):
    muletilla SEGURO: lo dudoso («tipo», «como que») se deja.
 """
 import re
+import unicodedata
 
 # ------------------------------------------------------------------ los tonos
 
@@ -48,11 +49,11 @@ TONOS = {
 #: velocidad o ~12 Hz la voz deja de sonar a la misma persona.
 PROSODIA = {
     "neutral": (0, 0, 0),
-    "content": (6, 7, 4),
-    "calm": (-8, -3, -6),
-    "sad": (-14, -9, -10),
-    "scared": (4, 3, -14),
-    "angry": (7, -3, 12),
+    "content": (9, 10, 6),
+    "calm": (-10, -4, -8),
+    "sad": (-18, -12, -12),
+    "scared": (6, 4, -16),
+    "angry": (9, -4, 15),
 }
 
 #: Silencio (s) tras una pregunta que sigue y tras unos puntos suspensivos.
@@ -63,38 +64,115 @@ _EMOCION_INICIAL = re.compile(r'^\s*(?:<emotion\s+value="([A-Za-z]+)"\s*/>\s*)+'
 
 
 def tono_de(texto):
-    """La emocion con la que EMPIEZA un bloque ('neutral' si no lleva)."""
+    """La emocion con la que EMPIEZA un bloque, o 'auto' si no lleva ninguna.
+
+    'auto' = el estudio la elige por lo que cuenta (`tono_automatico`); para
+    que un bloque suene neutro A PROPOSITO se escribe `neutral`.
+    """
     m = _EMOCION_INICIAL.match(str(texto or ""))
     if not m:
-        return "neutral"
+        return "auto"
     ultima = re.findall(r'value="([A-Za-z]+)"', m.group(0))[-1].lower()
-    return ultima if ultima in PROSODIA else "neutral"
+    return ultima if ultima in PROSODIA else "auto"
 
 
 def con_tono(texto, tono):
-    """El texto del bloque empezando con ese tono (neutro = sin etiqueta)."""
+    """El texto del bloque empezando con ese tono ('auto' = sin etiqueta)."""
     resto = _EMOCION_INICIAL.sub("", str(texto or ""), count=1).lstrip()
-    tono = str(tono or "neutral").lower()
-    if tono not in PROSODIA or tono == "neutral":
+    tono = str(tono or "auto").lower()
+    if tono not in PROSODIA:
         return resto
     return f'<emotion value="{tono}"/>{resto}'
 
 
+#: Las palabras que delatan el tono de lo que se cuenta (raices plegadas, sin
+#: tildes). Se cuentan y gana la que mas sale, si gana con claridad.
+PISTAS = {
+    "sad": ("muri", "muerte", "muerto", "llor", "lagrima", "dolor", "sufri",
+            "crucific", "sangre", "triste", "pecado", "perdi", "desampar",
+            "angustia", "tumba", "sepult", "luto", "abandon", "solo y", "herid"),
+    "content": ("resucit", "alegr", "gozo", "milagro", "sano", "sanad", "salvo",
+                "victoria", "celebr", "fiesta", "esperanza", "bendic", "gloria",
+                "aleluya", "nacio", "libre", "perdon", "feliz", "buena noticia",
+                "vida eterna", "rescat", "gracia"),
+    "scared": ("miedo", "temor", "tembl", "soldado", "persegu", "huir", "huy",
+               "peligro", "amenaz", "tormenta", "oscur", "de repente", "ejercito",
+               "matar", "prendi", "arrest", "espada", "grit", "terror", "nadie sabia"),
+    "angry": ("ira", "enoj", "furi", "hipocrit", "ay de", "advert", "condena",
+              "injust", "jamas", "maldic", "denunci", "rechaz"),
+    "calm": ("oro ", "oracion", "orar", "paz", "descans", "silencio", "medit",
+             "pastor", "quietud", "reposo", "confi", "susurr", "suave", "en calma"),
+}
+
+
+def _plegar(texto):
+    texto = unicodedata.normalize("NFD", str(texto or "").lower())
+    return "".join(c for c in texto if unicodedata.category(c) != "Mn")
+
+
+def tono_automatico(texto):
+    """El tono que pide lo que cuenta el bloque, por sus palabras. -> emocion"""
+    plano = " " + re.sub(r"[^a-z ]+", " ", _plegar(re.sub(r"<[^<>]*>", " ", texto))) + " "
+    cuentas = {tono: sum(plano.count(" " + raiz) for raiz in raices)
+               for tono, raices in PISTAS.items()}
+    orden = sorted(cuentas.items(), key=lambda kv: -kv[1])
+    (mejor, n1), (_segundo, n2) = orden[0], orden[1]
+    if n1 >= 1 and n1 > n2:
+        return mejor
+    return "neutral"
+
+
 def con_tono_neutro_al_empezar(texto):
-    """Cada bloque arranca neutro: lo que cambio el anterior no se arrastra."""
+    """Cada bloque arranca con SU tono: el del guion o, si no trae, el que
+    pide lo que cuenta (`tono_automatico`). Lo del anterior no se arrastra."""
     texto = str(texto or "").strip()
     if not texto or _EMOCION_INICIAL.match(texto):
         return texto
-    return '<emotion value="neutral"/>' + texto
+    return f'<emotion value="{tono_automatico(texto)}"/>' + texto
 
 
-def prosodia(velocidad_base, speed=1.0, volume=1.0, emocion="neutral"):
+def matiz(frase):
+    """Lo que cambia UNA frase dentro de su tono -> (vel %, Hz, vol %).
+
+    La pregunta sube, la exclamacion empuja, el remate corto se dice despacio y
+    la cita literal («…») con peso. Es lo que hace que no suene a lectura.
+    """
+    f = str(frase or "").strip()
+    if not f:
+        return (0, 0, 0)
+    if f.endswith(("?", "?»", "?”")):
+        return (3, 6, 0)
+    if f.endswith(("!", "!»", "!”")):
+        return (5, 4, 8)
+    if f.startswith(("«", "“", '"')):
+        return (-7, -2, 0)
+    if len(f.split()) <= 5 and f.endswith("."):
+        return (-9, -3, 3)
+    return (0, 0, 0)
+
+
+def frases_con_matiz(texto):
+    """[(trozo, matiz)]: las frases seguidas con el mismo matiz, juntas."""
+    salida = []
+    for frase in re.split(r'(?<=[.!?…»”])\s+(?=[«“"¿¡A-ZÁÉÍÓÚÑ])', str(texto or "").strip()):
+        if not frase.strip():
+            continue
+        m = matiz(frase)
+        if salida and salida[-1][1] == m:
+            salida[-1] = (salida[-1][0] + " " + frase.strip(), m)
+        else:
+            salida.append((frase.strip(), m))
+    return salida or [(str(texto or "").strip(), (0, 0, 0))]
+
+
+def prosodia(velocidad_base, speed=1.0, volume=1.0, emocion="neutral", extra=(0, 0, 0)):
     """-> (rate, pitch, volume) en el formato de edge-tts («+5%», «-3Hz», «+0%»).
 
     velocidad_base es el porcentaje de la voz elegida (Configuracion); speed y
     volume son los ratios de las anotaciones (1 = sin cambio).
     """
     mas_vel, hz, mas_vol = PROSODIA.get(str(emocion or "neutral").lower(), (0, 0, 0))
+    mas_vel, hz, mas_vol = mas_vel + extra[0], hz + extra[1], mas_vol + extra[2]
     rate = int(round(velocidad_base + (float(speed) - 1.0) * 100 + mas_vel))
     vol = int(round((float(volume) - 1.0) * 100 + mas_vol))
     rate = max(-50, min(60, rate))
@@ -225,6 +303,16 @@ def pauta_ritmo(corto=False, idioma="es"):
     """Reglas de RETENCION y de estilo hablado para el prompt del guion."""
     tope = tope_frase(corto)
     lineas = [
+        "== CUÉNTALO COMO UNA HISTORIA, NO COMO UNA LISTA ==",
+        "- Personajes con nombre, un lugar y un momento concretos, qué quieren y "
+        "qué se lo impide; luego el giro y el desenlace. Escenas que se puedan "
+        "ver («La noche era fría. Pedro, junto al fuego, oyó la pregunta…»), no "
+        "resúmenes de datos.",
+        "- Cada frase empuja a la siguiente (porque, pero, entonces, hasta "
+        "que…): quien escucha tiene que sentir que algo va a pasar.",
+        "- Explica como a un amigo de quince años: si una palabra o una "
+        "costumbre de la época no se entiende, se explica en media frase.",
+        "",
         "== RITMO PARA RETENER (que nadie se vaya a mitad) ==",
         "- La PRIMERA frase es el gancho: una pregunta o un dato que choca, sin "
         "presentarse ni saludar antes.",
@@ -260,8 +348,12 @@ def pauta_tono():
         "== EL TONO DE LA VOZ CAMBIA CON LA HISTORIA ==",
         "Decide el tono de cada bloque según lo que CUENTA y ponlo con "
         "`<emotion value=\"...\"/>` al EMPEZAR el bloque. Cada bloque empieza "
-        "neutro: si un tramo de tres bloques es triste, los tres llevan su "
-        "etiqueta. Neutro no se marca. Los tonos:",
+        "de nuevo: si un tramo de tres bloques es triste, los tres llevan su "
+        "etiqueta. Si un bloque no la lleva, el estudio elige el tono por sus "
+        "palabras (muerte -> triste, milagro -> alegre); pon la etiqueta cuando "
+        "sepas mejor lo que pide la historia, y `neutral` para contar sin "
+        "color. Las preguntas, las exclamaciones, los remates cortos y las "
+        "citas entre comillas ya cambian solos de entonación. Los tonos:",
     ]
     for clave, (nombre, uso) in TONOS.items():
         if clave != "neutral":

@@ -460,7 +460,30 @@ def pauta_guion(*textos):
         "manzana») se dice como tal («la tradición dice…») o se corrige, nunca "
         "se da por bíblico.\n"
         "- Nombres de personas y lugares como en la RV1960 (Capernaúm, Jope, "
-        "Belén de Judea).")
+        "Belén de Judea).\n"
+        # CITAR EN VOZ ALTA (8-nov-2026, David): «MATEO 27 VERSICULO 46 Y LA
+        # GENTE» y luego «SALMOS 22 7 Y 8 SE BURLAN» -- citas encadenadas sin
+        # contar quien habla ni por que importa. El estudio ya escribe la cita
+        # en pantalla («Mateo 27:46», `citas.py`): la voz tiene que CONTAR.
+        "\n== CÓMO SE CITA LA BIBLIA EN VOZ ALTA ==\n"
+        "Cada cita va en TRES pasos, en este orden, y nunca falta ninguno:\n"
+        "  1. EL MOMENTO: quién habla, a quién y qué está pasando («Ya en la "
+        "cruz, a media tarde, Jesús gritó con fuerza…»).\n"
+        "  2. LA CITA: el libro y el capítulo dichos de forma natural, UNA vez, "
+        "y el texto literal entre comillas («…está en Mateo, capítulo "
+        "veintisiete, versículo cuarenta y seis: «Dios mío, Dios mío, ¿por qué "
+        "me has desamparado?»»). En pantalla se escribe solo como «Mateo "
+        "27:46».\n"
+        "  3. QUÉ SIGNIFICA, con palabras de todos los días, y por qué importa "
+        "para la historia («No era un grito de derrota: era el comienzo del "
+        "Salmo veintidós, y todos los judíos que lo oyeron lo sabían.»).\n"
+        "- NUNCA dos citas seguidas sin explicar la primera. Si una profecía se "
+        "cumple, dilo claro: primero lo que pasó, luego «mil años antes, David "
+        "ya lo había escrito en el Salmo veintidós: «…»», y luego la conexión.\n"
+        "- Nada de referencias sueltas sin su texto («Salmo veintidós, siete y "
+        "ocho») ni de leer números de versículos que no se van a citar.\n"
+        "- Como mucho una cita por bloque y, en un vídeo corto, dos o tres en "
+        "todo el vídeo: las que mejor cuentan la historia.")
 
 
 def pauta_imagen(contexto, narracion="", con_gente=True):

@@ -310,6 +310,44 @@ E. **Guion y voz con intención — HECHO (6-nov-2026)**.
    Pendiente: probar a oído los valores de `intencion.PROSODIA` con la voz que
    use David y ajustarlos si alguno suena exagerado; un tono a mitad de bloque
    desde la pantalla (hoy solo el del bloque entero).
+E+. **Arreglos tras probar E (8-nov-2026)** — lo que vio David en su vídeo:
+   - **Citas bíblicas en pantalla**: «Salmo sesenta y ocho» salía como un «68»
+     que corría contando y «Lucas, capítulo veinticuatro, versículo seis» salía
+     roto. Ahora se reconoce la cita dicha de cualquier forma (letras o cifras,
+     con o sin «capítulo/versículo», hasta el Salmo 119) y se escribe como una
+     cita: «Lucas 24:6», «Salmo 22:7-8», «Salmo 68», «1 Corintios 13:4»; no se
+     parte en dos renglones y NO cuenta. También en el cartel del gancho. No
+     confunde personas («Pedro tres veces lo negó» no es una cita). El motion
+     graphics saca la tarjeta de versículo con cualquier número (antes solo
+     hasta 24). `pasos/citas.py` + `subtitulos` (`_citas_de`, `_intocables_de`)
+     + `gancho` (sin contador tras un libro) + `motion.cita_de` +
+     `p7_callouts` (cartel). Prueba: `pasos/prueba_citas.py`.
+   - **Citar bien en el guion**: cada cita en 3 pasos — el momento (quién
+     habla y qué pasa), la cita literal dicha UNA vez, y qué significa; nunca
+     dos citas seguidas sin explicar, nada de «Salmo veintidós, siete y ocho»
+     suelto; como mucho 2-3 citas en un corto (`fidelidad.pauta_guion`). Y el
+     guion se cuenta como HISTORIA (personajes, lugar, qué quieren, giro,
+     desenlace; explicar como a un chico de 15 años) (`intencion.pauta_ritmo`).
+   - **La voz ya no suena plana**: (1) si un bloque no trae tono, el estudio lo
+     elige SOLO por lo que cuenta (muerte/lloró → triste; resucitó/milagro →
+     alegre; soldados/miedo → tenso; oración/paz → sereno; «ay de» → firme)
+     — `intencion.tono_automatico`; (2) dentro del tono cada frase tiene su
+     matiz: la pregunta sube, la exclamación empuja, el remate corto («Y
+     lloró.») se dice despacio y la cita entre comillas con peso
+     (`intencion.matiz`); (3) los tonos se marcan más. En la pantalla del guion
+     el desplegable de tono tiene «✨ Automático» (por defecto) y «😐 Neutro»
+     para pedir neutro a propósito. Afecta a la voz al volver a GRABARLA
+     (gratis con la voz gratuita); un guion ya escrito no cambia, pero su voz
+     regrabada sí suena con tonos automáticos.
+   - **Más imágenes en los vídeos cortos**: no había un tope de 24: las imágenes
+     salen del RITMO del estilo («Medio» = una cada ~2,8 s → ~24 en 70 s). Ahora
+     un vídeo NUEVO corto (TikTok o ≤ 2 min) con imágenes gratis (manual) corta
+     como mínimo a ritmo «Rápido» (~2 s, ~35 imágenes en 70 s): cada frase con
+     su imagen. `app._mas_planos_si_corto` (solo al crear y solo en manual: con
+     OpenAI cada imagen se paga). Para aún más: en el estilo, ⏱️ Ritmo → «Muy
+     rápido». En un vídeo ya hecho no se cambia solo (rehace todas las imágenes).
+   Pendiente: oír los tonos con la voz de David y ajustar `intencion.PROSODIA`
+   y `intencion.PISTAS` si alguno se pasa o falla.
 F. **Movimiento de imágenes y transiciones**: mejor movimiento de cámara, cortes al
    ritmo de la voz, transiciones con intención y cosas que otros no hacen.
 G. **FIGURAS PLANAS PROPIAS (decidido 6-nov)**: personajes de colores lisos como el

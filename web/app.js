@@ -8296,9 +8296,12 @@ let _guardadoBloqueLight = null;
 /* EL TONO DE CADA BLOQUE (punto E). Es la etiqueta `<emotion>` con la que
    EMPIEZA el bloque —la misma que pone Claude al escribir el guion— y el
    gemelo de esto en el backend es `pasos/intencion.py` (tono_de / con_tono).
-   Con la voz gratuita cada bloque empieza neutro, así que cambiar el tono de
-   uno no cambia cómo suenan los demás. Los nombres, los de `intencion.TONOS`. */
+   Sin etiqueta es «Automático»: con la voz gratuita el estudio elige el tono
+   por lo que cuenta el bloque (`intencion.tono_automatico`). Cada bloque
+   empieza con el suyo, así que cambiar uno no cambia cómo suenan los demás.
+   Los nombres, los de `intencion.TONOS`. */
 const TONOS_VOZ = [
+  ['auto', '✨ Automático', 'el estudio lo elige por lo que cuenta'],
   ['neutral', '😐 Neutro', 'contar sin más'],
   ['content', '😊 Alegre', 'buena noticia, esperanza, milagro'],
   ['calm', '🕊️ Sereno', 'reflexión, oración, versículo'],
@@ -8310,15 +8313,15 @@ const RE_TONO_INICIAL = /^\s*(?:<emotion\s+value="([A-Za-z]+)"\s*\/>\s*)+/i;
 
 function tonoDeTexto(texto) {
   const m = String(texto || '').match(RE_TONO_INICIAL);
-  if (!m) return 'neutral';
+  if (!m) return 'auto';
   const todos = [...m[0].matchAll(/value="([A-Za-z]+)"/gi)];
-  const ultimo = todos.length ? todos[todos.length - 1][1].toLowerCase() : 'neutral';
-  return TONOS_VOZ.some(([clave]) => clave === ultimo) ? ultimo : 'neutral';
+  const ultimo = todos.length ? todos[todos.length - 1][1].toLowerCase() : 'auto';
+  return TONOS_VOZ.some(([clave]) => clave === ultimo) ? ultimo : 'auto';
 }
 
 function conTonoTexto(texto, tono) {
   const resto = String(texto || '').replace(RE_TONO_INICIAL, '').replace(/^\s+/, '');
-  if (!tono || tono === 'neutral') return resto;
+  if (!tono || tono === 'auto') return resto;
   return `<emotion value="${tono}"/>${resto}`;
 }
 
@@ -8347,7 +8350,7 @@ function selectorTonoLight(bloque) {
   const actual = tonoDeTexto(texto);
   const ficha = TONOS_VOZ.find(([clave]) => clave === actual) || TONOS_VOZ[0];
   return h('select', {
-    clase: 'tono-bloque' + (actual !== 'neutral' ? ' con-tono' : ''),
+    clase: 'tono-bloque' + (actual !== 'auto' ? ' con-tono' : ''),
     title: `Tono de la voz en este bloque: ${ficha[1]} (${ficha[2]})`,
     disabled: !!trabajoVideoLight(),
     onchange: ev => {

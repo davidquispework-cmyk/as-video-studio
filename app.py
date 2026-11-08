@@ -10202,6 +10202,41 @@ def crear_video_light(preset_id: str, cuerpo: dict = Body(default=None)):
             "pasos": [ficha_paso(ctx, p["id"]) for p in PASOS]}
 
 
+#: Un video de hasta esto (s) es «corto»: TikTok/Shorts/Reels.
+CORTO_HASTA_S = 120
+#: El ritmo minimo de un corto con imagenes gratis.
+RITMO_MINIMO_CORTO = "rapido"
+
+
+def _mas_planos_si_corto(ctx, datos, brief):
+    """En un video corto con imagenes gratis, planos de ~2 s como mucho."""
+    try:
+        duracion = float(brief.get("duracion_objetivo_s")
+                         or (ctx.estado.params("brief") or {}).get("duracion_objetivo_s") or 0)
+    except (TypeError, ValueError):
+        duracion = 0.0
+    corto = bool(datos.get("tiktok")) or 0 < duracion <= CORTO_HASTA_S
+    if not corto:
+        return []
+    assets = ctx.estado.params("assets") or {}
+    try:
+        if not PASOS_MODULOS.p6_assets._es_manual(assets):          # noqa: SLF001
+            return []
+    except Exception:                                              # noqa: BLE001
+        return []
+    objetivo = PASOS_MODULOS.presets_light.ritmo_de(RITMO_MINIMO_CORTO)
+    try:
+        actual_max = float(assets.get("max_s") or 99)
+    except (TypeError, ValueError):
+        actual_max = 99.0
+    if actual_max <= objetivo["max_s"]:
+        return []                       # ya corta igual o mas rapido
+    ctx.estado.actualizar_params("assets", {"min_s": objetivo["min_s"],
+                                            "max_s": objetivo["max_s"]})
+    return [f"vídeo corto con imágenes gratis: un plano cada ~{objetivo['media_s']:g} s "
+            f"(ritmo «{objetivo['nombre']}») para que cada frase tenga su imagen"]
+
+
 def _sembrar_video_light(ctx, datos):
     """Las decisiones que la pantalla del modo light ya ha tomado. -> [avisos]
 
@@ -10308,6 +10343,14 @@ def _sembrar_video_light(ctx, datos):
     resalte = str(datos.get("resalte") or "").strip().lower()
     if resalte in ("subrayado", "recuadro", "color"):
         ctx.estado.actualizar_params("callouts", {"resalte": resalte})
+    # MAS IMAGENES EN LOS VIDEOS CORTOS (8-nov-2026, David): con las imagenes
+    # GRATIS (modo manual) un video de 70 s con ritmo «Medio» salia con ~24
+    # planos, una imagen cada 3 s, y lo que se contaba iba por delante de lo
+    # que se veia. En un corto se corta como minimo a ritmo «Rapido» (~2 s por
+    # plano, ~35 imagenes). Solo al CREAR (es un param nuevo del proyecto, no
+    # mueve firmas de nada hecho) y solo en manual: con OpenAI cada plano se
+    # paga y manda el ritmo del estilo.
+    avisos.extend(_mas_planos_si_corto(ctx, datos, brief))
     # LA PLANTILLA TIKTOK (pasos/plantilla_tiktok.py): barra de progreso,
     # «Sígueme» al final y golpe de sonido. `true` o el texto de debajo de
     # «SÍGUEME». Param de callouts, solo si lo pidieron.

@@ -139,10 +139,16 @@ def tramos(palabras, cap_linea=CAP_LINEA, cap_blando=CAP_BLANDO,
     def largo(a, b):
         return len(" ".join(palabras[a:b]))
 
-    # 1 · fronteras de clausula
+    dentro = set()
+    for a_, b_ in (intocables or ()):
+        dentro.update(range(a_ + 1, b_))
+
+    # 1 · fronteras de clausula, salvo DENTRO de algo intocable: una cita
+    #     «Lucas, capitulo veinticuatro, versiculo seis» lleva comas y es UNA
+    #     cosa («Lucas 24:6»), ver `citas.py`
     rangos, ini = [], 0
     for i, token in enumerate(palabras):
-        if i == len(palabras) - 1 or _cierra_clausula(token):
+        if i == len(palabras) - 1 or (_cierra_clausula(token) and i + 1 not in dentro):
             rangos.append([ini, i + 1])
             ini = i + 1
 
@@ -151,10 +157,6 @@ def tramos(palabras, cap_linea=CAP_LINEA, cap_blando=CAP_BLANDO,
     #     «25», y «un dolar con | ochenta» perderia el «$1,80» (`intocables`
     #     son esos tramos, en indices de palabra; los pone `de_escena`). Solo
     #     si no queda otro corte se parte por dentro.
-    dentro = set()
-    for a_, b_ in (intocables or ()):
-        dentro.update(range(a_ + 1, b_))
-
     def partir(par):
         a, b = par
         if largo(a, b) <= cap_trozo or b - a < 2:
@@ -228,6 +230,29 @@ def _cortes_de(palabras):
     return cortes
 
 
+def _citas_de(palabras):
+    """Las citas biblicas dichas en estas palabras (`citas.buscar`)."""
+    try:
+        from . import citas                                    # noqa: PLC0415
+    except ImportError:                                        # pragma: no cover
+        import citas                                           # noqa: PLC0415
+    try:
+        return citas.buscar(palabras)
+    except Exception:                                          # noqa: BLE001
+        return []
+
+
+def _solapa(a, b, citas_):
+    return any(a < c["fin"] and c["inicio"] < b for c in citas_)
+
+
+def _intocables_de(palabras, idioma=None):
+    """Lo que no se parte en dos renglones: cada cifra y cada cita ENTERA."""
+    citas_ = _citas_de(palabras)
+    return sorted(set(_cifras_de(palabras, idioma))
+                  | {(c["inicio"], c["fin"]) for c in citas_})
+
+
 def _cifras_de(palabras, idioma=None):
     """Los tramos de palabras que son UNA cifra dicha. -> [(a, b)]
 
@@ -239,12 +264,18 @@ def _cifras_de(palabras, idioma=None):
         from . import medios                                   # noqa: PLC0415
     except ImportError:                                        # pragma: no cover
         import medios                                          # noqa: PLC0415
+    citas_ = _citas_de(palabras)
+    # una cita es UNA pieza dibujada para sus numeros («24:6») y el libro va
+    # aparte; las cifras de dentro de una cita no cuentan por su cuenta
+    grupos = [(c["libro_fin"], c["fin"]) for c in citas_]
     try:
         llanas = [medios.normalizar_texto(p) for p in palabras]
-        return [(a, a + n) for a, n, _ in
-                medios.cifras_en(llanas, idioma, _cortes_de(palabras))]
+        grupos += [(a, a + n) for a, n, _ in
+                   medios.cifras_en(llanas, idioma, _cortes_de(palabras))
+                   if not _solapa(a, a + n, citas_)]
     except Exception:                                          # noqa: BLE001
-        return []
+        pass
+    return sorted(grupos)
 
 
 def limpiar_texto(palabras, idioma=None):
@@ -276,24 +307,36 @@ def limpiar_texto(palabras, idioma=None):
     except ImportError:                                        # pragma: no cover
         import medios                                          # noqa: PLC0415
     llanas = [medios.normalizar_texto(p) for p in palabras]
+    # LAS CITAS PRIMERO (`citas.py`): «Lucas, capitulo veinticuatro, versiculo
+    # seis» se escribe «Lucas 24:6», y «Salmo sesenta y ocho», «Salmo 68»
+    citas_ = _citas_de(palabras)
     try:
-        tramos = medios.cifras_en(llanas, idioma, _cortes_de(palabras))
+        tramos = [t for t in medios.cifras_en(llanas, idioma, _cortes_de(palabras))
+                  if not _solapa(t[0], t[0] + t[1], citas_)]
     except Exception:                                          # noqa: BLE001
-        return " ".join(palabras)
+        tramos = []
     por_indice = {t[0]: t for t in tramos}
+    libro_final = {}
+    for c in citas_:
+        por_indice[c["libro_fin"]] = (c["libro_fin"], c["fin"] - c["libro_fin"],
+                                      c["ref"], "cita")
+        libro_final[c["libro_fin"] - 1] = True
     salida, i = [], 0
     while i < len(palabras):
         tramo = por_indice.get(i)
         if not tramo:
-            salida.append(palabras[i])
+            # «Lucas,» delante de su cita se queda sin la coma: «Lucas 24:6»
+            salida.append(palabras[i].rstrip(",;:") if i in libro_final else palabras[i])
             i += 1
             continue
-        _, cuantas, cifra = tramo
+        _, cuantas, cifra = tramo[:3]
         primero, ultimo = str(palabras[i]), str(palabras[i + cuantas - 1])
         izquierda = _PEGADO_IZQUIERDA.search(primero)
         derecha = _PEGADO_DERECHA.search(ultimo)
-        salida.append((izquierda.group(0) if izquierda else "") + cifra
-                      + (derecha.group(0) if derecha else ""))
+        derecha = derecha.group(0) if derecha else ""
+        if len(tramo) > 3:
+            izquierda, derecha = None, derecha.replace(":", "")   # «24:6:» no
+        salida.append((izquierda.group(0) if izquierda else "") + cifra + derecha)
         i += cuantas
     return " ".join(salida)
 
@@ -375,7 +418,7 @@ def de_escena(escena, cap_linea=CAP_LINEA, idioma=None, texto="",
     t_in = float(escena.get("t_in") or 0.0)
     cifras = _cifras_de(palabras, idioma)
     rangos = list(tramos(palabras, cap_linea=cap_linea, cap_trozo=cap_trozo,
-                         intocables=cifras))
+                         intocables=_intocables_de(palabras, idioma)))
     dibujados = [limpiar_texto(palabras[a:b], idioma) for a, b in rangos]
     if texto:
         dibujados = repartir_escrito(dibujados, texto)

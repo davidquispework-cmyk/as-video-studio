@@ -812,6 +812,10 @@ def _subtitulos_gancho(escena, p, banda, tam, paleta, diseno, tapa, salida,
         texto, dichas = gancho.cartel_de(escena.get("narracion"),
                                          propio if isinstance(propio, str) else None)
         dur = gancho.duracion_cartel(escena, dichas)
+        # el cartel tambien con cifras y CITAS escritas como tales («MATEO
+        # 27:46», no «MATEO VEINTISIETE, VERSICULO CUARENTA Y SEIS»)
+        if texto and not isinstance(propio, str):
+            texto = subtitulos.limpiar_texto(texto.split(), p.get("idioma")) or texto
         cartel = gancho.svg_cartel(
             texto, salida, medidor_cartel, fuente=fuente_nombre, acento=acento,
             duracion=dur, peso=peso if ficha else "900", resalte=resalte)
