@@ -289,6 +289,36 @@ def probar_paso():
         ok(True, "una voz gratuita mal escrita se rechaza")
 
 
+def probar_voz_por_tema():
+    """La voz elegida por el tema del video (pasos/voz_tema.py)."""
+    import voz_tema  # noqa: PLC0415
+    print("\n  LA VOZ SEGUN EL TEMA")
+    fe = voz_tema.elegir("Jesús oró en el huerto. Dios escuchó la oración de su "
+                         "Hijo, y la cruz llegó al día siguiente. La fe de Pedro...")
+    igual(fe["tema"], "fe", "un vídeo bíblico se reconoce como de fe")
+    igual(fe["voz_id"], "es-CO-GonzaloNeural", "fe + tristeza: voz grave y serena")
+    nino = voz_tema.elegir("Había una vez un niño y una niña que iban al colegio "
+                           "con su juguete favorito. ¡Qué cuento tan bonito!")
+    igual((nino["tema"], nino["voz_id"][-11:]), ("infantil", "DaliaNeural"),
+          "un cuento para niños: voz de mujer alegre y cercana")
+    miedo = voz_tema.elegir("El misterio del crimen: nadie sabe quién fue el "
+                            "asesino. El secreto sigue oculto en la oscuridad.")
+    igual(miedo["tema"], "misterio", "un misterio se reconoce")
+    igual(miedo["voz_id"], "es-US-AlonsoNeural", "misterio: voz grave e intensa")
+    igual(voz_tema.elegir("Hello world", "en"), None, "otro idioma: no se toca")
+    sin = voz_tema.elegir("Una receta sencilla de pan casero.")
+    igual(sin["tema"], "documental", "sin tema claro: documental")
+    igual(voz_tema.elegir(fe and "Dios y la fe de Jesús", "es",
+                          ["es-PE-AlexNeural"])["voz_id"], "es-PE-AlexNeural",
+          "solo elige voces que están en el catálogo")
+    igual(ajustes.leer()["voz_por_tema"], True, "encendida de fábrica")
+    try:
+        ajustes.guardar({"voz_por_tema": "si"})
+        ok(False, "voz_por_tema solo admite verdadero o falso")
+    except ValueError:
+        ok(True, "voz_por_tema solo admite verdadero o falso")
+
+
 def main():
     print("=" * 70)
     print("PRUEBA DE LA VOZ GRATUITA (servicio doblado, sin red)")
@@ -299,6 +329,7 @@ def main():
     probar_piezas()
     probar_trozos()
     probar_intencion()
+    probar_voz_por_tema()
     probar_toma()
     probar_paso()
     print()

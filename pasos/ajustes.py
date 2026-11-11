@@ -99,6 +99,9 @@ POR_DEFECTO = {
     # La voz gratuita de los videos que no han elegido una (vacio = la de
     # fabrica del idioma, ver voz_gratis.POR_IDIOMA).
     "voz_gratis": "",
+    # Que el estudio elija la voz gratuita de cada video por su TEMA, la
+    # primera vez que se locuta (pasos/voz_tema.py). Se guarda en el video.
+    "voz_por_tema": True,
     # Los clips de video de los planos: manual (gratis) de fabrica.
     "modo_clip": "manual",
     # Claude: lo recomendado por fase de fabrica; las suites que miran el
@@ -131,6 +134,7 @@ def leer():
     if salida.get("modo_claude") not in MODOS_CLAUDE:
         salida["modo_claude"] = POR_DEFECTO["modo_claude"]
     salida["onboarding_visto"] = bool(salida.get("onboarding_visto"))
+    salida["voz_por_tema"] = bool(salida.get("voz_por_tema"))
     return salida
 
 
@@ -164,6 +168,8 @@ def guardar(cambios):
         if clave == "modo_claude" and valor not in MODOS_CLAUDE:
             raise ValueError(
                 f"modo de Claude {valor!r}: solo {', '.join(MODOS_CLAUDE)}")
+        if clave == "voz_por_tema" and not isinstance(valor, bool):
+            raise ValueError("voz_por_tema es verdadero o falso")
         if clave == "onboarding_visto" and not isinstance(valor, bool):
             raise ValueError("onboarding_visto es verdadero o falso")
         actual[clave] = valor
@@ -174,6 +180,11 @@ def guardar(cambios):
 def voz_gratuita_activa():
     """True si la locucion sale de las voces gratuitas y no de Cartesia."""
     return leer()["modo_voz"] == "gratis"
+
+
+def voz_por_tema():
+    """True si el estudio elige la voz gratuita de cada video por su tema."""
+    return leer()["voz_por_tema"]
 
 
 def voz_gratis_por_defecto():

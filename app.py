@@ -369,6 +369,47 @@ def _motores_congelados():
         yield
 
 
+def _voz_por_tema(ctx):
+    """La voz gratuita del video elegida por su TEMA, una sola vez.
+
+    Se elige justo antes de la PRIMERA locucion y se GUARDA en los params: asi
+    regrabar un bloque despues no cambia de voz a media pieza, y no deja nada
+    obsoleto porque aun no hay nada debajo. No se toca si: la voz no es la
+    gratuita, esta apagado en Configuracion, la voz se eligio a mano en el
+    video, ya se eligio antes o el video ya tiene voz grabada. Nunca falla: si
+    algo va mal, se queda la voz de siempre.
+    """
+    try:
+        params = ctx.estado.params("voz") or {}
+        if (not PASOS_MODULOS.p4_voz.gratis() or not AJUSTES.voz_por_tema()
+                or params.get("voz_a_mano") or params.get("voz_por_tema")
+                or ctx.estado.salidas("voz") or ctx.estado.versiones("voz")):
+            return None
+        p4 = PASOS_MODULOS.p4_voz
+        idioma = p4.resolver_params(p4.params_con_idioma(ctx.proyecto, params))["idioma"]
+        try:
+            texto = "\n".join(str(b.get("texto") or "")
+                              for b in p4.cargar_guion(ctx.proyecto, params))
+        except Exception:  # noqa: BLE001
+            texto = ""
+        if not texto.strip():
+            texto = str((ctx.estado.params("ingesta") or {}).get("texto") or "")
+        try:
+            ids = [f["id"] for f in PASOS_MODULOS.voz_gratis.voces(idioma)]
+        except Exception:  # noqa: BLE001
+            ids = []
+        elegida = PASOS_MODULOS.voz_tema.elegir(texto, idioma, ids if len(ids) > 5 else None)
+        if not elegida:
+            return None
+        ctx.estado.actualizar_params("voz", {
+            "voz_id": elegida["voz_id"], "voz_nombre": elegida["voz_nombre"],
+            "voz_por_tema": {"tema": elegida["tema"], "por_que": elegida["por_que"]}})
+        ctx.bitacora.anotar("voz_por_tema", "voz", elegida)
+        return elegida
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _correr_paso(avisar, ctx, paso_id, unidades, opciones=None):
     """Ejecuta un paso y lo versiona. Es la funcion que corre en el hilo.
 
@@ -378,6 +419,8 @@ def _correr_paso(avisar, ctx, paso_id, unidades, opciones=None):
     revienta un paso que no la conoce.
     """
     modulo = modulo_de(paso_id)
+    if paso_id == "voz":
+        _voz_por_tema(ctx)
     params = ctx.estado.params(paso_id)
     admitidas = getattr(modulo, "OPCIONES_EJECUCION", ())
     extra = {k: v for k, v in (opciones or {}).items() if k in admitidas}
@@ -1444,6 +1487,11 @@ def fijar_params(pid: str, paso: str, cuerpo: dict = Body(default=None)):
             for uid, valor in nuevos["unidades"].items()}
 
     _validar_params(paso_id, nuevos)
+    # una voz cambiada A MANO en el video: el estudio ya no la elige por el
+    # tema (ver `_voz_por_tema`)
+    if (paso_id == "voz" and not reemplazar and nuevos.get("voz_id")
+            and nuevos.get("voz_id") != (ctx.estado.params("voz") or {}).get("voz_id")):
+        nuevos = dict(nuevos, voz_a_mano=True)
 
     antes = {p["id"]: ctx.estado.estado_de(p["id"]) for p in PASOS}
     try:

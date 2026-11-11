@@ -221,8 +221,21 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
 
 **ORDEN NUEVO (decidido 11-nov-2026) — manda sobre todo lo de abajo:**
 1. Etapa 6, un solo prompt para todas las imágenes con ficha fija — **HECHA (11-nov)**.
-2. **SIGUIENTE:** que el estudio elija SOLO la mejor voz gratis según el tema del vídeo.
-3. Etapa 7, publicar fácil.
+2. Voz gratis elegida sola según el tema — **HECHA (11-nov)**. Cómo se usa: nada;
+   está encendida de fábrica (Configuración → Voz → «Elegir la voz según el tema»
+   para apagarla). Al grabar la voz de un vídeo POR PRIMERA VEZ, el estudio lee el
+   guion (o el material) y decide el tema —fe/bíblico, historia, misterio, niños,
+   motivación, ciencia o documental— más el tono dominante, y pone la voz que le va
+   (p. ej. fe → Gonzalo de Colombia, grave y serena; niños → Dalia; misterio →
+   Alonso). Gratis: no llama a Claude. Se GUARDA en el vídeo, así regrabar un bloque
+   no cambia la voz; si cambias la voz a mano en un vídeo, manda la tuya
+   (`voz_a_mano`). Los vídeos ya grabados no se tocan. Solo castellano.
+   Código: `pasos/voz_tema.py` (temas, tabla de voces descritas a mano, `elegir`) +
+   `app._voz_por_tema` (justo antes de la primera locución) + ajuste
+   `voz_por_tema` en `pasos/ajustes.py`. Prueba: `pasos/prueba_voz_gratis.py`.
+   Pendiente: afinar la tabla de voces oyéndolas; ver en la pantalla del vídeo qué
+   voz eligió y por qué (hoy va en la bitácora y en los params de la voz).
+3. **SIGUIENTE:** Etapa 7, publicar fácil.
 4. F, movimiento y transiciones.
 Más adelante: la voz grabada de David.
 
@@ -544,7 +557,7 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Pendiente: detectar más formas de «lo falso → lo verdadero» (p. ej. «mito»,
    «en realidad»); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir el ORDEN NUEVO (11-nov): ahora la voz gratis elegida sola según el tema.
+Luego seguir el ORDEN NUEVO (11-nov): ahora la etapa 7, publicar fácil.
 
 ## Pendiente / ideas
 1. Catálogo de la mamá: faltan nombre de tienda, WhatsApp, prendas y fotos.

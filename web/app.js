@@ -2452,6 +2452,18 @@ function seccionModoVoz() {
     }
     const puesta = datos.ajustes.voz_gratis || '';
     const efectiva = puesta || VOCES_GRATIS.efectiva || '';
+    const porTema = datos.ajustes.voz_por_tema !== false;
+    caja.appendChild(h('button', {
+      clase: 'fila-modo-imagen' + (porTema ? ' elegida' : ''),
+      onclick: () => guardarAjusteVoz({ voz_por_tema: !porTema }, !porTema
+        ? 'El estudio elegirá la voz de cada vídeo nuevo por su tema'
+        : 'Voz por tema apagada: se usa la del estilo o esta de abajo'),
+    },
+      h('span', { clase: 'nombre' }, (porTema ? '● ' : '○ ') + 'Elegir la voz según el tema'),
+      h('span', { clase: 'meta' }, 'Al grabar la voz de un vídeo por primera vez, el '
+        + 'estudio lee de qué trata (fe, historia, misterio, niños, motivación, ciencia…) '
+        + 'y le pone la voz que mejor le va. Gratis, sin gastar Claude. Si cambias la '
+        + 'voz a mano en un vídeo, manda la tuya.')));
     caja.appendChild(h('div', { clase: 'pista' },
       h('b', {}, 'La voz de tus vídeos: '),
       'la que elija cada estilo por su descripción; si un vídeo no tiene una '
