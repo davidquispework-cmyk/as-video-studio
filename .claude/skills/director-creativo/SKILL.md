@@ -148,3 +148,34 @@ inventar versículos), cifras escritas en letras para la voz.
 - Proponer siempre 5 ideas con su gancho escrito, y una SERIE de 3–5 partes.
 - Después de publicar: apuntar las cifras en «Mis vídeos» y ajustar con lo que diga.
 - Constancia: 1 vídeo al día o 4–5 por semana a la misma hora; preparar 10 antes.
+
+## Línea del canal: estudios bíblicos por preguntas (decidido 11-nov-2026)
+Objetivo: que la gente conozca la Escritura y se anime a LEERLA. Formato: una
+pregunta que intriga → respuesta con varios pasajes del mismo tema → aplicación.
+Estilo recomendado: pintura digital cinematográfica (óleo, luz dorada); muñecos solo
+para los «¿Sabías…?» rápidos. TikTok: un vídeo por pregunta (~1 min). YouTube:
+el estudio entero en horizontal, 6–10 min, con cartelas para los versículos, planos
+largos y 2–3 clips; luego cortar Shorts.
+Reglas de cada vídeo: la cita SIEMPRE en pantalla; cierre fijo «Lee [cita] tú mismo y
+cuéntame qué te llamó la atención»; en temas discutidos, decir lo que la Biblia NO
+dice; si se parte de un texto ajeno, reescribirlo, no copiarlo; verificar cada cita
+(ej. típico: en 1 Reyes 19:5-7 el ángel NO dice el nombre de Elías; en Lucas 1:30
+Gabriel sí dice «María»; «espíritus ministradores» es Hebreos 1:14).
+
+Banco de temas por series:
+1. **Ángeles**: el gozo de los ángeles (Lc 15:7,10; Job 38:7; 1 P 1:10-12; Lc 1:13,30;
+   Dn 10:11; Gn 22:11; Sal 147:4; Is 43:1) · ¿ángel de la guarda? (Sal 91:11; Mt 18:10;
+   Hch 12:15) · ¿tienen alas? (Is 6; Ez 1; Heb 13:2) · ¿quién es Miguel? (Dn 10:13;
+   Jud 9; Ap 12:7).
+2. **Preguntas que todos se hacen**: ¿qué pasa al morir? (Lc 23:43; Flp 1:23) · ¿nos
+   reconoceremos en el cielo? (Mt 17:3) · ¿cómo será el cielo? (Ap 21:4) · ¿por qué
+   Dios permite el sufrimiento? (Job) · el pecado que no se perdona (Mt 12:31).
+3. **Detalles que nunca notaste** (los más compartidos): qué escribió Jesús en el suelo
+   (Jn 8:6) · por qué lloró ante Lázaro (Jn 11:35) · tres negaciones y tres «¿me
+   amas?» (Jn 21) · el velo rasgado de arriba abajo (Mt 27:51) · el número 40.
+4. **Personajes que casi nadie conoce**: Enoc (Gn 5:24) · Jabes (1 Cr 4:9-10) ·
+   Mefi-boset (2 S 9) · Ana (1 S 1).
+5. **Una promesa para hoy**: ansiedad (Flp 4:6-7) · miedo (Is 41:10) · soledad (Heb 13:5).
+6. **Lee conmigo**: reto «Juan en 21 días», un capítulo por vídeo, cerrando con
+   «mañana leemos el capítulo X, léelo antes que yo».
+Para empezar: Ángeles (ya hay guion base) o Detalles que nunca notaste.
