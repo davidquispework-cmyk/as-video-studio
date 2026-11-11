@@ -208,9 +208,14 @@ A, B+B+, C, **G con D**, **E** y **E+** HECHOS. El siguiente chat hace, EN ESTE 
 1. **Etapa 6** (un solo prompt para todas las imágenes): el cuello de botella es
    hacer ~35 imágenes a mano por vídeo; sin quitarlo no hay constancia al publicar.
    Que la ficha fija de cada personaje mantenga la misma cara/ropa entre imágenes.
-2. **Voz grabada por David** (nuevo): subir su propia locución (móvil) y que el
-   estudio la use en lugar de la voz sintética (tiempos de palabras para subtítulos
-   incluidos). Mejora más barata de calidad y protege de «contenido no auténtico».
+2. **La mejor voz según el tema** (decidido 11-nov): el estudio elige solo la voz
+   gratis (edge-tts) que mejor encaja con lo que se explica (narrador grave y pausado
+   para relatos bíblicos, más viva para datos/«¿Sabías…?», femenina o masculina,
+   acento latino/neutro para Perú) y lo dice en pantalla, con opción de cambiarla.
+   Escuchar el catálogo y dejar fijas las 3-4 mejores voces en español.
+   MÁS ADELANTE (David aún no): **voz grabada por David** con el móvil en lugar de
+   la sintética (con tiempos de palabras para subtítulos); protege de «contenido no
+   auténtico».
 3. **Etapa 7** (publicar fácil y medir: título, hashtags, miniatura, Drive, «Mis vídeos»).
 4. **F** (movimiento y transiciones), corrigiendo con los datos de lo publicado.
 Mientras, SIN código: David publica 3 vídeos con lo que hay, saca la clave de YouTube
