@@ -564,6 +564,7 @@ def ejecutar(proyecto, params, avisar=None):
 
     salidas = p4_voz.sintetizar_bloques(
         revisados, destino, cfg, avisar=progreso,
+        grabacion=p4_voz.grabacion_de(proyecto, cfg),
         extra_meta={"bloques_modificados": modificados,
                     "cambios": cambios,
                     "avisos": avisos,

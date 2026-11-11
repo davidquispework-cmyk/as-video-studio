@@ -290,7 +290,29 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    render apaga la intención. Prueba: `pasos/prueba_camara.py`.
    Pendiente: verlo en un vídeo real y ajustar fuerza del golpe (5,5 %) y del
    temblor; ver en la pantalla qué transición eligió y por qué.
-5. **SIGUIENTE:** la voz grabada de David.
+5. La voz grabada de David — **HECHA (11-nov)**. Cómo se usa: abre el vídeo →
+   pantalla del guion → arriba, «🎙 ¿Prefieres tu propia voz?». (1) «Copiar el
+   texto a leer» y léelo TAL CUAL en el móvil (grabadora o WhatsApp, sitio sin
+   eco); (2) «Subir mi grabación» (mp3, m4a, wav, ogg, opus…); (3) «Regenerar
+   Audio». Desde ahí el vídeo usa TU voz: subtítulos, cortes, cámara, todo
+   igual. «Quitar» vuelve a la voz sintética. Gratis: no llama a nadie.
+   Qué hace: limpia el audio (mono, filtro de graves, volumen igualado a
+   -16 LUFS), busca los silencios y los empareja con los puntos y comas del
+   guion; dentro de cada frase reparte las palabras por sílabas. Si improvisas
+   al leer, los subtítulos se desfasan. Regrabar un tramo suelto no se puede
+   con voz propia (se sube la grabación entera otra vez).
+   Código: `pasos/voz_propia.py` (guardar, `alinear`, `toma`) + `p4_voz`
+   (`motor_voz = "propia"` si los params de la voz traen `grabacion` = huella
+   del fichero; `grabacion_de`) + `p5_revision_audio` + rutas
+   `/api/proyectos/{pid}/voz/grabacion` (GET/POST/DELETE, y `/audio`) en
+   `app.py` + `vozPropiaLight` en `web/app.js`. Guardada en
+   `<proyecto>/subidas/voz/grabacion.wav`. Subirla mueve la firma de la voz
+   (a propósito: la voz cambió); los demás vídeos no se tocan.
+   Prueba: `pasos/prueba_voz_propia.py`.
+   Pendiente: probarla con una grabación real tuya y afinar el alineado si
+   los subtítulos se adelantan/atrasan; quizá grabar desde la propia página.
+6. **SIGUIENTE:** decidir con David (ver «Pendiente» de los puntos 2 y 4: ver en
+   pantalla qué voz/transición eligió y por qué), o lo que él pida.
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
 (abajo), un chat por punto. A, B+B+, C, **G con D** y **E** HECHOS (6-nov).
@@ -610,7 +632,7 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Pendiente: detectar más formas de «lo falso → lo verdadero» (p. ej. «mito»,
    «en realidad»); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir el ORDEN NUEVO (11-nov): F HECHO; ahora la voz grabada de David.
+Luego seguir el ORDEN NUEVO (11-nov): F y la voz grabada HECHOS; siguiente, el punto 6.
 
 ## Pendiente / ideas
 1. Catálogo de la mamá: faltan nombre de tienda, WhatsApp, prendas y fotos.

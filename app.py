@@ -85,6 +85,7 @@ except Exception as fallo:  # noqa: BLE001
 sys.path.insert(0, os.path.join(RAIZ_ESTUDIO, "pasos"))
 import ajustes as AJUSTES  # noqa: E402
 import clips as CLIPS  # noqa: E402
+import voz_propia as VOZ_PROPIA  # noqa: E402
 import cli_claude as CLI_CLAUDE  # noqa: E402
 import estadisticas as ESTADISTICAS  # noqa: E402
 
@@ -383,6 +384,7 @@ def _voz_por_tema(ctx):
         params = ctx.estado.params("voz") or {}
         if (not PASOS_MODULOS.p4_voz.gratis() or not AJUSTES.voz_por_tema()
                 or params.get("voz_a_mano") or params.get("voz_por_tema")
+                or params.get("grabacion")
                 or ctx.estado.salidas("voz") or ctx.estado.versiones("voz")):
             return None
         p4 = PASOS_MODULOS.p4_voz
@@ -2014,6 +2016,89 @@ def describir_voz(pid: str, cuerpo: dict = Body(default=None)):
     return {"trabajo_id": trabajo_id, "ajuste": ajuste, "idioma": idioma,
             "trabajo": ctx.gestor.estado(trabajo_id),
             "eventos": f"/api/trabajos/{trabajo_id}/eventos"}
+
+
+# ------------------------------------------------- la voz grabada de David
+# (punto 5 del orden nuevo). Subirla escribe `grabacion` (su huella) en los
+# params de la voz: es una edicion de alguien, mueve la firma de la voz y lo de
+# debajo, como debe. Quitarla borra la clave y el video vuelve a la voz
+# sintetica. Ver pasos/voz_propia.py.
+
+def _ficha_grabacion(ctx):
+    params = ctx.estado.params("voz") or {}
+    raiz = ctx.proyecto.raiz
+    hay = VOZ_PROPIA.existe(raiz)
+    texto = ""
+    if PASOS_MODULOS is not None:
+        try:
+            p4 = PASOS_MODULOS.p4_voz
+            texto = "\n\n".join(
+                PASOS_MODULOS.marcas_tts.limpiar(str(b.get("texto") or "")).strip()
+                for b in p4.cargar_guion(ctx.proyecto, params)
+                if str(b.get("texto") or "").strip())
+        except Exception:  # noqa: BLE001
+            texto = ""
+    return {
+        "hay": hay,
+        "en_uso": bool(hay and params.get("grabacion")),
+        "duracion": round(VOZ_PROPIA.duracion(raiz), 1) if hay else 0,
+        "palabras_guion": len(texto.split()),
+        "texto_para_leer": texto,
+    }
+
+
+@app.get("/api/proyectos/{pid}/voz/grabacion")
+def ver_grabacion(pid: str):
+    return _ficha_grabacion(contexto(pid))
+
+
+@app.get("/api/proyectos/{pid}/voz/grabacion/audio")
+def oir_grabacion(pid: str):
+    ctx = contexto(pid)
+    destino = VOZ_PROPIA.ruta(ctx.proyecto.raiz)
+    if not os.path.isfile(destino):
+        raise ErrorApi(404, "este video no tiene grabacion subida")
+    return FileResponse(destino, media_type="audio/wav",
+                        headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/proyectos/{pid}/voz/grabacion", status_code=201)
+async def subir_grabacion(pid: str, peticion: Request):
+    """Sube la grabacion de la voz del video (un solo fichero, multipart)."""
+    ctx = contexto(pid)
+    tipo = (peticion.headers.get("content-type") or "").lower()
+    if not tipo.startswith("multipart/"):
+        raise ErrorApi(400, "manda la grabacion como multipart")
+    try:
+        formulario = await peticion.form()
+    except Exception as fallo:                              # noqa: BLE001
+        raise ErrorApi(400, f"multipart ilegible: {fallo}")
+    ficheros = [v for _k, v in formulario.multi_items() if hasattr(v, "read")]
+    if len(ficheros) != 1:
+        raise ErrorApi(400, "se sube una sola grabacion por video")
+    nombre = os.path.basename(str(getattr(ficheros[0], "filename", "") or ""))
+    contenido = await ficheros[0].read()
+    try:
+        hecho = await asyncio.to_thread(VOZ_PROPIA.guardar, ctx.proyecto.raiz,
+                                        contenido, nombre or "grabacion.m4a")
+    except (ValueError, RuntimeError) as fallo:
+        raise ErrorApi(400, str(fallo))
+    if (ctx.estado.params("voz") or {}).get("grabacion") != hecho["huella"]:
+        ctx.estado.actualizar_params("voz", {"grabacion": hecho["huella"]})
+    ctx.bitacora.anotar("grabacion_subida", "voz", hecho)
+    return _ficha_grabacion(ctx)
+
+
+@app.delete("/api/proyectos/{pid}/voz/grabacion")
+def quitar_grabacion(pid: str):
+    """Quita la grabacion: el video vuelve a la voz sintetica."""
+    ctx = contexto(pid)
+    VOZ_PROPIA.borrar(ctx.proyecto.raiz)
+    params = ctx.estado.params("voz") or {}
+    if "grabacion" in params:
+        params.pop("grabacion")
+        ctx.estado.set_params("voz", params)
+    return _ficha_grabacion(ctx)
 
 
 # --------------------------------------------------- regrabar una seccion

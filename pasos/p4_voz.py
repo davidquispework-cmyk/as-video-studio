@@ -79,6 +79,7 @@ try:
     from . import intencion
     from . import ajustes as ajustes_estudio
     from . import voz_gratis
+    from . import voz_propia
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
     import cli_claude
     import comun
@@ -89,6 +90,7 @@ except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
     import presets_voz
     import ajustes as ajustes_estudio
     import voz_gratis
+    import voz_propia  # type: ignore
 
 PASO = "voz"
 RAIZ_ESTUDIO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -376,11 +378,16 @@ def resolver_params(params):
         raise ValueError("hueco_minimo no puede ser negativo")
 
     motor_voz = "gratis" if gratis() else "cartesia"
+    # LA VOZ GRABADA (voz_propia): la huella la pone la subida, y manda sobre
+    # el modo de Configuracion porque es de ESTE video.
+    grabacion = str(crudos.get("grabacion") or "").strip()
+    if grabacion:
+        motor_voz = "propia"
     try:
         defecto_gratis = ajustes_estudio.voz_gratis_por_defecto()
     except Exception:                                    # noqa: BLE001
         defecto_gratis = ""
-    return {
+    cfg = {
         "motor_voz": motor_voz,
         # la voz gratuita que se usaria: la del video si es gratuita, si no la
         # de Configuracion, si no la de fabrica del idioma
@@ -397,6 +404,17 @@ def resolver_params(params):
         "controles_por": ("generation_config" if usa_generation_config(modelo)
                           else "experimental_controls"),
     }
+    if grabacion:
+        cfg["grabacion"] = grabacion
+    return cfg
+
+
+def grabacion_de(proyecto, cfg):
+    """La ruta de la grabacion propia si este cfg la usa, o None."""
+    if (cfg or {}).get("motor_voz") != "propia":
+        return None
+    raiz = getattr(proyecto, "raiz", None) or str(proyecto)
+    return voz_propia.ruta(raiz)
 
 
 def _factor_velocidad(velocidad):
@@ -936,17 +954,27 @@ def unir_bloques(bloques, cfg):
     tono de un bloque desde la pantalla no cambia como suenan los demas.
     Cartesia sigue con su texto de siempre (sus emociones se midieron asi).
     """
+    if cfg.get("motor_voz") == "propia":
+        return " ".join(marcas_tts.limpiar(b["texto"]).strip() for b in bloques)
     if cfg.get("motor_voz") == "gratis":
         return " ".join(intencion.con_tono_neutro_al_empezar(b["texto"])
                         for b in bloques if str(b.get("texto") or "").strip())
     return " ".join(b["texto"].strip() for b in bloques)
 
 
-def sintetizar_toma(texto, cfg, progreso=None):
+def sintetizar_toma(texto, cfg, progreso=None, grabacion=None):
     """Una toma continua de un texto -> (wav, duracion, palabras)."""
     if not texto.strip():
         raise ValueError("no hay texto que sintetizar")
     avisa = _avisador(progreso)
+    if cfg.get("motor_voz") == "propia":
+        # la grabacion es un fichero de verdad: va antes que el simulado
+        if not grabacion:
+            raise RuntimeError("este video dice usar tu voz grabada, pero no "
+                               "encuentro la grabacion: vuelve a subirla")
+        pcm, duracion, palabras = voz_propia.toma(
+            grabacion, marcas_tts.limpiar(texto), SR, avisa)
+        return motor.wav_desde_pcm(pcm), duracion, palabras
     if simulado():
         avisa(0.5, "simulando toma")
         return _toma_simulada(texto, cfg)
@@ -978,7 +1006,8 @@ def _reparto(bloques, palabras):
 
 
 def sintetizar_bloques(bloques, destino, cfg, avisar=None,
-                       nombre=NOMBRE_PISTA, extra_meta=None, proyecto_id=None):
+                       nombre=NOMBRE_PISTA, extra_meta=None, proyecto_id=None,
+                       grabacion=None):
     """Sintetiza los bloques en una toma unica y deja pista y meta en destino.
 
     Devuelve el dict de salidas del paso (pista, duracion, palabras, controles,
@@ -1045,7 +1074,8 @@ def sintetizar_bloques(bloques, destino, cfg, avisar=None,
     wav = duracion = palabras = None
     # el contexto de varias entradas es de Cartesia; la voz gratuita graba de
     # una vez (y las secciones se siguen sacando de los bloques, abajo)
-    if len(trozos) > 1 and not simulado() and cfg.get("motor_voz") != "gratis":
+    if (len(trozos) > 1 and not simulado()
+            and cfg.get("motor_voz") not in ("gratis", "propia")):
         avisa(0.05, f"{len(trozos)} secciones en un solo contexto")
         try:
             wav, duracion, palabras = _toma_por_contexto(trozos, cfg, progreso)
@@ -1055,7 +1085,8 @@ def sintetizar_bloques(bloques, destino, cfg, avisar=None,
             avisa(0.06, f"el contexto no ha ido ({fallo}); se graba de una vez")
             wav = None
     if wav is None:
-        wav, duracion, palabras = sintetizar_toma(texto, cfg, progreso)
+        wav, duracion, palabras = sintetizar_toma(texto, cfg, progreso,
+                                                  grabacion=grabacion)
         secciones = [{"id": "SB001", "bloques": [b["id"] for b in anotados]}]
     avisa(0.88, "repartiendo palabras entre bloques")
     escenas, reparto = _reparto(anotados, palabras)
@@ -1107,7 +1138,8 @@ def sintetizar_bloques(bloques, destino, cfg, avisar=None,
         "marcas_tts": marcas_tts.resumen(anotados),
         "avisos_marcas": list(dict.fromkeys(avisos_marcas)),
         "resumen": (f"{len(anotados)} bloques, {round(duracion, 1)}s, "
-                    + (f"voz gratuita {cfg.get('voz_gratis')}"
+                    + ("tu voz grabada" if cfg.get("motor_voz") == "propia" else
+                       f"voz gratuita {cfg.get('voz_gratis')}"
                        if cfg.get("motor_voz") == "gratis" else
                        f"{cfg['modelo']} {cfg.get('preset') or 'sin preset'}")),
     }
@@ -1155,7 +1187,8 @@ def ejecutar(proyecto, params, avisar=None):
     destino = comun.preparar_trabajo(proyecto, PASO)
 
     salidas = sintetizar_bloques(bloques, destino, cfg, avisar=avisa,
-                                 proyecto_id=getattr(proyecto, "id", None))
+                                 proyecto_id=getattr(proyecto, "id", None),
+                                 grabacion=grabacion_de(proyecto, cfg))
     comun.escribir_json(os.path.join(destino, "guion_locutado.json"),
                         {"bloques": bloques})
     avisa(1.0, salidas["resumen"])
@@ -1622,6 +1655,9 @@ def regrabar_seccion(bloques, seccion_id, cfg, meta, destino, peticion="",
     aguas abajo no puede enterarse de que esto existe.
     """
     avisa = _avisador(avisar)
+    if (cfg or {}).get("motor_voz") == "propia":
+        raise RuntimeError("con tu voz grabada no se regraba un tramo suelto: "
+                           "graba de nuevo y sube la grabacion entera")
     secciones = {s["id"]: s for s in (meta.get("secciones") or [])}
     if seccion_id not in secciones:
         raise RuntimeError(f"la toma no tiene ninguna seccion {seccion_id!r}")

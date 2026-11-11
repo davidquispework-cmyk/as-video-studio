@@ -8156,9 +8156,96 @@ function vistaGuionLight() {
      hacia que la PRIMERA pasada los marcara todos «editado» y solo se
      corrigiera al repintar. Va con freno, asi que no es una peticion mas. */
   refrescarPlanLight('voz');
+  caja.appendChild(vozPropiaLight());
   caja.appendChild(promptGeneralLight());
   caja.appendChild(bloquesLight());
   BARRA_INFERIOR.nodo = pieLight();
+  return caja;
+}
+
+/* TU VOZ GRABADA (punto 5 del orden nuevo, pasos/voz_propia.py). Se lee el
+   guion en el movil, se sube el audio y el estudio lo usa EN LUGAR de la voz
+   sintetica: busca solo donde se dice cada palabra para los subtitulos y los
+   cortes. Subirla o quitarla deja la voz por regenerar (gratis). */
+const GRABACION = { pid: '', datos: null, pidiendo: false, subiendo: false };
+
+async function pedirGrabacionLight(forzar) {
+  const v = APP.light.video;
+  if (!v.pid || GRABACION.pidiendo) return;
+  if (!forzar && GRABACION.pid === v.pid && GRABACION.datos) return;
+  GRABACION.pidiendo = true;
+  try {
+    GRABACION.datos = await pedir(`${API.proyecto(v.pid)}/voz/grabacion`);
+    GRABACION.pid = v.pid;
+  } catch (e) { GRABACION.datos = null; }
+  GRABACION.pidiendo = false;
+  if (APP.light.video.pid === GRABACION.pid) pintarLight();
+}
+
+async function subirGrabacionLight(ficheros) {
+  const v = APP.light.video;
+  const f = Array.from(ficheros || [])[0];
+  if (!f || !v.pid) return;
+  GRABACION.subiendo = true;
+  pintarLight();
+  try {
+    const cuerpo = new FormData();
+    cuerpo.append('grabacion', f, f.name);
+    GRABACION.datos = await pedir(`${API.proyecto(v.pid)}/voz/grabacion`,
+      { method: 'POST', cuerpo });
+    GRABACION.pid = v.pid;
+    toast('Grabación subida. Dale a «Regenerar Audio» para que el vídeo use tu voz.');
+    await refrescarFichasLight();
+    refrescarPlanLight('voz', true);
+  } catch (e) { toast(e.message, true); }
+  GRABACION.subiendo = false;
+  pintarLight();
+}
+
+async function quitarGrabacionLight() {
+  const v = APP.light.video;
+  if (!window.confirm('¿Quitar tu grabación? El vídeo volverá a la voz sintética '
+    + '(hay que regenerar el audio).')) return;
+  try {
+    GRABACION.datos = await pedir(`${API.proyecto(v.pid)}/voz/grabacion`,
+      { method: 'DELETE' });
+    await refrescarFichasLight();
+    refrescarPlanLight('voz', true);
+  } catch (e) { toast(e.message, true); }
+  pintarLight();
+}
+
+function vozPropiaLight() {
+  const v = APP.light.video;
+  if (GRABACION.pid !== v.pid) { GRABACION.datos = null; pedirGrabacionLight(); }
+  const d = GRABACION.datos || {};
+  const abierta = GRABACION.abierta === undefined ? !!d.en_uso : GRABACION.abierta;
+  const caja = h('details', { clase: 'caja-info voz-propia', open: abierta,
+    ontoggle: ev => { GRABACION.abierta = ev.target.open; } });
+  caja.appendChild(h('summary', {},
+    d.en_uso ? `🎙 Este vídeo usa TU voz grabada (${mmssJs(d.duracion)})`
+      : '🎙 ¿Prefieres tu propia voz? Graba el guion y súbelo'));
+  caja.appendChild(h('p', {},
+    'Lee el guion TAL CUAL (en el móvil vale: la grabadora de voz o WhatsApp), '
+    + 'en un sitio sin eco, y sube el audio. El estudio busca dónde dices cada '
+    + 'palabra para los subtítulos y los cortes. Si cambias frases al leer, los '
+    + 'subtítulos se desfasan. Gratis.'));
+  const fila = h('div', { clase: 'fila-voz-propia' },
+    h('button', { clase: 'mini', disabled: !d.texto_para_leer,
+      onclick: () => copiarTexto(d.texto_para_leer || '') },
+      `Copiar el texto a leer${d.palabras_guion ? ` (${d.palabras_guion} palabras)` : ''}`),
+    botonElegirFicheros(GRABACION.subiendo ? 'Subiendo…'
+      : (d.hay ? 'Cambiar grabación' : 'Subir mi grabación'),
+      { accept: 'audio/*,.m4a,.mp3,.wav,.ogg,.opus,.amr', clase: 'mini primario',
+        disabled: GRABACION.subiendo || !!trabajoVideoLight() },
+      files => subirGrabacionLight(files)),
+    d.hay ? h('button', { clase: 'mini peligro', onclick: quitarGrabacionLight },
+      'Quitar (volver a la voz sintética)') : null);
+  caja.appendChild(fila);
+  if (d.hay) {
+    caja.appendChild(h('audio', { controls: true, preload: 'none',
+      src: `${API.proyecto(v.pid)}/voz/grabacion/audio?h=${Math.round(d.duracion * 10)}` }));
+  }
   return caja;
 }
 

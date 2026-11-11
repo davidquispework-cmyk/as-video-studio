@@ -2617,3 +2617,10 @@ button.avisa:hover:not(:disabled) { border-color: var(--aviso); }
 .publicar-mini img { border-radius: 6px; display: block; background: #111; }
 .publicar-mini.youtube img { width: 320px; max-width: 100%; aspect-ratio: 16 / 9; }
 .publicar-mini.vertical img { width: 120px; aspect-ratio: 9 / 16; }
+
+/* Tu voz grabada (vozPropiaLight, pasos/voz_propia.py) */
+.voz-propia { margin: 0 0 12px; }
+.voz-propia summary { cursor: pointer; font-weight: 600; }
+.voz-propia p { margin: 8px 0; }
+.fila-voz-propia { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.voz-propia audio { width: 100%; margin-top: 8px; }
