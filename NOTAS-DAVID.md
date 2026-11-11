@@ -215,7 +215,7 @@ Todo gratis; lo de pago, preparado y apagado (ver «Decisión de dinero»).
    Qué sale: la descripción lleva el gancho, de qué va, los VERSÍCULOS citados
    (RV1960), los CAPÍTULOS de YouTube (uno por bloque del guion, solo en
    horizontal y si hay 3+ de 10 s o más), la llamada a suscribirse y los
-   hashtags (máx. 15: los del título y los libros citados delante, los del tema
+   hashtags (máx. 15: los nombres propios más repetidos y los libros citados delante, los del tema
    detrás; en vertical #shorts el primero). GRATIS: no llama a Claude ni toca
    params ni firmas; todo vive en `<proyecto>/publicar/`.
    Conectar Drive (una vez, en la consola del VPS): `curl https://rclone.org/install.sh | sudo bash`,

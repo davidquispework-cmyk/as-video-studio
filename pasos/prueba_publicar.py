@@ -29,6 +29,7 @@ def main():
     assert all(len(x) <= 70 for x in t["titulos"]) and len(t["titulos"]) >= 2
     assert "<break" not in t["descripcion"]
     assert "Miqueas 5:2" in t["versiculos"] and "Lucas 2:4" in t["versiculos"], t["versiculos"]
+    assert "#jesus" in t["hashtags"] and "#dos" not in t["hashtags"], t["hashtags"]
     assert t["tema"] == "fe" and "#biblia" in t["hashtags"], t["hashtags"]
     assert len(t["hashtags"]) <= publicar.MAX_HASHTAGS
     assert t["capitulos"][0].startswith("0:00 ") and len(t["capitulos"]) == 3, t["capitulos"]

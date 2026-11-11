@@ -104,6 +104,19 @@ def palabras_clave(texto, n=4):
     return salida
 
 
+def nombres_propios(texto, n=3):
+    """Los nombres propios más repetidos (Jesús, Belén…): palabras con
+    mayúscula que NO abren frase. Son los únicos hashtags del vídeo que valen;
+    una palabra suelta del título («#llegaria») no la busca nadie."""
+    cuentas = {}
+    for frase in re.split(r"[.!?¿¡…:\n]+", limpiar(texto)):
+        palabras = re.findall(r"[\wÁÉÍÓÚÑáéíóúñü]+", frase)
+        for p in palabras[1:]:
+            if p[:1].isupper() and _plegar(p) not in VACIAS and len(p) >= 3:
+                cuentas[p] = cuentas.get(p, 0) + 1
+    return [p for p, _ in sorted(cuentas.items(), key=lambda kv: -kv[1])][:n]
+
+
 # ------------------------------------------------------------------ textos
 def _bloques(guion):
     return [b for b in (guion or {}).get("guion") or []
@@ -156,10 +169,14 @@ def textos(nombre, guion=None, escenas=None, duracion=0.0, vertical=False):
 
     # TÍTULOS: el del guion y dos formas de gancho. Máximo 70 caracteres: lo
     # que YouTube enseña entero en el móvil.
-    claves = palabras_clave(titulo or gancho, 4)
     candidatos = [titulo, _cortar(gancho, 70)]
-    if claves:
-        candidatos.append(f"¿Sabías esto de {' '.join(claves[:3])}?")
+    if titulo and not titulo.startswith("¿"):
+        candidatos.append(f"{titulo}: lo que pocos saben")
+    elif titulo:
+        # «¿Sabías que la Biblia dijo…?» -> «La Biblia dijo…» (afirmación)
+        llano = re.sub(r"^¿\s*(sab[ií]as\s+que\s+)?", "", titulo, flags=re.I).rstrip("?")
+        if llano:
+            candidatos.append(llano[:1].upper() + llano[1:])
     vistos, titulos = set(), []
     for t in candidatos:
         t = _cortar(t, 70)
@@ -170,7 +187,7 @@ def textos(nombre, guion=None, escenas=None, duracion=0.0, vertical=False):
     # HASHTAGS: los del propio vídeo (palabras del título, libros citados)
     # delante; los del tema detrás.
     tags = []
-    for p in palabras_clave(titulo, 3):
+    for p in nombres_propios(titulo + ". " + completo, 3):
         tags.append(_hashtag(p))
     for cita in halladas[:3]:
         tags.append(_hashtag(cita.rsplit(" ", 1)[0]))
