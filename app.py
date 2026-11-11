@@ -5107,6 +5107,26 @@ def descargar_prompts(pid: str, solo_faltan: bool = Query(default=False)):
         "Content-Disposition": f'attachment; filename="{nombre}"'})
 
 
+@app.get("/api/proyectos/{pid}/subidas/prompt_unico.txt")
+def descargar_prompt_unico(pid: str, solo_faltan: bool = Query(default=False),
+                           descargar: bool = Query(default=True)):
+    """ETAPA 6: todas las imagenes en UN solo prompt para pegarlo en Gemini.
+
+    Estilo, epoca y la ficha fija de cada personaje van una vez arriba; debajo,
+    cada plano numerado. Solo lee: no toca params ni firmas.
+    """
+    ctx = contexto(pid)
+    p6 = PASOS_MODULOS.p6_assets
+    munecos = bool((ctx.estado.params("render") or {}).get("marioneta"))
+    texto = p6.prompt_unico(ctx.proyecto, ctx.estado.params("assets") or {},
+                            solo_faltan=solo_faltan, munecos=munecos)
+    cabeceras = {}
+    if descargar:
+        cabeceras["Content-Disposition"] = \
+            f'attachment; filename="prompt_unico_{ctx.id}.txt"'
+    return PlainTextResponse(texto, headers=cabeceras)
+
+
 @app.get("/api/proyectos/{pid}/subidas/imagen/{sid}")
 def servir_subida(pid: str, sid: str, peticion: Request):
     """La imagen subida de un plano."""

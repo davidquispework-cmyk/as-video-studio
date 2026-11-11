@@ -283,11 +283,8 @@ def prompts_para_subir(proyecto, params, plan=None):
                         for e in plan.get("escenas") or [])
     anterior = None
     salida = []
-    for escena in plan.get("escenas") or []:
+    for escena in _escenas_con_imagen(plan):
         sid = escena.get("id")
-        if not sid or cartelas.sin_imagen(escena) or escena.get("sigue_a") \
-                or escena.get("componente"):
-            continue
         salida.append({
             "id": sid,
             "t_in": escena.get("t_in"), "t_out": escena.get("t_out"),
@@ -304,6 +301,44 @@ def prompts_para_subir(proyecto, params, plan=None):
         })
         anterior = sid
     return salida
+
+
+def _escenas_con_imagen(plan):
+    """Los planos que piden imagen propia (ni cartela, ni continuacion, ni pieza)."""
+    for escena in plan.get("escenas") or []:
+        if not escena.get("id") or cartelas.sin_imagen(escena) \
+                or escena.get("sigue_a") or escena.get("componente"):
+            continue
+        yield escena
+
+
+def prompt_unico(proyecto, params, solo_faltan=False, munecos=False, plan=None):
+    """ETAPA 6: UN solo texto con todas las imagenes del video. -> str
+
+    Para pegarlo de una vez en Gemini (o ChatGPT): el estilo, la epoca y la
+    FICHA FIJA de cada personaje van UNA vez arriba, y debajo cada plano con su
+    numero. Asi el generador ve a la vez a todos los personajes y los dibuja
+    con la misma cara y la misma ropa en todas. Solo lee: no toca params ni
+    firmas, como `prompts_para_subir`.
+    """
+    p = _con_defectos(params)
+    plan = plan if plan is not None else plan_actual(proyecto)
+    guia = (p.get("estilo") or {}).get("guia")
+    if isinstance(guia, dict):
+        guia = guia.get("guia")
+    guia = guia or (p.get("estilo") or {}).get("prompt") or ""
+    try:
+        catalogo = _catalogo_de(p, proyecto)
+    except Exception:                                # noqa: BLE001
+        catalogo = {"reparto": {}, "sets": {}}
+    hechas = subidas.listar(proyecto.raiz) if solo_faltan else {}
+    escenas = [e for e in _escenas_con_imagen(plan) if e.get("id") not in hechas]
+    contexto = " ".join(str(e.get("narracion") or "")
+                        for e in plan.get("escenas") or [])
+    return subidas.prompt_unico(
+        escenas, guia=guia, formato=plan.get("formato") or "",
+        reparto=catalogo.get("reparto") or {}, sets=catalogo.get("sets") or {},
+        contexto=contexto, munecos=munecos)
 
 
 def _con_defectos(params):

@@ -113,6 +113,33 @@ def probar_piezas():
         ok(True, "un fichero que no es imagen se rechaza con su motivo")
 
 
+def probar_prompt_unico():
+    print("\n  ETAPA 6: UN SOLO PROMPT PARA TODAS LAS IMAGENES")
+    reparto = {"pedro": {"nombre": "Pedro", "papel": "el apóstol",
+                         "descripcion": "40s fisherman, grey curly beard, brown tunic"},
+               "juan": {"nombre": "Juan", "descripcion": "young man, no beard, blue cloak"}}
+    sets = {"templo": {"descripcion": "stone temple gate", "luz": "afternoon sun"}}
+    escenas = [{"id": "S001", "prompt": "Pedro y Juan suben al templo",
+                "set": "templo", "personajes": ["pedro", "juan"],
+                "narracion": "Pedro y Juan subían juntos al templo"},
+               {"id": "S002", "prompt": "un cojo pide limosna", "set": "templo",
+                "personajes": ["pedro"], "narracion": "Allí había un cojo"}]
+    texto = subidas.prompt_unico(escenas, guia="acuarela suave", formato="vertical",
+                                 reparto=reparto, sets=sets,
+                                 contexto="Pedro y Juan en el templo de Jerusalén")
+    ok("2 ilustraciones vertical (9:16)" in texto, "dice cuántas y en qué formato")
+    igual(texto.count("grey curly beard"), 1, "la ficha de Pedro va UNA sola vez")
+    ok("FICHAS FIJAS" in texto and "• JUAN: young man" in texto,
+       "lleva la ficha fija de cada personaje que sale")
+    ok("1 · S001" in texto and "2 · S002" in texto, "cada plano numerado con su código")
+    ok("«sigue»" in texto, "explica cómo pedir la siguiente")
+    ok(texto.index("FICHAS") < texto.index("\n1 · S001"), "las fichas van antes de los planos")
+    fondo = subidas.prompt_unico(escenas, reparto=reparto, munecos=True)
+    ok("FICHAS" not in fondo and "SOLO EL FONDO" in fondo,
+       "con muñecos pide solo el fondo, sin fichas")
+    ok("No hay planos" in subidas.prompt_unico([]), "sin planos lo dice")
+
+
 def probar_zip(proyecto, validos):
     print("\n  UN .ZIP CON VARIAS")
     crudo = io.BytesIO()
@@ -156,6 +183,7 @@ def main():
         ok(True, "un modo que no existe se rechaza")
 
     probar_piezas()
+    probar_prompt_unico()
 
     # EL GENERADOR NO SE PUEDE LLAMAR: si alguna linea del modo manual se
     # escapara hacia OpenAI, revienta aqui con su traza en vez de salir a red

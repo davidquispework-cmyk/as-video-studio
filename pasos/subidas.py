@@ -275,3 +275,133 @@ def prompt_para_copiar(escena, guia="", idioma="", formato="", fichas=None,
         partes.append("Sin texto, sin letras, sin rótulos, sin marcos ni viñetas: "
                       "una sola escena a sangre.")
     return "\n".join(partes)
+
+
+# ------------------------------------------ ETAPA 6: un solo prompt para todas
+
+def _limpio(texto):
+    return " ".join(str(texto or "").split())
+
+
+def ficha_fija(ident, ficha):
+    """Una linea de la ficha de un personaje: como se llama, quien es y como es.
+
+    `descripcion` es el aspecto PERMANENTE que escribio el catalogo (en ingles,
+    tal cual: los generadores lo entienden igual y traducirlo lo cambiaria).
+    """
+    ficha = ficha if isinstance(ficha, dict) else {"descripcion": ficha}
+    nombre = _limpio(ficha.get("nombre")) or ident.replace("_", " ").title()
+    papel = _limpio(ficha.get("papel"))
+    aspecto = _limpio(ficha.get("descripcion"))
+    linea = f"• {nombre.upper()}" + (f" ({papel})" if papel else "")
+    if aspecto and aspecto.lower() != ident.lower():
+        linea += f": {aspecto}"
+    else:
+        linea += (": invéntale un aspecto en la imagen donde salga por primera "
+                  "vez y repítelo EXACTO en las demás")
+    return linea
+
+
+def prompt_unico(escenas, guia="", formato="", reparto=None, sets=None,
+                 contexto="", munecos=False):
+    """ETAPA 6: todas las imagenes del video en UN solo texto para Gemini.
+
+    Lo comun va UNA vez arriba (estilo, epoca, la FICHA FIJA de cada personaje
+    que sale y los sitios) y debajo cada plano numerado con su id (S001...),
+    corto. Gemini hace una imagen por respuesta, asi que el texto le dice que
+    haga la 1 y espere «sigue»: en la misma charla ve todas las fichas y las
+    imagenes anteriores, y por eso mantiene caras y ropa.
+
+    Con muñecos (`munecos=True`) la imagen es SOLO el fondo: los personajes los
+    pinta el render, asi que no van fichas y se pide el sitio vacio.
+    """
+    reparto = reparto or {}
+    sets = sets or {}
+    escenas = list(escenas or [])
+    vertical = str(formato or "").lower().startswith("vert")
+    medida = "vertical (9:16)" if vertical else "horizontal (16:9)"
+    n = len(escenas)
+    if not n:
+        return "No hay planos que necesiten imagen (o ya están todos subidos)."
+
+    salen = []
+    for e in escenas:
+        for quien in e.get("personajes") or []:
+            if quien not in salen:
+                salen.append(quien)
+    sitios = []
+    for e in escenas:
+        s = e.get("set")
+        if s and s in sets and s not in sitios:
+            sitios.append(s)
+
+    cuantas = "1 ilustración" if n == 1 else f"{n} ilustraciones"
+    t = [f"Vas a crear {cuantas} {medida} para UN mismo vídeo animado "
+         "narrado. Son planos seguidos de la misma historia: tienen que parecer "
+         "del mismo artista, con el mismo estilo, la misma paleta y los mismos "
+         "personajes.",
+         "",
+         "CÓMO TRABAJAMOS: lee todo primero. Luego crea SOLO la imagen 1. "
+         "Cuando yo escriba «sigue», crea la siguiente, y así hasta la "
+         f"{n}. Si escribo «otra vez», repite la última corrigiendo lo que te "
+         "diga. Antes de cada imagen escribe solo su número y su código "
+         "(por ejemplo «1 · S001»), nada más.",
+         ""]
+    if guia:
+        t += ["ESTILO (igual en TODAS): " + _limpio(guia), ""]
+    epoca = fidelidad.pauta_imagen(contexto, "", con_gente=not munecos and bool(salen))
+    if epoca:
+        t += ["LA ÉPOCA (igual en TODAS):"] + epoca + [""]
+    if munecos:
+        t += ["SOLO EL FONDO: en ninguna imagen dibujes personas ni figuras; "
+              "los personajes se ponen después encima. Deja sitio libre en el "
+              "centro y abajo.", ""]
+    elif salen:
+        t += ["FICHAS FIJAS DE LOS PERSONAJES — cada uno con la MISMA cara, "
+              "edad, pelo, barba, complexión y la MISMA ropa y colores en "
+              "TODAS las imágenes donde salga. Nunca le cambies la ropa ni el "
+              "aspecto de una imagen a otra:"]
+        t += [ficha_fija(q, reparto.get(q)) for q in salen]
+        t.append("")
+    if sitios:
+        t += ["LOS SITIOS (cuando vuelvan, que sean el mismo sitio):"]
+        for s in sitios:
+            f = sets.get(s) or {}
+            f = f if isinstance(f, dict) else {"descripcion": f}
+            d = _limpio(f.get("prompt") or f.get("descripcion")) or s
+            luz = _limpio(f.get("luz"))
+            t.append(f"• {s.upper()}: {d}" + (f" Luz: {luz}." if luz else ""))
+        t.append("")
+    t += ["EN TODAS: una sola escena a sangre, sin marcos ni viñetas, y sin "
+          "texto ni letras (salvo los mapas que lo pidan abajo). Lo que va "
+          "«entre comillas» es lo que narra la voz: sirve para entender el "
+          "momento, NO lo escribas en la imagen.",
+          "", "=" * 60, "LAS IMÁGENES", "=" * 60]
+
+    for i, e in enumerate(escenas, 1):
+        t += ["", f"{i} · {e.get('id')}"]
+        que = _limpio(e.get("prompt") or e.get("direccion") or e.get("accion"))
+        if que:
+            t.append("Qué se ve: " + que)
+        if e.get("set"):
+            t.append(f"Dónde: {str(e['set']).upper()}")
+        elif e.get("lugar"):
+            t.append(f"Dónde: {_limpio(e['lugar'])}")
+        quienes = e.get("personajes") or []
+        if quienes and not munecos:
+            nombres = [_limpio((reparto.get(q) or {}).get("nombre")
+                               if isinstance(reparto.get(q), dict) else "")
+                       or q.replace("_", " ").title() for q in quienes]
+            t.append("Quién sale (según su ficha): " + ", ".join(nombres))
+        narrado = _limpio(e.get("narracion"))
+        explica = fidelidad.explicar(narrado) if contexto and \
+            fidelidad.es_biblico(contexto) else ""
+        if explica:
+            t.append(f"Explica: {explica}.")
+            if fidelidad.pide_rotulos(narrado):
+                t.append("Esta SÍ lleva texto: los nombres de los lugares y la "
+                         "distancia, cortos, grandes y bien escritos en español.")
+        if narrado:
+            t.append(f"«{narrado}»")
+    t += ["", "Empieza ahora con la imagen 1."]
+    return "\n".join(t)

@@ -184,8 +184,24 @@ Todo gratis; lo de pago, preparado y apagado (ver «Decisión de dinero»).
    `pasos/prueba_analista.py`. Pendiente: retención automática con OAuth de YouTube
    Analytics (curva segundo a segundo); histórico del nicho día a día; leer
    capturas de TikTok con Claude.
-6. **Un solo prompt para todas las imágenes**: un texto con todas las escenas y la
-   ficha fija de cada personaje para pedirle a Gemini las imágenes de una vez.
+6. **Un solo prompt para todas las imágenes — HECHA (11-nov-2026)**: un texto con
+   todas las escenas y la ficha fija de cada personaje para pedirle a Gemini las
+   imágenes de una vez.
+   Cómo quedó: en la pantalla de subir imágenes (modo manual) hay dos botones nuevos,
+   «Copiar prompt único» y «Descargar prompt único» (si faltan algunas, solo las que
+   faltan). El texto lleva UNA vez arriba el estilo, la época (si es bíblico), la
+   FICHA FIJA de cada personaje que sale (nombre, papel y aspecto: misma cara, edad,
+   pelo, barba y ropa en todas) y los sitios; debajo, cada plano numerado «1 · S001»
+   con qué se ve, dónde, quién sale, el mapa si lo pide y la frase narrada. Se pega
+   en Gemini: hace la 1 y con «sigue» la siguiente («otra vez» repite). Las imágenes
+   se guardan como S001.png… y se suben como siempre. Con muñecos pide solo el fondo.
+   Código: `subidas.prompt_unico` + `ficha_fija` (pasos/subidas.py),
+   `p6_assets.prompt_unico` (y `_escenas_con_imagen`, compartido con
+   `prompts_para_subir`), ruta `GET /api/proyectos/{pid}/subidas/prompt_unico.txt`
+   en `app.py`, `copiarPromptUnico` en `web/app.js`. Solo lee: no toca params ni
+   firmas. Prueba: `probar_prompt_unico` en `pasos/prueba_subidas.py`.
+   Pendiente: editar a mano la ficha de un personaje desde la pantalla; partir el
+   texto en tandas de 20 si Gemini se pierde en vídeos muy largos.
 7. **Publicar más fácil**: título, descripción y hashtags listos para copiar +
    miniatura automática para YouTube + subir el MP4 terminado a Google Drive.
 8. **Más estilos y más contexto** (innovar siempre, no solo muñecos): acuarela
@@ -203,15 +219,22 @@ COMPLETA y pulida, calidad profesional, no en versión mínima; pero con ahorro-
 (leer solo lo necesario, una prueba corta final). Innovar y contextualizar cada vez más:
 cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
 
-PLAN INMEDIATO (orden cambiado el 6-nov): primero los puntos de «OPINIÓN DE DAVID»
+**ORDEN NUEVO (decidido 11-nov-2026) — manda sobre todo lo de abajo:**
+1. Etapa 6, un solo prompt para todas las imágenes con ficha fija — **HECHA (11-nov)**.
+2. **SIGUIENTE:** que el estudio elija SOLO la mejor voz gratis según el tema del vídeo.
+3. Etapa 7, publicar fácil.
+4. F, movimiento y transiciones.
+Más adelante: la voz grabada de David.
+
+PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
 (abajo), un chat por punto. A, B+B+, C, **G con D** y **E** HECHOS (6-nov).
 Sigue **F** (movimiento y transiciones). Mientras: David saca la clave de YouTube
 (gratis), prueba «💡 Ideas» y publica para tener datos («Mis vídeos»). Después,
 etapa 6 de la hoja de ruta (un solo prompt para todas las imágenes).
 
 Mensaje que David pega en cada chat nuevo (con el repo as-video-studio elegido):
-«Lee NOTAS-DAVID.md y la skill ahorro-claude. Haz la siguiente etapa de la HOJA DE
-RUTA. Pruebas ligeras. Súbelo a main, dame el comando para Hostinger y actualiza mis
+«Lee NOTAS-DAVID.md y la skill ahorro-claude. Haz el siguiente punto del ORDEN NUEVO
+(11-nov). Pruebas ligeras. Súbelo a main, dame el comando para Hostinger y actualiza mis
 notas.»
 
 ## OPINIÓN DE DAVID TRAS SU PRIMER VÍDEO (6-nov-2026) — hacer ANTES de la etapa 6
@@ -521,7 +544,7 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Pendiente: detectar más formas de «lo falso → lo verdadero» (p. ej. «mito»,
    «en realidad»); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir la HOJA DE RUTA por la etapa 6.
+Luego seguir el ORDEN NUEVO (11-nov): ahora la voz gratis elegida sola según el tema.
 
 ## Pendiente / ideas
 1. Catálogo de la mamá: faltan nombre de tienda, WhatsApp, prendas y fotos.

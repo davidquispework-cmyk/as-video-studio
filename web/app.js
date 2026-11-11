@@ -9198,7 +9198,21 @@ const API_SUBIDAS = {
   borrar: (pid, sid) => `${API.proyecto(pid)}/subidas/${encodeURIComponent(sid)}`,
   prompts: (pid, soloFaltan) => `${API.proyecto(pid)}/subidas/prompts.txt`
     + (soloFaltan ? '?solo_faltan=true' : ''),
+  // ETAPA 6: todo en un solo texto, con la ficha fija de cada personaje
+  unico: (pid, soloFaltan, descargar) => `${API.proyecto(pid)}/subidas/prompt_unico.txt`
+    + `?solo_faltan=${soloFaltan ? 'true' : 'false'}&descargar=${descargar ? 'true' : 'false'}`,
 };
+
+/* ETAPA 6: copia el prompt único (todas las imágenes de una vez) para Gemini. */
+async function copiarPromptUnico(pid, soloFaltan) {
+  try {
+    const r = await fetch(API_SUBIDAS.unico(pid, soloFaltan, false));
+    if (!r.ok) throw new Error(`No se ha podido preparar el prompt (${r.status})`);
+    const texto = await r.text();
+    await copiarPrompt(texto);
+    toast('Prompt único copiado: pégalo en Gemini y ve escribiendo «sigue» para cada imagen');
+  } catch (e) { toast(e.message, true); }
+}
 
 async function cargarSubidas(forzar) {
   const v = videoAbierto();
@@ -9545,6 +9559,14 @@ function panelSubidas() {
       { accept: 'image/*,.zip', multiple: true, clase: 'primario',
         disabled: SUBIDAS.subiendo > 0 },
       files => subirAPlanos(files)),
+    h('button', { clase: 'mini',
+      title: 'Todas las imágenes en UN texto, con la ficha fija de cada personaje '
+        + '(misma cara y ropa en todas). Pégalo en Gemini y escribe «sigue» para cada una.',
+      onclick: () => copiarPromptUnico(v.pid, faltan > 0) },
+    faltan > 0 && faltan < d.total
+      ? `Copiar prompt único (${faltan} que faltan)` : 'Copiar prompt único'),
+    h('a', { clase: 'boton mini', href: API_SUBIDAS.unico(v.pid, faltan > 0, true),
+      download: '' }, 'Descargar prompt único'),
     h('a', { clase: 'boton mini', href: API_SUBIDAS.prompts(v.pid, false),
       download: '' }, 'Descargar todos los prompts'),
     faltan ? h('a', { clase: 'boton mini', href: API_SUBIDAS.prompts(v.pid, true),
