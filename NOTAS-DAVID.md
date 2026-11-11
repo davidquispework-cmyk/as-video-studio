@@ -326,8 +326,26 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    `.trans-vista`, `.lista-trans` en `estilo.css`.
    Pendiente: con eso delante, oír las voces y ajustar la tabla de
    `voz_tema.VOCES_ES`, y la fuerza del golpe/temblor de la cámara.
-7. **SIGUIENTE:** decidir con David qué toca (p. ej. afinar voces y cámara con
-   un vídeo real, o lo que él pida).
+7. Fuerza de la cámara elegible — **HECHO (11-nov)** (lo eligió David entre
+   cuatro opciones). Cómo se usa: al crear el vídeo o en «El encargo», debajo
+   de «Cámara» (solo con 🎥 Cámara viva) sale «Fuerza del movimiento»:
+   **🌙 Suave** (golpe de zoom ×0,55, temblor ×0,5, cámara al hombro ×0,6 y
+   golpes 1,5× más espaciados: fe, reflexión), **⚖ Normal** (la de fábrica,
+   golpe del 5,5 %) o **🔥 Fuerte** (golpe ×1,45, temblor ×1,5, mano ×1,4,
+   golpes más seguidos: misterio, acción, TikTok). Gratis: solo pide volver a
+   montar. Así se afina viendo un vídeo real sin tocar código.
+   Código: `camara.FUERZAS` + `fuerza_de` + `preparar` (y `CAM.mano` en
+   `CAMARA_JS`) + `app.py` (param `camara_fuerza` del render: solo se escribe
+   suave/fuerte, o «normal» para volver) + `selectorCamara(e, …)` en
+   `web/app.js`. Arreglado de paso: cambiar la «Cámara» en «El encargo» de un
+   vídeo ya creado NO se guardaba (faltaba en `CAMPOS_ENCARGO`); ya sí.
+   Prueba: `pasos/prueba_camara.py`.
+   Pendiente: si con un vídeo real ninguna de las tres convence, ajustar los
+   números de `camara.FUERZAS`.
+8. **SIGUIENTE:** decidir con David qué toca. Opciones que quedaron sobre la
+   mesa: grabar tu voz desde la propia página (sin WhatsApp); posición del
+   subtítulo elegible (centro/abajo); más giros «falso → verdadero» en el
+   gancho («mito», «en realidad»…); afinar la tabla de voces oyéndolas.
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
 (abajo), un chat por punto. A, B+B+, C, **G con D** y **E** HECHOS (6-nov).
@@ -647,7 +665,7 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Pendiente: detectar más formas de «lo falso → lo verdadero» (p. ej. «mito»,
    «en realidad»); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada y el punto 6 HECHOS; siguiente, el punto 7.
+Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, el punto 6 y la fuerza de cámara (7) HECHOS; siguiente, el punto 8.
 
 ## Pendiente / ideas
 1. Catálogo de la mamá: faltan nombre de tienda, WhatsApp, prendas y fotos.

@@ -6935,7 +6935,7 @@ function vistaElegidoLight() {
     selectorFormato(e.formato, v => { e.formato = v; }),
     selectorDibujo(e.marioneta, v => { e.marioneta = v; }),
     selectorMotion(e.motion, v => { e.motion = v; }),
-    selectorCamara(e.camara, v => { e.camara = v; }),
+    selectorCamara(e, () => {}),
     selectorGancho(e.gancho, v => { e.gancho = v; pintarLight(); }),
     selectorLetras(e, () => {}),
     selectorPlantilla(e, true, pintarLight)));
@@ -7076,23 +7076,37 @@ function selectorMotion(valor, alCambiar) {
    palabra que importa, temblor en los impactos, respiración y arrastre a través
    del corte— o la «clásica» de antes. Vacío = no lo ha tocado nadie = viva. No
    mueve firmas: cambiarlo solo pide volver a montar, que es gratis. */
-function selectorCamara(valor, alCambiar) {
-  let actual = valor === 'clasica' ? 'clasica' : 'viva';
+function selectorCamara(e, alCambiar) {
   const caja = h('div', { clase: 'campo' });
-  const pintar = () => {
-    vaciar(caja);
+  /* LA FUERZA (11-nov): suave / normal / fuerte, para afinarla viendo un vídeo
+     real. Multiplica el golpe de zoom, el temblor y la cámara al hombro.
+     Vacío = normal. Solo con la cámara viva. */
+  const tiraDe = (opciones, actual, elegir) => {
     const tira = h('div', { clase: 'tira-modos formatos' });
-    [
-      { id: 'viva', nombre: '🎥 Cámara viva', pista: 'Movimiento continuo, golpe de zoom en la palabra que importa, temblor en los golpes, cámara al hombro y transiciones elegidas por lo que dice la frase' },
-      { id: 'clasica', nombre: '🖼 Clásica', pista: 'El zoom suave de siempre, sin golpes ni temblores' },
-    ].forEach(op => {
+    opciones.forEach(op => {
       tira.appendChild(h('button', {
         clase: 'mini' + (actual === op.id ? ' activo' : ''), title: op.pista,
-        onclick: () => { actual = op.id; alCambiar(op.id); pintar(); },
+        onclick: () => { elegir(op.id); alCambiar(); pintar(); },
       }, op.nombre));
     });
-    caja.append(h('label', {}, 'Cámara'), tira,
-      h('div', { clase: 'pista' }, 'Gratis: cambiarla solo pide volver a montar el vídeo.'));
+    return tira;
+  };
+  const pintar = () => {
+    vaciar(caja);
+    const modo = e.camara === 'clasica' ? 'clasica' : 'viva';
+    caja.append(h('label', {}, 'Cámara'), tiraDe([
+      { id: 'viva', nombre: '🎥 Cámara viva', pista: 'Movimiento continuo, golpe de zoom en la palabra que importa, temblor en los golpes, cámara al hombro y transiciones elegidas por lo que dice la frase' },
+      { id: 'clasica', nombre: '🖼 Clásica', pista: 'El zoom suave de siempre, sin golpes ni temblores' },
+    ], modo, id => { e.camara = id; }));
+    if (modo === 'viva') {
+      const fuerza = ['suave', 'fuerte'].includes(e.camara_fuerza) ? e.camara_fuerza : 'normal';
+      caja.append(h('div', { clase: 'pista' }, 'Fuerza del movimiento:'), tiraDe([
+        { id: 'suave', nombre: '🌙 Suave', pista: 'Golpes de zoom y temblores más flojos y más espaciados: para temas serenos (fe, reflexión)' },
+        { id: 'normal', nombre: '⚖ Normal', pista: 'La de fábrica: golpe de zoom del 5,5 %' },
+        { id: 'fuerte', nombre: '🔥 Fuerte', pista: 'Golpes y temblores más marcados y más seguidos: para misterio, acción o TikTok' },
+      ], fuerza, id => { e.camara_fuerza = id; }));
+    }
+    caja.append(h('div', { clase: 'pista' }, 'Gratis: cambiarla solo pide volver a montar el vídeo.'));
   };
   pintar();
   return caja;
@@ -7437,6 +7451,7 @@ async function crearYGenerarLight(estilo) {
         marioneta: !!e.marioneta,
         motion: e.motion || false,
         camara: e.camara || '',
+        camara_fuerza: e.camara_fuerza || '',
         gancho: !!e.gancho,
         letra: e.letra || '',
         resalte: e.resalte || '',
@@ -7504,6 +7519,8 @@ const CAMPOS_ENCARGO = [
   { clave: 'cta', paso: 'guion', param: 'cta' },
   { clave: 'marioneta', paso: 'render', param: 'marioneta' },
   { clave: 'motion', paso: 'render', param: 'motion' },
+  { clave: 'camara', paso: 'render', param: 'camara' },
+  { clave: 'camara_fuerza', paso: 'render', param: 'camara_fuerza' },
   { clave: 'gancho', paso: 'callouts', param: 'gancho' },
   { clave: 'letra', paso: 'callouts', param: 'letra' },
   { clave: 'resalte', paso: 'callouts', param: 'resalte' },
@@ -7544,6 +7561,7 @@ function pedidoDelVideoLight() {
     marioneta: !!params('render').marioneta,
     motion: params('render').motion || false,
     camara: String(params('render').camara || ''),
+    camara_fuerza: String(params('render').camara_fuerza || ''),
     gancho: !!params('callouts').gancho,
     letra: String(params('callouts').letra || ''),
     resalte: String(params('callouts').resalte || ''),
@@ -7601,7 +7619,7 @@ function vistaEncargoVideoLight() {
     selectorFormato(e.formato, valor => { e.formato = valor; programarGuardadoEncargo(); }),
     selectorDibujo(e.marioneta, valor => { e.marioneta = valor; programarGuardadoEncargo(); }),
     selectorMotion(e.motion, valor => { e.motion = valor; programarGuardadoEncargo(); }),
-    selectorCamara(e.camara, valor => { e.camara = valor; programarGuardadoEncargo(); }),
+    selectorCamara(e, programarGuardadoEncargo),
     selectorGancho(e.gancho, valor => { e.gancho = valor; programarGuardadoEncargo(); pintarLight(); }),
     selectorLetras(e, programarGuardadoEncargo),
     selectorPlantilla(e, false, () => { programarGuardadoEncargo(); pintarLight(); })));

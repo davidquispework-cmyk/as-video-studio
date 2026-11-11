@@ -10657,6 +10657,13 @@ def _sembrar_video_light(ctx, datos):
         ctx.estado.actualizar_params("render", {"camara": "clasica"})
     elif camara_pedida == "viva" and (ctx.estado.params("render") or {}).get("camara"):
         ctx.estado.actualizar_params("render", {"camara": "viva"})
+    # Su FUERZA (suave / normal / fuerte), con la misma regla: «normal» es lo
+    # de fabrica y solo se escribe para volver de otra.
+    fuerza_pedida = str(datos.get("camara_fuerza") or "").strip().lower()
+    if fuerza_pedida in ("suave", "fuerte"):
+        ctx.estado.actualizar_params("render", {"camara_fuerza": fuerza_pedida})
+    elif fuerza_pedida == "normal" and (ctx.estado.params("render") or {}).get("camara_fuerza"):
+        ctx.estado.actualizar_params("render", {"camara_fuerza": "normal"})
     # EL GANCHO (pasos/gancho.py): cartel «¿Sabías…?» y subtitulos palabra a
     # palabra. Param del paso callouts, y tambien solo si lo pidieron.
     if datos.get("gancho"):

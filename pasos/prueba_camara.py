@@ -61,6 +61,17 @@ def prueba_camara():
     descuadre = dict(es[0], marcas=es[0]["marcas"][:-1])
     comprobar(not camara.preparar([descuadre], {}, {})["S001"]["golpes"],
               "texto y marcas descuadrados: sin golpe (no a destiempo)")
+    # LA FUERZA (11-nov): suave/fuerte escalan golpe, temblor y mano
+    g = lambda c: c["S001"]["golpes"][0]["fuerza"]
+    suave = camara.preparar(es, cortes, {"camara_fuerza": "suave"}, semilla=7)
+    fuerte = camara.preparar(es, cortes, {"camara_fuerza": "fuerte"}, semilla=7)
+    comprobar(g(suave) < g(confs) < g(fuerte), "la fuerza escala el golpe de zoom")
+    comprobar(suave["S003"]["temblores"][0]["fuerza"] < 1 < fuerte["S003"]["temblores"][0]["fuerza"]
+              and suave["S001"]["mano"] < 1 < fuerte["S001"]["mano"],
+              "y el temblor y la camara al hombro")
+    comprobar(camara.fuerza_de({"camara_fuerza": "rara"}) == "normal"
+              and camara.preparar(es, cortes, {"camara_fuerza": "normal"}, semilla=7) == confs,
+              "«normal» (o un valor raro) es lo de fabrica")
     return es, confs
 
 

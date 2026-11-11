@@ -65,11 +65,27 @@ ARRASTRE = {"whip-pan": "pan", "cinematic-zoom": "zoom",
             "gravitational-lens": "zoom", "swirl-vortex": "zoom"}
 DUR_ARRASTRE = {"pan": 0.35, "zoom": 0.45}
 
+#: LA FUERZA de la camara viva (param `camara_fuerza` del render, 11-nov-2026):
+#: para afinarla a ojo viendo un video real sin tocar codigo. Multiplica el
+#: golpe de zoom (5,5 % en «normal»), el temblor y la camara al hombro, y
+#: espacia o junta los golpes. «normal» es lo de fabrica y no se escribe.
+FUERZAS = {
+    "suave": {"golpe": 0.55, "temblor": 0.5, "mano": 0.6, "ritmo": 1.5},
+    "normal": {"golpe": 1.0, "temblor": 1.0, "mano": 1.0, "ritmo": 1.0},
+    "fuerte": {"golpe": 1.45, "temblor": 1.5, "mano": 1.4, "ritmo": 0.75},
+}
+
 
 def modo_de(params):
     """'viva' (de fabrica) o 'clasica' (la de antes del 11-nov-2026)."""
     valor = (params or {}).get("camara", "viva")
     return "clasica" if valor in ("clasica", "no", False) else "viva"
+
+
+def fuerza_de(params):
+    """'suave', 'normal' (de fabrica) o 'fuerte'."""
+    valor = str((params or {}).get("camara_fuerza") or "normal").lower()
+    return valor if valor in FUERZAS else "normal"
 
 
 def _llana(palabra):
@@ -156,6 +172,8 @@ def preparar(escenas, cortes=None, params=None, semilla=0, excluir=(),
     if modo_de(params) != "viva":
         return {}
     cortes = cortes or {}
+    f = FUERZAS[fuerza_de(params)]
+    ritmo_golpe, ritmo_temblor = RITMO_GOLPE * f["ritmo"], RITMO_TEMBLOR * f["ritmo"]
     excluir, con_clip = set(excluir or ()), set(con_clip or ())
     salida = {}
     ultimo_golpe = ultimo_temblor = -1e9
@@ -170,7 +188,7 @@ def preparar(escenas, cortes=None, params=None, semilla=0, excluir=(),
             continue
         azar = medios.desempatar(semilla, sid, "camara")
         conf = {"curva": _curva(duracion, indice), "golpes": [], "temblores": [],
-                "respira": sid not in con_clip,
+                "respira": sid not in con_clip, "mano": f["mano"],
                 "fase": round((azar % 628) / 100.0, 2),
                 # un plano sin recorrido (ventana fija) deriva un 4 %: hacia
                 # dentro o hacia fuera, alternando para que no se note la regla
@@ -185,18 +203,19 @@ def preparar(escenas, cortes=None, params=None, semilla=0, excluir=(),
             t = palabras[i][1]
             if t < MARGEN_INICIO or t > limite:
                 continue
-            if t_in + t - ultimo_golpe < RITMO_GOLPE:
+            if t_in + t - ultimo_golpe < ritmo_golpe:
                 continue
-            conf["golpes"].append({"t": round(t, 3), "fuerza": fuerza})
+            conf["golpes"].append({"t": round(t, 3),
+                                   "fuerza": round(fuerza * f["golpe"], 3)})
             ultimo_golpe = t_in + t
         for palabra, t in palabras:
             if not IMPACTO.search(_llana(palabra)):
                 continue
             if t < 0.05 or t > duracion - 0.2:
                 continue
-            if t_in + t - ultimo_temblor < RITMO_TEMBLOR:
+            if t_in + t - ultimo_temblor < ritmo_temblor:
                 continue
-            conf["temblores"].append({"t": round(t, 3), "fuerza": 1.0})
+            conf["temblores"].append({"t": round(t, 3), "fuerza": f["temblor"]})
             ultimo_temblor = t_in + t
         salida[sid] = conf
 
@@ -268,9 +287,9 @@ function extraCam(t, quieto){
   });
   // respiracion: camara al hombro, minima
   if (CAM.respira){
-    const f = CAM.fase || 0;
-    dx += 0.0018*W*(Math.sin(2*Math.PI*t/4.7 + f) + 0.5*Math.sin(2*Math.PI*t/2.9 + 2*f));
-    dy += 0.0014*H*(Math.sin(2*Math.PI*t/6.3 + 3*f) + 0.4*Math.sin(2*Math.PI*t/3.7 + f));
+    const f = CAM.fase || 0, m = CAM.mano || 1;
+    dx += m*0.0018*W*(Math.sin(2*Math.PI*t/4.7 + f) + 0.5*Math.sin(2*Math.PI*t/2.9 + 2*f));
+    dy += m*0.0014*H*(Math.sin(2*Math.PI*t/6.3 + 3*f) + 0.4*Math.sin(2*Math.PI*t/3.7 + f));
   }
   // el arrastre que cruza el corte
   const sale = CAM.sale, entra = CAM.entra;
