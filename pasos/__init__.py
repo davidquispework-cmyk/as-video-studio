@@ -49,6 +49,8 @@ from . import cadencia, fuentes  # noqa: E402,F401
 # importe primero.
 from . import cta  # noqa: E402,F401
 from . import conservar, voz_descrita, voz_tema  # noqa: E402,F401
+# publicar (etapa 7): textos, miniatura y Drive; solo lee, no toca firmas.
+from . import publicar  # noqa: E402,F401
 # Los muñecos que gesticulan (estilo opcional del video): app.py usa su
 # `solo_fondo` para el prompt de imagen de un video con muñecos.
 from . import marioneta  # noqa: E402,F401
@@ -101,6 +103,6 @@ __all__ = ["catalogo_visual", "conservar", "repaso",
            "p1_ingesta", "p2_brief", "p3_guion",
            "p4_voz", "p5_revision_audio", "presets_voz", "presets_canal",
            "presets_light", "recetas", "sonido", "tipografia", "subtitulos", "tono", "transiciones",
-           "voz_descrita", "voz_tema",
+           "voz_descrita", "voz_tema", "publicar",
            "p6_assets", "p7_callouts", "p8_render",
            "MODULOS", "modulo_de"]

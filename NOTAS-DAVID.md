@@ -202,8 +202,35 @@ Todo gratis; lo de pago, preparado y apagado (ver «Decisión de dinero»).
    firmas. Prueba: `probar_prompt_unico` en `pasos/prueba_subidas.py`.
    Pendiente: editar a mano la ficha de un personaje desde la pantalla; partir el
    texto en tandas de 20 si Gemini se pierde en vídeos muy largos.
-7. **Publicar más fácil**: título, descripción y hashtags listos para copiar +
-   miniatura automática para YouTube + subir el MP4 terminado a Google Drive.
+7. **Publicar más fácil — HECHA (11-nov-2026)**.
+   Cómo se usa: con el vídeo montado, debajo del repaso sale «🚀 Publicar»:
+   título (+ 2 alternativas), descripción, hashtags y texto para TikTok, cada uno
+   con su botón «Copiar». Debajo, la MINIATURA (YouTube 1280x720 y portada
+   vertical 1080x1920): eliges la imagen (desplegable u «Otra imagen →») y el
+   texto grande (2-4 palabras; la más larga sale en amarillo) y se ve al momento;
+   «Bajar…» la descarga. «📦 Descargar todo (.zip)» trae vídeo + las dos portadas
+   + `textos_para_publicar.txt` (vale desde el móvil). «☁️ Subir a Google Drive»
+   lo copia todo a la carpeta «Shaddai Studio/<nombre del vídeo>» de tu Drive
+   (necesita conectar Drive UNA vez en el servidor, ver abajo).
+   Qué sale: la descripción lleva el gancho, de qué va, los VERSÍCULOS citados
+   (RV1960), los CAPÍTULOS de YouTube (uno por bloque del guion, solo en
+   horizontal y si hay 3+ de 10 s o más), la llamada a suscribirse y los
+   hashtags (máx. 15: los del título y los libros citados delante, los del tema
+   detrás; en vertical #shorts el primero). GRATIS: no llama a Claude ni toca
+   params ni firmas; todo vive en `<proyecto>/publicar/`.
+   Conectar Drive (una vez, en la consola del VPS): `curl https://rclone.org/install.sh | sudo bash`,
+   luego `rclone config` → n → nombre `drive` → tipo `drive` → Enter a todo
+   hasta «Use web browser…?» → **n** → copia el comando `rclone authorize "drive" "…"`
+   que te da, ejecútalo en tu PC (rclone.exe de rclone.org/downloads), entra con
+   tu Google y pega el token que sale de vuelta en el VPS → «Shared Drive?» n → q.
+   Después `asvs actualizar` (o reiniciar el estudio). Otro nombre/carpeta:
+   variables `ESTUDIO_DRIVE_REMOTO` y `ESTUDIO_DRIVE_CARPETA`.
+   Código: `pasos/publicar.py` (`textos`, `capitulos`, `miniatura`, `drive_listo`,
+   `subir_a_drive`) + rutas `/api/proyectos/{pid}/publicar` (y `/miniatura.jpg`,
+   `/paquete.zip`, POST `/drive`) en `app.py` + `panelPublicar` en `web/app.js`.
+   Prueba: `pasos/prueba_publicar.py`.
+   Pendiente: subir directo a YouTube (OAuth) y programar la hora; títulos
+   «mejorados con Claude» (botón opcional, de pago); elegir la palabra en amarillo.
 8. **Más estilos y más contexto** (innovar siempre, no solo muñecos): acuarela
    animada, mapas antiguos animados (viajes de Pablo), línea de tiempo animada para
    fechas; boca de los muñecos que siga la voz; gesto de los muñecos elegible por plano;
@@ -235,8 +262,8 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    `voz_por_tema` en `pasos/ajustes.py`. Prueba: `pasos/prueba_voz_gratis.py`.
    Pendiente: afinar la tabla de voces oyéndolas; ver en la pantalla del vídeo qué
    voz eligió y por qué (hoy va en la bitácora y en los params de la voz).
-3. **SIGUIENTE:** Etapa 7, publicar fácil.
-4. F, movimiento y transiciones.
+3. Etapa 7, publicar fácil — **HECHA (11-nov)** (ver la etapa 7 de la hoja de ruta).
+4. **SIGUIENTE:** F, movimiento y transiciones.
 Más adelante: la voz grabada de David.
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
@@ -557,7 +584,7 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Pendiente: detectar más formas de «lo falso → lo verdadero» (p. ej. «mito»,
    «en realidad»); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir el ORDEN NUEVO (11-nov): ahora la etapa 7, publicar fácil.
+Luego seguir el ORDEN NUEVO (11-nov): ahora el punto F, movimiento y transiciones.
 
 ## Pendiente / ideas
 1. Catálogo de la mamá: faltan nombre de tienda, WhatsApp, prendas y fotos.

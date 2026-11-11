@@ -5175,6 +5175,151 @@ def descargar_prompt_unico(pid: str, solo_faltan: bool = Query(default=False),
     return PlainTextResponse(texto, headers=cabeceras)
 
 
+# ------------------------------------------------ ETAPA 7: publicar fácil
+# Textos para pegar (título, descripción, hashtags, TikTok), la miniatura, el
+# paquete .zip y la subida a Google Drive (rclone). Todo GRATIS y sin firmas:
+# lo que se produce vive en `<proyecto>/publicar/`, fuera de los pasos, y no se
+# escribe ningún param (ver pasos/publicar.py).
+_DRIVE = {}          # pid -> {"estado": "subiendo"|"hecho"|"error", ...}
+
+
+def _publicar_piezas(ctx):
+    """(plan, escenas, guion, mp4 absoluto o None)."""
+    plan = PASOS_MODULOS.p6_assets.plan_actual(ctx.proyecto, "assets",
+                                               estado=ctx.estado) or {}
+    guion = PASOS_MODULOS.comun.leer_salida(ctx.proyecto, "guion", "guion.json",
+                                            obligatorio=False) or {}
+    rel = _ruta_de_version(ctx, "render", "video.mp4")
+    mp4 = ctx.proyecto.ruta(*rel.split("/")) if rel else None
+    return plan, plan.get("escenas") or [], guion, mp4
+
+
+def _imagen_de_plano(ctx, sid):
+    rel = _ruta_de_version(ctx, "assets", "escenas", f"{sid}.png")
+    if rel:
+        return ctx.proyecto.ruta(*rel.split("/"))
+    try:
+        ruta = _subidas().ruta_de(ctx.proyecto.raiz, sid)
+    except ValueError:
+        return None
+    return ruta if os.path.isfile(ruta) else None
+
+
+def _textos_publicar(ctx):
+    plan, escenas, guion, _mp4 = _publicar_piezas(ctx)
+    vertical = PASOS_MODULOS.comun.formato_de_plan(plan) == "vertical"
+    return PASOS_MODULOS.publicar.textos(
+        ctx.proyecto.config.get("nombre") or ctx.id, guion, escenas,
+        float(plan.get("duracion_total") or 0.0), vertical), vertical
+
+
+def _planos_con_imagen(ctx):
+    _plan, escenas, _g, _m = _publicar_piezas(ctx)
+    return [str(e.get("id")) for e in escenas
+            if e.get("id") and _imagen_de_plano(ctx, str(e.get("id")))]
+
+
+def _dibujar_miniatura(ctx, formato, plano, texto):
+    planos = _planos_con_imagen(ctx)
+    if plano not in planos:
+        plano = planos[0] if planos else ""
+    if not texto:
+        texto = _textos_publicar(ctx)[0]["miniatura"]
+    nombre = "miniatura_youtube.jpg" if formato == "youtube" else "portada_vertical.jpg"
+    salida = ctx.proyecto.ruta(PASOS_MODULOS.publicar.CARPETA, nombre)
+    PASOS_MODULOS.publicar.miniatura(
+        _imagen_de_plano(ctx, plano) if plano else None, texto, salida, formato)
+    return salida
+
+
+@app.get("/api/proyectos/{pid}/publicar")
+def leer_publicar(pid: str):
+    """Los textos listos para copiar, los planos para la miniatura y Drive."""
+    ctx = contexto(pid)
+    textos, vertical = _textos_publicar(ctx)
+    listo, motivo = PASOS_MODULOS.publicar.drive_listo()
+    return {"textos": textos, "vertical": vertical,
+            "planos": _planos_con_imagen(ctx),
+            "montado": bool(_publicar_piezas(ctx)[3]),
+            "drive": {"listo": listo, "motivo": motivo,
+                      "carpeta": PASOS_MODULOS.publicar.carpeta_drive(),
+                      **_DRIVE.get(ctx.id, {})}}
+
+
+@app.get("/api/proyectos/{pid}/publicar/miniatura.jpg")
+def miniatura_publicar(pid: str, formato: str = Query(default="youtube"),
+                       plano: str = Query(default=""), texto: str = Query(default=""),
+                       descargar: bool = Query(default=False)):
+    ctx = contexto(pid)
+    formato = "vertical" if formato == "vertical" else "youtube"
+    salida = _dibujar_miniatura(ctx, formato, plano, texto[:60])
+    cabeceras = {"Cache-Control": "no-store"}
+    if descargar:
+        cabeceras["Content-Disposition"] = \
+            f'attachment; filename="{os.path.basename(salida)}"'
+    return FileResponse(salida, media_type="image/jpeg", headers=cabeceras)
+
+
+def _ficheros_para_publicar(ctx, plano, texto):
+    """MP4 + las dos portadas + textos.txt (todo en `publicar/`)."""
+    _plan, _e, _g, mp4 = _publicar_piezas(ctx)
+    if not mp4:
+        raise ErrorApi(409, "todavía no hay vídeo montado")
+    textos, _v = _textos_publicar(ctx)
+    pub = PASOS_MODULOS.publicar
+    txt = ctx.proyecto.ruta(pub.CARPETA, "textos_para_publicar.txt")
+    os.makedirs(os.path.dirname(txt), exist_ok=True)
+    with open(txt, "w", encoding="utf-8") as fh:
+        fh.write(pub.como_txt(textos))
+    return [mp4, _dibujar_miniatura(ctx, "youtube", plano, texto),
+            _dibujar_miniatura(ctx, "vertical", plano, texto), txt]
+
+
+@app.get("/api/proyectos/{pid}/publicar/paquete.zip")
+def paquete_publicar(pid: str, plano: str = Query(default=""),
+                     texto: str = Query(default="")):
+    """Todo para publicar en un .zip: vídeo, portadas y textos."""
+    import zipfile
+    ctx = contexto(pid)
+    ficheros = _ficheros_para_publicar(ctx, plano, texto[:60])
+    destino = ctx.proyecto.ruta(PASOS_MODULOS.publicar.CARPETA, "paquete.zip")
+    with zipfile.ZipFile(destino, "w", zipfile.ZIP_STORED) as z:
+        for ruta in ficheros:
+            z.write(ruta, os.path.basename(ruta))
+    return FileResponse(destino, media_type="application/zip",
+                        filename=f"publicar_{ctx.id}.zip")
+
+
+@app.post("/api/proyectos/{pid}/publicar/drive")
+def drive_publicar(pid: str, datos: dict = Body(default={})):
+    """Sube vídeo, portadas y textos a Drive en segundo plano (rclone)."""
+    ctx = contexto(pid)
+    pub = PASOS_MODULOS.publicar
+    listo, motivo = pub.drive_listo()
+    if not listo:
+        raise ErrorApi(409, f"Drive no está conectado: {motivo}")
+    if (_DRIVE.get(ctx.id) or {}).get("estado") == "subiendo":
+        raise ErrorApi(409, "ya se está subiendo este vídeo")
+    ficheros = _ficheros_para_publicar(ctx, str(datos.get("plano") or ""),
+                                       str(datos.get("texto") or "")[:60])
+    _DRIVE[ctx.id] = {"estado": "subiendo", "detalle": "empezando"}
+
+    def avisar(texto):
+        _DRIVE[ctx.id]["detalle"] = texto
+
+    def subir():
+        try:
+            enlace = pub.subir_a_drive(ficheros, ctx.proyecto.config.get("nombre")
+                                       or ctx.id, avisar)
+            _DRIVE[ctx.id] = {"estado": "hecho", "enlace": enlace,
+                              "detalle": "subido"}
+        except Exception as fallo:                            # noqa: BLE001
+            _DRIVE[ctx.id] = {"estado": "error", "detalle": str(fallo)}
+
+    threading.Thread(target=subir, daemon=True).start()
+    return _DRIVE[ctx.id]
+
+
 @app.get("/api/proyectos/{pid}/subidas/imagen/{sid}")
 def servir_subida(pid: str, sid: str, peticion: Request):
     """La imagen subida de un plano."""

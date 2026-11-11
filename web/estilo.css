@@ -2604,3 +2604,16 @@ button.avisa:hover:not(:disabled) { border-color: var(--aviso); }
 .mini.letra-bebas { font-family: 'Shaddai Bebas', sans-serif; font-weight: normal; font-size: 1.1em; letter-spacing: .02em; }
 .mini.letra-lilita { font-family: 'Shaddai Lilita', sans-serif; font-weight: normal; }
 .mini.letra-playfair { font-family: 'Shaddai Playfair', serif; font-weight: normal; }
+
+/* ETAPA 7: publicar fácil */
+.publicar { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+.publicar-campo { display: flex; flex-direction: column; gap: 4px; }
+.publicar-campo textarea { width: 100%; font-size: 13px; }
+.publicar-campo input[type=text] { flex: 1; min-width: 160px; }
+.publicar-texto { font-size: 13px; line-height: 1.45; padding: 6px 8px; border-radius: 6px;
+  background: rgba(127,127,127,.12); word-break: break-word; }
+.publicar-minis { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+.publicar-mini { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.publicar-mini img { border-radius: 6px; display: block; background: #111; }
+.publicar-mini.youtube img { width: 320px; max-width: 100%; aspect-ratio: 16 / 9; }
+.publicar-mini.vertical img { width: 120px; aspect-ratio: 9 / 16; }

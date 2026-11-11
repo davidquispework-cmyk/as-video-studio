@@ -10136,6 +10136,7 @@ function vistaVideoLight() {
      nada que comentar, y una caja de texto vacía debajo de una barra de
      progreso invita a escribir sobre algo que todavía no existe. */
   if (hayMp4Light() && !trabajoVideoLight()) caja.appendChild(panelRepaso());
+  if (hayMp4Light() && !trabajoVideoLight()) caja.appendChild(panelPublicar());
   return caja;
 }
 /* ==========================================================================
@@ -10256,6 +10257,134 @@ function panelRepaso() {
   /* SIN PIE PROPIO: el boton de aplicar vive en la barra de abajo, que es la
      misma en las tres pantallas. Tenerlo aqui tambien eran dos botones para
      lo mismo a dos dedos de distancia. */
+  return caja;
+}
+
+/* ==========================================================================
+   ETAPA 7: PUBLICAR FÁCIL. Debajo del repaso, solo con el MP4 hecho.
+
+   Título, descripción, hashtags y texto de TikTok para copiar; la miniatura
+   (YouTube 16:9 y portada vertical) con la imagen y el texto que elijas; el
+   paquete .zip con todo, y la subida a Google Drive. Gratis: no llama a Claude
+   y no escribe params, así que nada de esto deja el vídeo obsoleto. */
+const API_PUBLICAR = {
+  base: pid => `${BASE}/api/proyectos/${encodeURIComponent(pid)}/publicar`,
+  mini: (pid, f, plano, texto, bajar) => `${API_PUBLICAR.base(pid)}/miniatura.jpg?formato=${f}`
+    + `&plano=${encodeURIComponent(plano || '')}&texto=${encodeURIComponent(texto || '')}`
+    + (bajar ? '&descargar=true' : '') + `&t=${Date.now()}`,
+  zip: (pid, plano, texto) => `${API_PUBLICAR.base(pid)}/paquete.zip`
+    + `?plano=${encodeURIComponent(plano || '')}&texto=${encodeURIComponent(texto || '')}`,
+};
+
+function estadoPublicar() {
+  const v = videoAbierto();
+  if (!v.publicar || v.publicar.pid !== v.pid) {
+    v.publicar = { pid: v.pid, datos: null, cargando: false, error: '',
+                   plano: '', texto: '', sello: Date.now() };
+  }
+  return v.publicar;
+}
+
+async function cargarPublicar() {
+  const p = estadoPublicar();
+  if (p.cargando) return;
+  p.cargando = true;
+  try {
+    p.datos = await pedir(API_PUBLICAR.base(p.pid));
+    if (!p.texto) p.texto = (p.datos.textos || {}).miniatura || '';
+    if (!p.plano) p.plano = (p.datos.planos || [])[0] || '';
+    p.error = '';
+  } catch (e) { p.error = e.message; }
+  p.cargando = false;
+  repintarVideo();
+  /* mientras sube a Drive se vuelve a preguntar: la subida corre en el servidor */
+  if (((p.datos || {}).drive || {}).estado === 'subiendo') {
+    setTimeout(() => { if (videoAbierto().pid === p.pid) cargarPublicar(); }, 4000);
+  }
+}
+
+function filaCopiar(titulo, texto, multilinea) {
+  return h('div', { clase: 'publicar-campo' },
+    h('div', { clase: 'fila' },
+      h('strong', {}, titulo), h('span', { clase: 'crece' }),
+      h('button', { clase: 'mini', onclick: async () => {
+        await copiarPrompt(texto); toast(`${titulo}: copiado`);
+      } }, 'Copiar')),
+    multilinea
+      ? h('textarea', { readonly: true, rows: 6, value: texto })
+      : h('div', { clase: 'publicar-texto' }, texto));
+}
+
+function panelPublicar() {
+  const p = estadoPublicar();
+  if (!p.datos && !p.cargando && !p.error) cargarPublicar();
+  const caja = h('div', { clase: 'publicar' });
+  caja.appendChild(h('div', { clase: 'repaso-cab' },
+    h('h3', {}, '🚀 Publicar'),
+    h('span', { clase: 'meta' }, 'todo listo para copiar y subir · gratis')));
+  if (p.error) { caja.appendChild(h('div', { clase: 'meta' }, p.error)); return caja; }
+  if (!p.datos) { caja.appendChild(h('div', { clase: 'meta' }, 'Preparando…')); return caja; }
+  const t = p.datos.textos || {};
+
+  caja.appendChild(filaCopiar('Título', t.titulo || ''));
+  (t.titulos || []).slice(1).forEach((otro, i) =>
+    caja.appendChild(filaCopiar(`Otro título ${i + 1}`, otro)));
+  caja.appendChild(filaCopiar('Descripción', t.descripcion || '', true));
+  caja.appendChild(filaCopiar('Hashtags', (t.hashtags || []).join(' ')));
+  caja.appendChild(filaCopiar('Texto para TikTok', t.tiktok || ''));
+
+  /* LA MINIATURA: se elige la imagen (cualquier plano) y el texto, y se ve al
+     momento. Se dibuja en el servidor con la letra de los subtítulos. */
+  const planos = p.datos.planos || [];
+  const refrescar = () => { p.sello = Date.now(); repintarVideo(); };
+  caja.appendChild(h('div', { clase: 'publicar-campo' },
+    h('strong', {}, 'Miniatura'),
+    h('div', { clase: 'fila' },
+      h('label', { clase: 'meta' }, 'Imagen'),
+      h('select', { onchange: ev => { p.plano = ev.target.value; refrescar(); },
+                    value: p.plano },
+        planos.map(id => h('option', { value: id }, id))),
+      h('button', { clase: 'mini', title: 'La imagen del plano siguiente',
+        onclick: () => {
+          if (!planos.length) return;
+          p.plano = planos[(planos.indexOf(p.plano) + 1) % planos.length];
+          refrescar();
+        } }, 'Otra imagen →'),
+      h('input', { type: 'text', maxlength: 60, value: p.texto,
+        placeholder: 'texto grande (2-4 palabras)',
+        onchange: ev => { p.texto = ev.target.value; refrescar(); } })),
+    h('div', { clase: 'publicar-minis' },
+      ['youtube', 'vertical'].map(f => h('figure', { clase: `publicar-mini ${f}` },
+        h('img', { alt: f === 'youtube' ? 'Miniatura YouTube' : 'Portada vertical',
+          src: API_PUBLICAR.mini(p.pid, f, p.plano, p.texto) + `&s=${p.sello}` }),
+        h('figcaption', {},
+          h('a', { clase: 'boton mini', download: '',
+            href: API_PUBLICAR.mini(p.pid, f, p.plano, p.texto, true) },
+            f === 'youtube' ? 'Bajar miniatura YouTube' : 'Bajar portada TikTok/Shorts')))))));
+
+  /* TODO JUNTO: el .zip (siempre funciona, también desde el móvil) y Drive. */
+  const d = p.datos.drive || {};
+  const filaDrive = h('div', { clase: 'fila' },
+    h('a', { clase: 'boton', href: API_PUBLICAR.zip(p.pid, p.plano, p.texto), download: '' },
+      '📦 Descargar todo (.zip)'),
+    d.listo
+      ? h('button', { clase: 'primario', disabled: d.estado === 'subiendo',
+          onclick: async () => {
+            try {
+              await pedir(`${API_PUBLICAR.base(p.pid)}/drive`,
+                { method: 'POST', cuerpo: { plano: p.plano, texto: p.texto } });
+              toast('Subiendo a Google Drive…');
+              cargarPublicar();
+            } catch (e) { toast(e.message, true); }
+          } }, d.estado === 'subiendo' ? 'Subiendo…' : '☁️ Subir a Google Drive')
+      : h('span', { clase: 'meta', title: d.motivo || '' },
+          'Google Drive sin conectar (ver NOTAS: rclone)'),
+    d.estado === 'subiendo' ? h('span', { clase: 'meta' }, d.detalle || '') : null,
+    d.estado === 'hecho' ? h('span', { clase: 'meta' }, '✅ En Drive: ',
+      d.enlace ? h('a', { href: d.enlace, target: '_blank', rel: 'noopener' }, 'abrir carpeta')
+               : `carpeta «${d.carpeta}»`) : null,
+    d.estado === 'error' ? h('span', { clase: 'meta' }, `❌ ${d.detalle || ''}`) : null);
+  caja.appendChild(filaDrive);
   return caja;
 }
 
