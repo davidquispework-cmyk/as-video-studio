@@ -311,8 +311,23 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    Prueba: `pasos/prueba_voz_propia.py`.
    Pendiente: probarla con una grabación real tuya y afinar el alineado si
    los subtítulos se adelantan/atrasan; quizá grabar desde la propia página.
-6. **SIGUIENTE:** decidir con David (ver «Pendiente» de los puntos 2 y 4: ver en
-   pantalla qué voz/transición eligió y por qué), o lo que él pida.
+6. Ver en pantalla qué voz y qué transiciones eligió el estudio y por qué —
+   **HECHO (11-nov)**. Cómo se usa: (a) abre el vídeo → pantalla del guion →
+   arriba sale «🗣 Voz: Gonzalo (Colombia) · elegida sola por el tema del vídeo
+   (tema fe/bíblico, …)» (o «elegida a mano»; no sale si usas tu voz grabada).
+   (b) Pantalla del vídeo ya montado → abajo, plegable «🎬 Transiciones: N
+   cortes, M elegidos por lo que dice la frase»: al abrirlo, la lista de cortes
+   en orden con su transición; las elegidas por la frase llevan ✦, el motivo
+   («giro o contraste», «salto en el tiempo»…) y las primeras palabras del plano
+   que la pidieron. Gratis, solo lee: no mueve firmas.
+   Código: `app._ficha_grabacion` (clave `voz`) + `leer_transiciones` (añade
+   `arranque` a los cortes con intención) + `vozElegidaLight` y
+   `panelTransicionesLight` en `web/app.js` + estilos `.voz-elegida`,
+   `.trans-vista`, `.lista-trans` en `estilo.css`.
+   Pendiente: con eso delante, oír las voces y ajustar la tabla de
+   `voz_tema.VOCES_ES`, y la fuerza del golpe/temblor de la cámara.
+7. **SIGUIENTE:** decidir con David qué toca (p. ej. afinar voces y cámara con
+   un vídeo real, o lo que él pida).
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
 (abajo), un chat por punto. A, B+B+, C, **G con D** y **E** HECHOS (6-nov).
@@ -632,7 +647,7 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Pendiente: detectar más formas de «lo falso → lo verdadero» (p. ej. «mito»,
    «en realidad»); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir el ORDEN NUEVO (11-nov): F y la voz grabada HECHOS; siguiente, el punto 6.
+Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada y el punto 6 HECHOS; siguiente, el punto 7.
 
 ## Pendiente / ideas
 1. Catálogo de la mamá: faltan nombre de tienda, WhatsApp, prendas y fotos.

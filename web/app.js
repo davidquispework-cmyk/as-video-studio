@@ -8156,6 +8156,8 @@ function vistaGuionLight() {
      hacia que la PRIMERA pasada los marcara todos «editado» y solo se
      corrigiera al repintar. Va con freno, asi que no es una peticion mas. */
   refrescarPlanLight('voz');
+  const elegida = vozElegidaLight();
+  if (elegida) caja.appendChild(elegida);
   caja.appendChild(vozPropiaLight());
   caja.appendChild(promptGeneralLight());
   caja.appendChild(bloquesLight());
@@ -8172,8 +8174,13 @@ const GRABACION = { pid: '', datos: null, pidiendo: false, subiendo: false };
 async function pedirGrabacionLight(forzar) {
   const v = APP.light.video;
   if (!v.pid || GRABACION.pidiendo) return;
-  if (!forzar && GRABACION.pid === v.pid && GRABACION.datos) return;
+  /* Se vuelve a preguntar pasado un minuto: la voz por tema se elige al grabar
+     la voz por primera vez, y con la ficha guardada para siempre la línea de
+     «qué voz y por qué» no aparecería hasta recargar la página. */
+  const fresca = Date.now() - (GRABACION.pedidaEn || 0) < 60000;
+  if (!forzar && GRABACION.pid === v.pid && GRABACION.datos && fresca) return;
   GRABACION.pidiendo = true;
+  GRABACION.pedidaEn = Date.now();
   try {
     GRABACION.datos = await pedir(`${API.proyecto(v.pid)}/voz/grabacion`);
     GRABACION.pid = v.pid;
@@ -8215,9 +8222,26 @@ async function quitarGrabacionLight() {
   pintarLight();
 }
 
+/* QUÉ VOZ LLEVA ESTE VÍDEO Y POR QUÉ (punto 6 del orden nuevo). La voz por
+   tema (pasos/voz_tema.py) se elegía en silencio: solo la bitácora decía cuál
+   y por qué. Una línea encima del guion, y solo cuando hay algo que contar. */
+function vozElegidaLight() {
+  const d = GRABACION.datos || {};
+  const voz = d.voz || {};
+  if (d.en_uso || !voz.nombre) return null;
+  const tema = voz.por_tema;
+  return h('div', { clase: 'caja-info voz-elegida' },
+    h('b', {}, `🗣 Voz: ${voz.nombre}`),
+    h('span', { clase: 'meta' }, tema && !voz.a_mano
+      ? ` · elegida sola por el tema del vídeo (${tema.por_que || tema.tema}). `
+        + 'Si no te convence, cámbiala en el estilo o en Configuración → Voz.'
+      : (voz.a_mano ? ' · elegida a mano en este vídeo' : '')));
+}
+
 function vozPropiaLight() {
   const v = APP.light.video;
   if (GRABACION.pid !== v.pid) { GRABACION.datos = null; pedirGrabacionLight(); }
+  else pedirGrabacionLight();
   const d = GRABACION.datos || {};
   const abierta = GRABACION.abierta === undefined ? !!d.en_uso : GRABACION.abierta;
   const caja = h('details', { clase: 'caja-info voz-propia', open: abierta,
@@ -10254,6 +10278,60 @@ function vistaVideoLight() {
      progreso invita a escribir sobre algo que todavía no existe. */
   if (hayMp4Light() && !trabajoVideoLight()) caja.appendChild(panelRepaso());
   if (hayMp4Light() && !trabajoVideoLight()) caja.appendChild(panelPublicar());
+  if (hayMp4Light() && !trabajoVideoLight()) caja.appendChild(panelTransicionesLight());
+  return caja;
+}
+
+/* QUÉ TRANSICIÓN LLEVA CADA CORTE Y POR QUÉ (punto 6 del orden nuevo). El
+   motor las elige leyendo cómo EMPIEZA la frase del plano que entra
+   (`transiciones.INTENCIONES`); aquí se enseña esa decisión con la prueba
+   delante —las primeras palabras—. Plegado y pedido al abrirlo: es para quien
+   quiera mirarlo, no una petición más en cada repintado. Solo lee. */
+const TRANS_VISTA = { pid: '', datos: null, abierta: false, pidiendo: false };
+
+async function pedirTransicionesLight(pid) {
+  if (TRANS_VISTA.pidiendo) return;
+  TRANS_VISTA.pidiendo = true;
+  try {
+    TRANS_VISTA.datos = await pedir(API.transiciones(pid));
+    TRANS_VISTA.pid = pid;
+  } catch (e) { TRANS_VISTA.datos = { error: e.message }; TRANS_VISTA.pid = pid; }
+  TRANS_VISTA.pidiendo = false;
+  pintarLight();
+}
+
+function panelTransicionesLight() {
+  const v = videoAbierto();
+  if (TRANS_VISTA.pid !== v.pid) { TRANS_VISTA.datos = null; }
+  const caja = h('details', { clase: 'caja-info trans-vista', open: TRANS_VISTA.abierta,
+    ontoggle: ev => {
+      TRANS_VISTA.abierta = ev.target.open;
+      if (ev.target.open && !TRANS_VISTA.datos) pedirTransicionesLight(v.pid);
+    } });
+  const d = TRANS_VISTA.datos;
+  const cortes = d && d.reparto ? Object.entries(d.reparto)
+    .filter(([, c]) => c.tipo && c.tipo !== 'corte') : [];
+  const conIntencion = cortes.filter(([, c]) => c.intencion);
+  caja.appendChild(h('summary', {}, d && d.reparto
+    ? `🎬 Transiciones: ${cortes.length} cortes, ${conIntencion.length} elegidos por lo que dice la frase`
+    : '🎬 Qué transición lleva cada corte y por qué'));
+  if (!d) { caja.appendChild(h('p', { clase: 'meta' }, 'cargando…')); return caja; }
+  if (d.error) { caja.appendChild(h('p', { clase: 'meta' }, d.error)); return caja; }
+  const nombres = {};
+  (d.transiciones || []).forEach(t => { nombres[t.id] = t.nombre; });
+  caja.appendChild(h('p', { clase: 'meta' },
+    'Las marcadas con ✦ las eligió el estudio por cómo empieza la frase del plano '
+    + 'que entra («pero» → latigazo, «años después» → fuga de luz, «¿…?» → iris…). '
+    + 'Las demás salen del reparto de siempre, sin repetir dos iguales seguidas.'));
+  const lista = h('ol', { clase: 'lista-trans' });
+  cortes.forEach(([sid, c]) => {
+    lista.appendChild(h('li', { clase: c.intencion ? 'con-intencion' : '' },
+      h('b', {}, `${c.intencion ? '✦ ' : ''}${nombres[c.tipo] || c.tipo}`),
+      h('span', { clase: 'meta' }, ` · ${sid} · ${c.duracion}s`),
+      c.intencion ? h('div', { clase: 'meta' },
+        `${c.intencion}: «${c.arranque || ''}»`) : null));
+  });
+  caja.appendChild(lista);
   return caja;
 }
 /* ==========================================================================

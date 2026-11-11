@@ -2044,6 +2044,15 @@ def _ficha_grabacion(ctx):
         "duracion": round(VOZ_PROPIA.duracion(raiz), 1) if hay else 0,
         "palabras_guion": len(texto.split()),
         "texto_para_leer": texto,
+        # QUE VOZ LLEVA EL VIDEO Y POR QUE (punto 6 del orden nuevo): la
+        # pantalla del guion lo dice en una linea en vez de esconderlo en la
+        # bitacora. Solo lectura de params: no mueve ninguna firma.
+        "voz": {
+            "nombre": str(params.get("voz_nombre") or params.get("voz_id") or ""),
+            "por_tema": params.get("voz_por_tema") if isinstance(
+                params.get("voz_por_tema"), dict) else None,
+            "a_mano": bool(params.get("voz_a_mano")),
+        },
     }
 
 
@@ -6091,6 +6100,16 @@ def leer_transiciones(pid: str):
     reparto = trans.resolver(escenas, render, semilla=(plan.get("semilla") or 0))
     ficha["reparto"] = {sid: {k: v for k, v in corte.items() if k != "shader"}
                         for sid, corte in reparto.items()}
+    # POR QUE ESA TRANSICION (punto 6): en los cortes elegidos por lo que dice
+    # la frase, las primeras palabras del plano que entra, que es lo que leyo
+    # `transiciones.intencion`. Asi la pantalla ensenia la prueba, no solo la
+    # etiqueta.
+    for escena in escenas:
+        corte = ficha["reparto"].get(escena.get("id"))
+        if corte and corte.get("intencion"):
+            palabras = str(escena.get("narracion") or "").split()
+            corte["arranque"] = " ".join(palabras[:trans.PALABRAS_INTENCION]) + (
+                "…" if len(palabras) > trans.PALABRAS_INTENCION else "")
     return ficha
 
 
