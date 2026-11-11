@@ -179,3 +179,31 @@ Banco de temas por series:
 6. **Lee conmigo**: reto «Juan en 21 días», un capítulo por vídeo, cerrando con
    «mañana leemos el capítulo X, léelo antes que yo».
 Para empezar: Ángeles (ya hay guion base) o Detalles que nunca notaste.
+
+## Publicar (cuando el vídeo ya está montado)
+Dar SIEMPRE el paquete completo listo para pegar: título TikTok, título Short,
+descripción, hashtags, texto de portada y comentario fijado.
+- **Título TikTok** (va en el texto del post): la pregunta o el dato del gancho,
+  ≤ 80 caracteres, con 1 emoji como mucho. Ej.: «¿Los ángeles conocen tu nombre? 👀
+  La Biblia responde». Sin «Parte 1» suelto: «Ángeles (1/4): …».
+- **Título Short** (YouTube corta lo largo en el móvil): lo importante en los primeros
+  ~40 caracteres, máx. 100. Palabras que la gente BUSCA («qué dice la Biblia sobre…»,
+  nombre del personaje). Ej.: «¿Los ángeles saben tu nombre? | Qué dice la Biblia».
+- **Título YouTube largo**: pregunta + promesa, ≤ 60 caracteres. Ej.: «El gozo de los
+  ángeles: lo que sienten cuando te arrepientes».
+- **Descripción**: 1ª línea = el gancho otra vez; luego las citas del vídeo
+  (Lucas 15:10, Daniel 10:11…); luego la llamada a leer («Lee Lucas 15 hoy y cuéntame
+  qué te llamó la atención»); en YouTube largo, capítulos con minutos si dura > 3 min.
+- **Hashtags**: 3–5, mezclando uno amplio, dos del nicho y uno del tema.
+  Amplios: #biblia #fe #Dios. Nicho: #estudiobiblico #versiculodeldia #cristianos
+  #palabradedios. Tema: #angeles #jesus #[personaje]. En Shorts, #shorts es opcional.
+  Nunca hashtags que no tengan que ver con el vídeo.
+- **Texto de portada/miniatura**: 2–4 palabras GRANDES que no repitan el título
+  («¿SABEN TU NOMBRE?», «NADIE LO NOTÓ»). En TikTok, elegir como portada el fotograma
+  del cartel del gancho.
+- **Comentario fijado**: una pregunta fácil de contestar («¿Cuál de estos pasajes no
+  conocías? 👇») o «Parte 2 mañana: …».
+- **Hora**: la que diga «📊 El nicho» en la pestaña Ideas; si aún no hay datos, la
+  misma hora todos los días y medir en «Mis vídeos». No inventar «mejores horas».
+- **Serie**: mismo formato de título en todas las partes y lista de reproducción en
+  YouTube con el nombre de la serie.
