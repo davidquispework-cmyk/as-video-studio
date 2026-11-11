@@ -355,10 +355,23 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    Prueba: `pasos/prueba_subtitulo_pos.py` (añadida a `pruebas.ps1`).
    Pendiente: verlo en un vídeo real; si el centro queda alto/bajo, ajustar
    `SUB_ALTURA_CENTRO`.
-9. **SIGUIENTE:** decidir con David qué toca. Opciones que quedan sobre la
-   mesa: grabar tu voz desde la propia página (sin WhatsApp); más giros
-   «falso → verdadero» en el gancho («mito», «en realidad»…); afinar la tabla
-   de voces oyéndolas.
+9. Más giros «falso → verdadero» en los subtítulos — **HECHO (11-nov)** (lo
+   eligió David entre tres opciones). Cómo se usa: nada; basta con escribirlo
+   así en el guion. Además de «no X, sino Y» y «no es X, es Y», ahora se tacha
+   lo falso (rojo) y se resalta lo verdadero en: «todos creen / crees / dicen
+   / cuentan que X… **en realidad** Y», «X. **Lo cierto es** que Y», «**El
+   mito**: X. **La verdad**: Y», «Es un mito. En realidad…» (tacha «mito»).
+   Puede cruzar UN punto («Crees que fue una manzana. En realidad fue un
+   higo.»). Un «en realidad» suelto, sin creencia delante, no hace nada (es
+   muletilla), ni «buscaba la verdad». Gratis: no mueve firmas; los vídeos ya
+   montados cambian solo si se vuelven a montar los textos.
+   Código: `gancho._CREENCIA`, `_marca_realidad`, `_creencia_y_realidad`
+   (llamada desde `gancho.contrastes`). Prueba: `pasos/prueba_gancho.py`.
+   Pendiente: elegir la palabra tachada/resaltada a mano desde la pantalla
+   (hoy se puede forzando `~~palabra~~` y `*palabra*` en el texto).
+10. **SIGUIENTE:** decidir con David qué toca. Quedan sobre la mesa: grabar tu
+   voz desde la propia página (sin WhatsApp); afinar la tabla de voces
+   oyéndolas.
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
 (abajo), un chat por punto. A, B+B+, C, **G con D** y **E** HECHOS (6-nov).
@@ -675,10 +688,10 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    `resalte`; no van en los defectos (no mueven firmas). Pantalla:
    `selectorLetras` en `web/app.js` (+ ruta `/fuentes/<fichero>` en `app.py`
    para que los botones se vean con su letra). Prueba: `pasos/prueba_gancho.py`.
-   Pendiente: detectar más formas de «lo falso → lo verdadero» (p. ej. «mito»,
-   «en realidad»); elegir la palabra clave a mano desde la pantalla; posición
+   Pendiente: ~~más formas de «lo falso → lo verdadero»~~ (HECHO 11-nov, punto 9
+   del orden nuevo); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, el punto 6 y la fuerza de cámara (7) HECHOS; siguiente, el punto 8.
+Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el punto 10.
 
 ## Pendiente / ideas
 1. Catálogo de la mamá: faltan nombre de tienda, WhatsApp, prendas y fotos.

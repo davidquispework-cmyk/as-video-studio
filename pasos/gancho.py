@@ -251,6 +251,40 @@ def _contenido(indices, llanas):
 
 _COPULAS = {"es", "era", "fue", "son", "eran", "fueron", "sera", "será"}
 
+#: Lo que anuncia una creencia que el guion va a desmentir («todos creen
+#: que…», «el mito: …», «dicen que…»). Solo cuenta si detras llega un
+#: «en realidad» o similar (ver `_marca_realidad`).
+_CREENCIA = set("""
+crees cree creemos creen creias creía creia creíamos creiamos creían creian
+pensamos piensas piensan pensabas pensaban imaginas imaginamos imaginan
+dicen decían decian cuentan contaron dijeron enseñaron ensenaron
+mito mitos mentira mentiras leyenda leyendas supuestamente aparentemente
+""".split())
+
+#: Palabras que tachar ellas mismas si la creencia no dice nada mas
+#: («Es un mito. En realidad…»).
+_CREENCIA_SOLA = {"mito", "mitos", "mentira", "mentiras", "leyenda", "leyendas"}
+
+
+def _marca_realidad(llanas, palabras, i):
+    """Indice de la ultima palabra de un «en realidad» que empieza en i, o None.
+
+    «en realidad» / «en verdad» siempre; «la verdad», «la realidad» y «lo
+    cierto» solo si siguen «es/fue/era» o llevan dos puntos («La verdad: …»),
+    que «buscaba la verdad» no desmiente nada.
+    """
+    if i + 1 >= len(llanas):
+        return None
+    par = (llanas[i], llanas[i + 1])
+    if par in (("en", "realidad"), ("en", "verdad")):
+        return i + 1
+    if par in (("la", "verdad"), ("la", "realidad"), ("lo", "cierto")):
+        if palabras[i + 1].endswith(":"):
+            return i + 1
+        if i + 2 < len(llanas) and llanas[i + 2] in _COPULAS:
+            return i + 2
+    return None
+
 
 def contrastes(palabras):
     """Lo FALSO y lo VERDADERO de una frase. -> (tachar: set, verdad: set)
@@ -258,7 +292,13 @@ def contrastes(palabras):
     Dos formas, las que de verdad usa un guion que desmiente algo:
       «no fue una manzana, sino un fruto»   -> tacha «manzana», marca «fruto»
       «no es un mito, es historia»          -> tacha «mito», marca «historia»
-    No cruza un punto: lo de otra frase no es su contraste.
+    Y la de «creencia → en realidad» (11-nov-2026):
+      «todos creen que fue una manzana, pero en realidad fue un higo»
+      «El mito: Colón llegó primero. La verdad: los vikingos.»
+    -> tacha lo creido, marca lo primero que se dice tras «en realidad».
+    Las dos primeras no cruzan un punto; la tercera cruza UNO como mucho
+    («Crees que fue una manzana. En realidad fue un higo.»), y solo si delante
+    hay una creencia: un «en realidad» suelto es muletilla, no desmentido.
     """
     llanas = [_llana(p) for p in palabras]
     tachar, verdad = set(), set()
@@ -301,7 +341,41 @@ def contrastes(palabras):
                         tachar.add(falso)
                         verdad.add(cierto)
                     break
+        fin = _marca_realidad(llanas, palabras, i)
+        if fin is not None:
+            _creencia_y_realidad(i, fin, palabras, llanas, detras, tachar, verdad)
     return tachar, verdad
+
+
+def _creencia_y_realidad(i, fin, palabras, llanas, detras, tachar, verdad):
+    """«creen que X … en realidad Y»: tacha X, marca Y (ver `contrastes`)."""
+    puntos, creencia = 0, None
+    for j in range(i - 1, max(-1, i - 17), -1):
+        if _FIN_FRASE.search(palabras[j]):
+            puntos += 1
+            if puntos > 1:
+                break
+        if llanas[j] in _CREENCIA:
+            creencia = j
+            break
+    if creencia is None:
+        return
+    # Aqui lo verdadero no va pegado al «sino»: «lo cierto es que tenía
+    # seiscientos años» -> la palabra con peso (cifra, nombre, la larga).
+    tras = _contenido(detras(fin + 1), llanas)
+    clave = palabra_clave([palabras[k] for k in tras])
+    cierto = tras[clave] if clave is not None else _primera(tras)
+    if cierto is None:
+        return
+    tramo = [k for k in _contenido(list(range(creencia + 1, i)), llanas)
+             if llanas[k] not in _CREENCIA]
+    falso = _mejor(tramo, palabras)
+    if falso is None and llanas[creencia] in _CREENCIA_SOLA:
+        falso = creencia
+    if falso is None:
+        return
+    tachar.add(falso)
+    verdad.add(cierto)
 
 
 def preparar(trozos, mayus=False):

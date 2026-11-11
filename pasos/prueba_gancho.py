@@ -48,6 +48,23 @@ def main():
     assert pal[min(tachar)] == "manzana," and pal[min(verdad)] == "fruto", (tachar, verdad)
     t2, v2 = gancho.contrastes("no es un mito, es historia real.".split())
     assert t2 == {3} and v2 == {5}, (t2, v2)
+    # creencia -> «en realidad» (11-nov): tacha lo creido, marca lo verdadero
+    def _tv(frase):
+        pal = frase.split()
+        t, v = gancho.contrastes(pal)
+        return sorted(pal[k] for k in t), sorted(pal[k] for k in v)
+    assert _tv("Todos creen que fue una manzana, pero en realidad fue un higo.") \
+        == (["manzana,"], ["higo."])
+    assert _tv("Crees que fue una manzana. En realidad fue un higo.") \
+        == (["manzana."], ["higo."])
+    assert _tv("Dicen que Noé era joven. Lo cierto es que tenía seiscientos años.") \
+        == (["joven."], ["seiscientos"])
+    assert _tv("El mito: Colón llegó primero. La verdad: los vikingos.")[1] == ["vikingos."]
+    assert _tv("Es un mito. En realidad nadie lo vio.")[0] == ["mito."]
+    # sin creencia delante, «en realidad» es muletilla; «buscar la verdad», nada
+    assert _tv("En realidad fue un higo.") == ([], [])
+    assert _tv("Él buscaba la verdad en Roma.") == ([], [])
+    assert _tv("Crees que es fácil. Mañana iremos. En realidad no.") == ([], [])
     assert gancho.contador("350")["desde"] == 0 and gancho.contador("1656")["desde"] == 1606
     assert gancho.contador("1.500")["miles"] == "." and gancho.contador("3,5") is None
     pasos = gancho._pasos_contador(gancho.contador("70"), 1.0, 2.0)
