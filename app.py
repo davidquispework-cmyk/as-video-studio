@@ -2332,6 +2332,166 @@ def _correr_reescribir(avisar, ctx, ids, peticion, ajuste):
             "resumen": f"{len(cambiados)} de {len(ids)} bloque(s) cambiados"}
 
 
+# ------------------------------------------------- ARREGLAR EL GUION (un botón)
+# Los avisos del guion («331 palabras, por encima del máximo», «5 silencios
+# para 8 bloques») se quedaban en avisos: el redactor ya había gastado su
+# reintento y nadie más los convertía en una corrección. Este botón hace eso:
+# lee el guion COMO ESTÁ AHORA (con lo editado a mano), escribe la petición con
+# las cuentas hechas y la pasa a `_correr_reescribir` sobre todos los bloques
+# --el mismo camino que «Regenerar bloque»: escribe en `params.guion.bloques`,
+# así que el audio queda obsoleto por el camino normal y NADA se graba solo--.
+# Los silencios que sobren después se quitan a mano, sin preguntar a nadie.
+
+
+def _guion_vivo(ctx):
+    """(documento de guion.json, bloques con lo editado a mano encima)."""
+    documento = PASOS_MODULOS.comun.leer_salida(ctx.proyecto, "guion",
+                                                "guion.json", obligatorio=False)
+    bloques = [{"id": b["id"], "texto": b["texto"]}
+               for b in ((documento or {}).get("guion") or [])]
+    editados = (ctx.estado.params("guion") or {}).get("bloques") or {}
+    for bloque in bloques:
+        ficha = editados.get(bloque["id"])
+        texto = ficha.get("texto") if isinstance(ficha, dict) else ficha
+        if isinstance(texto, str) and texto.strip():
+            bloque["texto"] = texto
+    return documento or {}, bloques
+
+
+def _tope_de_silencios(bloques):
+    marcas = PASOS_MODULOS.marcas_tts
+    return max(1, int(len(bloques) * marcas.DENSIDAD_MAXIMA))
+
+
+def _silencios(bloques):
+    marcas = PASOS_MODULOS.marcas_tts
+    return sum(1 for b in bloques for clase, _ in marcas.trocear(b["texto"])
+               if clase == "break")
+
+
+def _que_arreglar(documento, bloques):
+    """-> (avisos de ahora, [lo que se le pide al arreglo])."""
+    marcas = PASOS_MODULOS.marcas_tts
+    palabras = sum(marcas.contar_palabras(b["texto"]) for b in bloques)
+    horquilla = {k: documento.get(k) for k in
+                 ("presupuesto_palabras", "palabras_minimo", "palabras_maximo")}
+    idioma = documento.get("idioma") or "es"
+    try:
+        avisos = list(PASOS_MODULOS.p3_guion._avisos(bloques, palabras,
+                                                     horquilla, idioma))
+    except Exception:                                       # noqa: BLE001
+        avisos = []
+    minimo = int(documento.get("palabras_minimo") or 0)
+    maximo = int(documento.get("palabras_maximo") or 0)
+    meta = int(documento.get("presupuesto_palabras") or 0)
+    pedir = []
+    if maximo and palabras > maximo:
+        objetivo = min(maximo, meta or maximo)
+        pedir.append(
+            f"El guion entero tiene {palabras} palabras y no puede pasar de "
+            f"{maximo}: recórtalo a unas {objetivo} en total (unas "
+            f"{max(1, objetivo // max(1, len(bloques)))} por bloque), quitando "
+            f"repeticiones, rodeos y frases de relleno. No quites hechos, "
+            f"citas bíblicas, nombres ni la frase final")
+    elif minimo and palabras < minimo:
+        pedir.append(
+            f"El guion entero tiene {palabras} palabras y necesita al menos "
+            f"{minimo}: alárgalo a unas {meta or minimo} en total desarrollando "
+            f"los hechos que ya cuenta, sin inventar nada")
+    tope = _tope_de_silencios(bloques)
+    if _silencios(bloques) > tope:
+        pedir.append(
+            f"Hay {_silencios(bloques)} pausas <break> y como mucho puede haber "
+            f"{tope} en todo el guion: deja solo las de los sitios donde el "
+            f"relato cambia de verdad y quita las demás")
+    return avisos, pedir
+
+
+def _quitar_silencios_de_mas(bloques):
+    """Deja como mucho el tope de <break>, quitando los ultimos. -> bloques"""
+    marcas = PASOS_MODULOS.marcas_tts
+    quedan = _tope_de_silencios(bloques)
+    salida = []
+    for bloque in bloques:
+        trozos = []
+        for clase, pieza in marcas.trocear(bloque["texto"]):
+            if clase == "break":
+                if quedan <= 0:
+                    continue
+                quedan -= 1
+            trozos.append((clase, pieza))
+        salida.append({"id": bloque["id"],
+                       "texto": marcas.sanear(marcas._rearmar(trozos))})
+    return salida
+
+
+@app.get("/api/proyectos/{pid}/guion/avisos")
+def avisos_del_guion(pid: str):
+    """Los avisos del guion TAL COMO ESTÁ AHORA y si el botón puede arreglarlos."""
+    ctx = contexto(pid)
+    if PASOS_MODULOS is None:
+        raise ErrorApi(503, f"los pasos no se han podido cargar: {ERROR_PASOS}")
+    documento, bloques = _guion_vivo(ctx)
+    if not bloques:
+        return {"avisos": [], "arreglable": False}
+    avisos, pedir = _que_arreglar(documento, bloques)
+    # si al acabar se puede regrabar la voz sin pagar y sin pisar una grabacion
+    # tuya: con la voz gratuita y sin voz propia subida
+    try:
+        regrabar = bool(PASOS_MODULOS.p4_voz.gratis()) and \
+            not _ficha_grabacion(ctx).get("hay")
+    except Exception:                                       # noqa: BLE001
+        regrabar = False
+    return {"avisos": avisos, "arreglable": bool(pedir), "arreglos": pedir,
+            "regrabar_gratis": regrabar}
+
+
+def _correr_arreglo(avisar, ctx, pedir, ajuste):
+    documento, bloques = _guion_vivo(ctx)
+    ids = [b["id"] for b in bloques]
+    resultado = _correr_reescribir(
+        lambda v, m="": avisar(min(0.9, v * 0.9), m), ctx, ids,
+        ". ".join(pedir) + ".", ajuste)
+    # Y LOS SILENCIOS, a mano si el modelo no los quito: es una cuenta, no un
+    # gusto, y no merece otra llamada.
+    _, bloques = _guion_vivo(ctx)
+    if _silencios(bloques) > _tope_de_silencios(bloques):
+        limpios = _quitar_silencios_de_mas(bloques)
+        editados = dict((ctx.estado.params("guion") or {}).get("bloques") or {})
+        for antes, ahora in zip(bloques, limpios):
+            if antes["texto"] != ahora["texto"]:
+                editados[ahora["id"]] = {"texto": ahora["texto"]}
+        ctx.estado.actualizar_params("guion", {"bloques": editados})
+    avisos, quedan = _que_arreglar(documento, _guion_vivo(ctx)[1])
+    resultado["quedan"] = quedan
+    avisar(1.0, "guion arreglado" if not quedan
+           else "guion corregido; queda algún aviso, puedes pulsar otra vez")
+    return resultado
+
+
+@app.post("/api/proyectos/{pid}/guion/arreglar", status_code=202)
+def arreglar_guion(pid: str, cuerpo: dict = Body(default=None)):
+    """Convierte los avisos del guion en una corrección, con un botón."""
+    ctx = contexto(pid)
+    if PASOS_MODULOS is None:
+        raise ErrorApi(503, f"los pasos no se han podido cargar: {ERROR_PASOS}")
+    documento, bloques = _guion_vivo(ctx)
+    if not bloques:
+        raise ErrorApi(400, "todavía no hay guion que arreglar")
+    _, pedir = _que_arreglar(documento, bloques)
+    if not pedir:
+        raise ErrorApi(400, "el guion no tiene nada que este botón sepa arreglar")
+    datos = _cuerpo(cuerpo)
+    por_fase = CLI_CLAUDE.por_defecto_de("revision_audio")
+    ajuste = _ajuste_cli(datos, por_fase["modelo"], por_fase["esfuerzo"])
+    trabajo_id = ctx.gestor.lanzar("arreglar_guion", _correr_arreglo, ctx,
+                                   pedir, ajuste, paso="guion")
+    _registrar_trabajo(trabajo_id, ctx.id)
+    return {"trabajo_id": trabajo_id, "arreglos": pedir, "ajuste": ajuste,
+            "trabajo": ctx.gestor.estado(trabajo_id),
+            "eventos": f"/api/trabajos/{trabajo_id}/eventos"}
+
+
 @app.post("/api/proyectos/{pid}/guion/bloques/reescribir", status_code=202)
 def reescribir_bloques_guion(pid: str, cuerpo: dict = Body(default=None)):
     """Reescribe unos bloques del guion con una frase. Sin tocar el audio."""

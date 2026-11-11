@@ -711,6 +711,14 @@ Visto en el vídeo del rey David (borrado después; no se arregló ese vídeo).
 - De paso: cara solemne (no «sonrisa relajada») en momentos graves
   (`p6_assets._momento_grave`); en la crucifixión, TRES cruces y Jesús con la
   cabeza erguida hasta su último grito (`fidelidad.CRUCIFIXION`).
+- **Botón «✨ Arreglar el guion»** (pestaña Guion, bajo los avisos): convierte
+  los avisos de largo (por encima/debajo de la horquilla) y de pausas de más en
+  UNA corrección de todos los bloques (`/api/proyectos/{pid}/guion/arreglar`,
+  mismo camino que «Regenerar bloque»); las pausas que sigan sobrando se quitan
+  a mano. Con la voz gratuita y sin voz propia subida, al acabar regraba el
+  audio solo; con Cartesia o con tu grabación, solo avisa (no gasta ni pisa).
+  Los avisos de la pantalla ya son los de AHORA (`/guion/avisos`), no los del
+  día en que se escribió. Prueba: `pasos/prueba_arreglar_guion.py`.
   Prueba: `pasos/prueba_fidelidad.py`. Pendiente: por qué el corte dejó un plano
   de 0,3 s («Y»); ya no desfasa nada, pero un plano así sobra.
 

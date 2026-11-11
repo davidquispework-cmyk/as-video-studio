@@ -8191,9 +8191,23 @@ function vistaGuionLight() {
     return caja;
   }
 
-  (v.guion.avisos || []).slice(0, 6).forEach(aviso => {
+  /* LOS AVISOS DE AHORA, no los del día que se escribió: el guion.json guarda
+     los del redactor, y tras arreglarlo seguían diciendo «331 palabras». */
+  pedirAvisosGuionLight();
+  const vivos = AVISOS_GUION.pid === v.pid ? AVISOS_GUION.datos : null;
+  ((vivos && vivos.avisos) || v.guion.avisos || []).slice(0, 6).forEach(aviso => {
     caja.appendChild(h('div', { clase: 'caja-aviso' }, aviso));
   });
+  if (vivos && vivos.arreglable) {
+    caja.appendChild(h('div', { clase: 'fila' },
+      h('button', {
+        clase: 'mini', disabled: !!trabajoVideoLight(),
+        onclick: () => arreglarGuionLight(),
+      }, '✨ Arreglar el guion'),
+      h('span', { clase: 'meta' }, vozGratisSinGrabacion()
+        ? 'recorta lo que sobra y quita pausas de más, y vuelve a grabar la voz (gratis)'
+        : 'recorta lo que sobra y quita pausas de más; luego pulsa «Regenerar Audio»')));
+  }
 
   // EL REPRODUCTOR VIVE EN LA BARRA DE ABAJO (ver `pieLight`). Estaba arriba
   // del guion para que los mandos no se fueran con el scroll; la barra fija lo
@@ -8212,6 +8226,53 @@ function vistaGuionLight() {
   caja.appendChild(bloquesLight());
   BARRA_INFERIOR.nodo = pieLight();
   return caja;
+}
+
+/* ARREGLAR EL GUION CON UN BOTÓN (`/guion/arreglar` en app.py): convierte
+   los avisos de largo y de pausas en una corrección de todos los bloques. El
+   audio solo se regraba solo con la voz GRATUITA y sin grabación tuya: con
+   Cartesia se paga, y con tu voz grabada el texto nuevo ya no es lo que leíste. */
+const AVISOS_GUION = { pid: '', datos: null, pidiendo: false, pedidaEn: 0 };
+
+async function pedirAvisosGuionLight(forzar) {
+  const v = APP.light.video;
+  if (!v.pid || AVISOS_GUION.pidiendo) return;
+  const fresca = Date.now() - AVISOS_GUION.pedidaEn < 30000;
+  if (!forzar && AVISOS_GUION.pid === v.pid && fresca) return;
+  AVISOS_GUION.pidiendo = true;
+  AVISOS_GUION.pedidaEn = Date.now();
+  try {
+    AVISOS_GUION.datos = await pedir(`${API.proyecto(v.pid)}/guion/avisos`);
+    AVISOS_GUION.pid = v.pid;
+  } catch (e) { AVISOS_GUION.datos = null; }
+  AVISOS_GUION.pidiendo = false;
+  if (APP.light.video.pid === AVISOS_GUION.pid) pintarLight();
+}
+
+function vozGratisSinGrabacion() {
+  return !!(AVISOS_GUION.datos && AVISOS_GUION.datos.regrabar_gratis);
+}
+
+async function arreglarGuionLight() {
+  const v = APP.light.video;
+  limpiarError(CLAVE_VIDEO_LIGHT);
+  try {
+    const datos = await pedir(`${API.proyecto(v.pid)}/guion/arreglar`,
+      { method: 'POST', cuerpo: {} });
+    const tid = datos.trabajo_id || (datos.trabajo || {}).id;
+    if (!tid) throw new Error('el servidor no ha devuelto ningún trabajo');
+    const regrabar = !!v.audio && vozGratisSinGrabacion();
+    seguirTrabajo(CLAVE_VIDEO_LIGHT, tid, async trabajo => {
+      if (trabajo.estado === 'listo') {
+        await cargarVideoLight(v.pid);
+        await pedirAvisosGuionLight(true);
+        if (regrabar) lanzarTandaLight('voz', 'todo');
+        else toast('Guion arreglado. Pulsa «Regenerar Audio» para oírlo.');
+      }
+      pintarLight();
+    });
+    pintarLight();
+  } catch (err) { mostrarError(CLAVE_VIDEO_LIGHT, err); pintarLight(); }
 }
 
 /* TU VOZ GRABADA (punto 5 del orden nuevo, pasos/voz_propia.py). Se lee el
