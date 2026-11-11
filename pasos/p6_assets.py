@@ -834,6 +834,66 @@ def _ajustes_unidad(params, uid):
     return bloque if isinstance(bloque, dict) else {}
 
 
+def _lo_dirigido(params, escenas):
+    """La direccion y el redactado de cada plano, buscados POR SU FRASE.
+
+    -> {id de plano: {"direccion": ..., "redactado": ..., "redactado_set": ...}}
+
+    Quien guarda una direccion o un parrafo deja sellada la frase para la que
+    lo escribio (`direccion_de`, `redactado_de`: la narracion normalizada).
+    Aqui cada plano se queda con lo que se escribio para SU frase:
+
+      1. lo de su propio id, si el sello es su frase (o no hay sello: lo
+         guardado antes de existir el sello se lee como siempre, y asi no se
+         mueve la firma de ningun proyecto que ya estuviera bien);
+      2. si no, lo de otro id cuyo sello sea su frase (el corte se renumero);
+      3. si no, nada: el plano queda SIN DIRIGIR y lo cuenta
+         `informe["sin_dirigir"]`. Mejor sin accion propia que con la de otro.
+    """
+    bloque = (params or {}).get("unidades") or {}
+
+    def sello(texto):
+        return medios.normalizar_texto(texto or "")
+
+    def recoger(campo, extra=()):
+        propio, por_frase = {}, {}
+        for uid, datos in bloque.items():
+            if not (isinstance(datos, dict) and str(uid).startswith("escena:")):
+                continue
+            valor = " ".join(str(datos.get(campo) or "").split())
+            if not valor:
+                continue
+            ficha = {campo: valor, **{k: datos[k] for k in extra if k in datos}}
+            sid = str(uid).split(":", 1)[1]
+            marca = datos.get(f"{campo}_de")
+            propio[sid] = (ficha, None if marca is None else sello(marca))
+            if marca is not None:
+                por_frase.setdefault(sello(marca), []).append(sid)
+        salida, usados = {}, set()
+        for escena in escenas:
+            texto = _texto_clave(escena)
+            ficha, marca = propio.get(escena["id"], (None, None))
+            if ficha is not None and (marca is None or marca == texto):
+                salida[escena["id"]] = ficha
+                usados.add(escena["id"])
+        for escena in escenas:
+            if escena["id"] in salida:
+                continue
+            for sid in por_frase.get(_texto_clave(escena), []):
+                if sid not in usados:
+                    salida[escena["id"]] = propio[sid][0]
+                    usados.add(sid)
+                    break
+        return salida
+
+    direcciones = recoger("direccion")
+    redactados = recoger("redactado", extra=("redactado_set",))
+    todo = {}
+    for sid, ficha in list(direcciones.items()) + list(redactados.items()):
+        todo.setdefault(sid, {}).update(ficha)
+    return todo
+
+
 def _texto_feedback(valor):
     """El feedback de una unidad como UN texto para el prompt.
 
@@ -1425,8 +1485,17 @@ def planificar(proyecto, params, inventario=None, replantear=False,
     # por `redactor`. Si esta, manda sobre todo lo demas (ver `_prompt_visual`);
     # si no esta, no cambia nada. Los dos viven en los params POR UNIDAD, que es
     # lo que hace que escribir uno ensucie SU plano y no los 299.
+    #
+    # Y SE LEE POR SU FRASE, NO POR SU NUMERO. Los ids son la POSICION en el
+    # video (ver `_heredar_ids`): si el corte cambia despues de dirigir --un
+    # plano de 0,3 s que aparece, otro que se funde--, todo lo de detras se
+    # renumera y la accion escrita para el viejo S008 caia en el nuevo S006.
+    # Medido en un video de noviembre de 2026: desde S006 cada accion iba de 2 a
+    # 6 planos por delante de su frase, con el sitio y el reparto bien (esos los
+    # calcula el codigo en cada corte). Ver `_lo_dirigido`.
+    dirigido = _lo_dirigido(p, escenas)
     for escena in escenas:
-        ajustes = _ajustes_unidad(p, f"escena:{escena['id']}")
+        ajustes = dirigido.get(escena["id"]) or {}
         linea = " ".join(str(ajustes.get("direccion") or "").split())
         if linea:
             escena["direccion"] = linea
@@ -2249,10 +2318,34 @@ def _cara_del_plano(escena, beat):
     del tono entra solo como red, si la linea no la dice.
     """
     tono = _tono_de(escena, beat)
+    linea = (escena or {}).get("direccion") or ""
+    if _momento_grave(escena, beat) and str(tono or "neutro").strip().lower() \
+            in ("neutro", "alegre", ""):
+        # UN MOMENTO GRAVE NO LLEVA LA CARA RELAJADA. El neutro pide «a slight
+        # natural smile», y en un video de noviembre de 2026 salia en planos de
+        # la crucifixion porque su tramo era neutro. Si la linea ya dice la
+        # cara (los que se burlan, con sorna), manda ella; si no, solemne.
+        return "" if _dice_la_expresion(linea) else TONOS["solemne"]
     if not (escena or {}).get("sencillo"):
         return _expresion(tono)
-    linea = (escena or {}).get("direccion") or ""
     return "" if _dice_la_expresion(linea) else _expresion(tono)
+
+
+#: Lo que hace grave un momento, en la frase narrada o en lo que se ve.
+_GRAVE = re.compile(
+    r"\b(cruz|crucific\w*|crucif\w*|golgota|calvario|agoni\w*|muri\w*|"
+    r"muert\w*|morir|sufri\w*|azot\w*|clavad\w*|clavos|sangr\w*|sepult\w*|"
+    r"desampar\w*|llor\w*|duelo|luto|crucified|crucifixion|cross|dying|death|"
+    r"dead|corpse|wounds?|nails|tomb|grief|mourn\w*|weep\w*|agony|suffer\w*|"
+    r"burial)\b")
+
+
+def _momento_grave(escena, beat):
+    """Si lo que pasa en este plano es grave (muerte, cruz, dolor). -> bool"""
+    textos = [(escena or {}).get(k) for k in ("narracion", "direccion", "accion")]
+    textos.append((beat or {}).get("accion"))
+    plano = medios.normalizar_texto(" ".join(str(t or "") for t in textos))
+    return _GRAVE.search(plano) is not None
 
 
 def _citar_reparto(personajes, catalogo, sencillo=False):

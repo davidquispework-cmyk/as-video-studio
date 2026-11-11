@@ -693,6 +693,27 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    del subtítulo elegible (centro / abajo).
 Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el punto 10.
 
+## Prompts de imagen: dos fallos de fondo arreglados (11-nov-2026)
+Visto en el vídeo del rey David (borrado después; no se arregló ese vídeo).
+- **Desfase plano ↔ audio**: los planos se numeran por POSICIÓN (S001, S002…) y
+  se renumeran si el corte cambia (sale un plano de 0,3 s, otro se funde). La
+  acción escrita («QUÉ SE VE», `direccion`/`redactado`) se guardaba por número y
+  se quedaba en el número viejo: desde S006 iba 2-6 planos adelantada. Ahora se
+  guarda con la frase para la que se escribió (`direccion_de`, `redactado_de`) y
+  `p6_assets._lo_dirigido` la pone en el plano que dice ESA frase; un plano sin
+  frase que case queda «sin dirigir» y la receta lo dirige antes de generar. Lo
+  guardado antes del arreglo se lee como siempre (no mueve firmas).
+- **Época por plano y por personaje**: `fidelidad.epoca_del_plano` decide por
+  quién sale (su nombre: David → Edad del Hierro, Jesús → siglo I), lo que se ve
+  y la frase; la del vídeo solo si nada de eso dice nada. Una ficha de David con
+  «first-century» se corrige al copiar (`ficha_en_su_epoca`), y al catálogo se le
+  avisa de que el vídeo mezcla épocas.
+- De paso: cara solemne (no «sonrisa relajada») en momentos graves
+  (`p6_assets._momento_grave`); en la crucifixión, TRES cruces y Jesús con la
+  cabeza erguida hasta su último grito (`fidelidad.CRUCIFIXION`).
+  Prueba: `pasos/prueba_fidelidad.py`. Pendiente: por qué el corte dejó un plano
+  de 0,3 s («Y»); ya no desfasa nada, pero un plano así sobra.
+
 ## Pendiente / ideas
 1. Catálogo de la mamá: faltan nombre de tienda, WhatsApp, prendas y fotos.
 2. Web del negocio.

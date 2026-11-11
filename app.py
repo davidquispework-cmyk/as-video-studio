@@ -4365,12 +4365,25 @@ def _planos_por_dirigir(ctx, escenas):
     veces.
     """
     hechos = set(ctx.estado.unidades_producidas("assets"))
-    return [sid for sid in _direccion().sin_dirigir(escenas, _plan_de_direccion(ctx))
+    return [sid for sid in _direccion().sin_dirigir(escenas, _plan_de_direccion(ctx, escenas))
             if f"escena:{sid}" not in hechos]
 
 
-def _plan_de_direccion(ctx):
-    """Lo dirigido, POR UNIDAD: {"S013": "a hand covers the screen"}."""
+def _plan_de_direccion(ctx, escenas=None):
+    """Lo dirigido, POR UNIDAD: {"S013": "a hand covers the screen"}.
+
+    VISTO SOBRE EL CORTE DE AHORA. Los ids son la posicion en el video y se
+    renumeran si el corte cambia; la direccion lleva sellada su frase
+    (`direccion_de`) y `p6_assets._lo_dirigido` la pone en el plano que dice esa
+    frase. Leerla a pelo por id enseñaba (y volvia a guardar, ya sellada con
+    la frase equivocada) la accion de otro plano. Las escenas de `planificar`
+    ya la traen colocada; sin ellas se lee el bloque tal cual.
+    """
+    if escenas is None:
+        escenas = _escenas_que_va_a_rodar(ctx)
+    if escenas:
+        return {e["id"]: " ".join(str(e["direccion"]).split())
+                for e in escenas if e.get("id") and e.get("direccion")}
     bloque = (ctx.estado.params("assets") or {}).get("unidades") or {}
     plan = {}
     for uid, datos in bloque.items():
@@ -4386,9 +4399,11 @@ def leer_direccion(pid: str):
     """Qué se ve en cada plano: lo dirigido, y los planos que lo admiten."""
     ctx = contexto(pid)
     direccion = _direccion()
-    plan_assets = PASOS_MODULOS.p6_assets.plan_actual(ctx.proyecto, "assets", estado=ctx.estado) or {}
-    escenas = plan_assets.get("escenas") or []
-    plan = _plan_de_direccion(ctx)
+    escenas = _escenas_que_va_a_rodar(ctx)
+    if not escenas:
+        plan_assets = PASOS_MODULOS.p6_assets.plan_actual(ctx.proyecto, "assets", estado=ctx.estado) or {}
+        escenas = plan_assets.get("escenas") or []
+    plan = _plan_de_direccion(ctx, escenas)
     dirigibles = [e for e in escenas if direccion.dirigible(e)]
     return {
         "plan": plan,
@@ -4403,6 +4418,22 @@ def leer_direccion(pid: str):
         "repetidas": direccion.repetidas(plan, dirigibles),
         "resumen": direccion.describir(plan, dirigibles),
     }
+
+
+def _frases_de_los_planos(ctx):
+    """{id de plano: su narracion} del corte que va a rodar la tanda."""
+    return {e["id"]: e.get("narracion") or ""
+            for e in (_escenas_que_va_a_rodar(ctx) or []) if e.get("id")}
+
+
+def _sellar(ficha, clave, frase):
+    """Apunta para que frase se escribio esto. Sin frase conocida, no se sella
+    (y se lee por id, como siempre)."""
+    frase = " ".join(str(frase or "").split())
+    if frase:
+        ficha[clave] = frase
+    else:
+        ficha.pop(clave, None)
 
 
 def _guardar_direccion_por_unidad(ctx, plan):
@@ -4425,17 +4456,25 @@ def _guardar_direccion_por_unidad(ctx, plan):
         if motivo:
             avisos.append(f"{sid}: {motivo}")
         limpio[sid] = linea
-    antes = _plan_de_direccion(ctx)
     previos = (ctx.estado.params("assets") or {}).get("unidades") or {}
+    # lo que haya en el bloque, con su numero de ahora o el de un corte viejo:
+    # lo que no venga en el plan se quita, o quedaria ahi esperando a que el
+    # corte vuelva a darle una frase que case
+    antes = {uid.split(":", 1)[1] for uid, ficha in previos.items()
+             if uid.startswith("escena:") and isinstance(ficha, dict)
+             and ficha.get("direccion")}
+    frases = _frases_de_los_planos(ctx)
     bloque = {}
-    for sid in set(limpio) | set(antes):
+    for sid in set(limpio) | antes:
         uid = f"escena:{sid}"
         actual = previos.get(uid)
         actual = dict(actual) if isinstance(actual, dict) else {}
         if sid in limpio:
             actual["direccion"] = limpio[sid]
+            _sellar(actual, "direccion_de", frases.get(sid))
         else:
             actual.pop("direccion", None)
+            actual.pop("direccion_de", None)
         bloque[uid] = actual
     ctx.estado.actualizar_params("assets", {"unidades": bloque})
     return len(limpio), avisos
@@ -4496,6 +4535,7 @@ def _guardar_redactado_por_unidad(ctx, plan):
     antes = {uid.split(":", 1)[1] for uid, ficha in previos.items()
              if uid.startswith("escena:") and isinstance(ficha, dict)
              and ficha.get("redactado")}
+    frases = _frases_de_los_planos(ctx)
     bloque = {}
     for sid in set(limpio) | antes:
         uid = f"escena:{sid}"
@@ -4504,9 +4544,11 @@ def _guardar_redactado_por_unidad(ctx, plan):
         if sid in limpio:
             actual["redactado"] = limpio[sid]["prompt"]
             actual["redactado_set"] = limpio[sid]["set"]
+            _sellar(actual, "redactado_de", frases.get(sid))
         else:
             actual.pop("redactado", None)
             actual.pop("redactado_set", None)
+            actual.pop("redactado_de", None)
         bloque[uid] = actual
     ctx.estado.actualizar_params("assets", {"unidades": bloque})
     return len(limpio), avisos
@@ -4590,7 +4632,7 @@ def _correr_direccion(avisar, ctx, ajuste, aplicar=False, solo_faltan=False):
     beats = (plan_assets or {}).get("beats")
     # SOLO LOS QUE FALTAN, si el video ya estaba dirigido y se pide lo
     # pendiente. Los beats van en paralelo a las escenas y se filtran a la vez.
-    ya = _plan_de_direccion(ctx)
+    ya = _plan_de_direccion(ctx, escenas)
     faltan = set(_planos_por_dirigir(ctx, escenas)) if solo_faltan else set()
     if solo_faltan and ya and not faltan:
         avisar(1.0, "todos los planos que faltan por generar ya están dirigidos")

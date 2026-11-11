@@ -94,6 +94,77 @@ comprobar("el guion biblico pide la RV1960",
 texto = fidelidad.insertar("A\nDEVUELVE ESTE JSON:\n{}", "BLOQUE\n", "DEVUELVE")
 comprobar("el bloque va antes del JSON", texto.index("BLOQUE") < texto.index("DEVUELVE"))
 
+# --- 6. el video que mezcla dos tiempos (noviembre de 2026: David y la cruz)
+MEZCLA = ("Cómo supo el rey David lo que pasaría en una cruz mil años después. "
+          "David escribió el Salmo veintidós; Jesús, crucificado en el Gólgota, "
+          "gritó sus primeras palabras y los soldados se repartieron su ropa.")
+comprobar("David es de la Edad del Hierro",
+          fidelidad.epoca_de_personaje("david", "a first-century-style man") == "reyes")
+comprobar("Jesus es del siglo I", fidelidad.epoca_de_personaje("jesus") == "nt")
+comprobar("el plano de David lleva SU epoca, no la del video",
+          fidelidad.epoca_del_plano(MEZCLA, "Se llamaba David y escribía "
+                                    "canciones a Dios en una cruz", ["david"]) == "reyes")
+comprobar("el plano de la cruz lleva el siglo I",
+          fidelidad.epoca_del_plano(MEZCLA, "Jesús en la cruz", ["jesus"]) == "nt")
+comprobar("la ficha de David pierde el «first-century»",
+          "Iron Age" in fidelidad.ficha_en_su_epoca("david", "A first-century-style man")
+          and "first-century" not in fidelidad.ficha_en_su_epoca("david", "A first-century-style man"))
+comprobar("la de un apostol no se toca",
+          fidelidad.ficha_en_su_epoca("pedro", "a first-century man") == "a first-century man")
+dav = subidas.prompt_para_copiar(
+    {"prompt": "David on a rooftop with a scroll", "narracion": "Se llamaba David",
+     "personajes": ["david"]},
+    fichas={"david": "A first-century-style Hebrew man of about 45"}, contexto=MEZCLA)
+comprobar("el prompt manual de David dice Edad del Hierro",
+          "Edad del Hierro" in dav and "siglo I d. C." not in dav
+          and "first-century" not in dav, dav[:300])
+cruz = subidas.prompt_para_copiar(
+    {"prompt": "Jesus on the cross on the bare hill", "narracion": "Jesús gritó en la cruz",
+     "personajes": ["jesus"]}, contexto=MEZCLA)
+comprobar("la crucifixion pide tres cruces y la cabeza erguida antes del grito",
+          "TRES cruces" in cruz and "ERGUIDA" in cruz)
+unico = subidas.prompt_unico([{"id": "S001", "personajes": ["david"]}],
+                             contexto=MEZCLA, reparto={"david": {"descripcion": "a first-century man"}})
+comprobar("el prompt unico dice que el video mezcla epocas",
+          "mezcla tiempos" in unico and "first-century" not in unico)
+pc = fidelidad.pauta_claude(MEZCLA, para="catalogo")
+comprobar("el catalogo recibe las dos epocas y la regla de mezcla",
+          "Edad del Hierro" in pc and "siglo I" in pc and "MEZCLA ÉPOCAS" in pc)
+
+# --- 7. la cara de un momento grave no es «relajada»
+import p6_assets  # noqa: E402
+cara = p6_assets._cara_del_plano({"narracion": "Jesús muere en la cruz"}, {"tono": "neutro"})
+comprobar("en la cruz, cara solemne y no la sonrisa del neutro",
+          "No smiling" in cara and "smile" not in cara.replace("smiling", ""), cara)
+comprobar("la burla con su cara dicha manda la linea",
+          p6_assets._cara_del_plano({"narracion": "se burlan de él en la cruz",
+                                     "direccion": "a mocking grin", "sencillo": True},
+                                    {"tono": "neutro"}) == "")
+comprobar("un momento normal sigue con el neutro",
+          p6_assets._cara_del_plano({"narracion": "comen pan en la casa"},
+                                    {"tono": "neutro"}) == p6_assets.TONOS["neutro"])
+
+# --- 8. la accion va con SU frase aunque el corte se renumere
+esc = [{"id": "S001", "narracion": "uno"}, {"id": "S002", "narracion": "Y"},
+       {"id": "S003", "narracion": "dos"}, {"id": "S004", "narracion": "tres"}]
+params = {"unidades": {
+    "escena:S001": {"direccion": "A uno", "direccion_de": "uno"},
+    "escena:S002": {"direccion": "A dos", "direccion_de": "dos"},
+    "escena:S003": {"direccion": "A tres", "direccion_de": "tres"},
+    "escena:S004": {"redactado": "P viejo", "redactado_de": "cuatro"}}}
+dirigido = p6_assets._lo_dirigido(params, esc)
+comprobar("tras renumerar, cada accion vuelve a su frase",
+          (dirigido.get("S001") or {}).get("direccion") == "A uno"
+          and (dirigido.get("S003") or {}).get("direccion") == "A dos"
+          and (dirigido.get("S004") or {}).get("direccion") == "A tres", dirigido)
+comprobar("el plano nuevo («Y») queda sin dirigir, no con la accion de otro",
+          "S002" not in dirigido, dirigido)
+comprobar("un redactado sellado para otra frase no se usa",
+          "redactado" not in (dirigido.get("S004") or {}), dirigido)
+viejo = p6_assets._lo_dirigido({"unidades": {"escena:S001": {"direccion": "sin sello"}}}, esc)
+comprobar("lo guardado sin sello se lee como siempre (no mueve firmas)",
+          (viejo.get("S001") or {}).get("direccion") == "sin sello")
+
 print()
 if fallos:
     print(f"FALLARON {len(fallos)} comprobaciones:")

@@ -253,11 +253,13 @@ def prompt_para_copiar(escena, guia="", idioma="", formato="", fichas=None,
         partes.append("QUIÉN SALE (dibújalos SIEMPRE con este mismo aspecto: "
                       "cara, edad, pelo, barba y ropa):")
         for nombre in personajes:
-            descr = fichas.get(nombre)
+            descr = fidelidad.ficha_en_su_epoca(nombre, fichas.get(nombre) or "")
             partes.append(f"- {nombre}" + (f": {descr}" if descr else ""))
     narrado = " ".join(str(escena.get("narracion") or "").split())
-    partes.extend(fidelidad.pauta_imagen(contexto, narrado,
-                                         con_gente=bool(personajes)))
+    # LA EPOCA DE ESTE PLANO, no la del video: ver `fidelidad.epoca_del_plano`
+    partes.extend(fidelidad.pauta_imagen(
+        contexto, narrado, con_gente=bool(personajes), personajes=personajes,
+        fichas=fichas, que=" ".join(str(x or "") for x in (que, lugar))))
     if anterior:
         partes.append(f"CONTINUIDAD: este plano va justo después de {anterior}. "
                       f"Si te dejo adjunta la imagen de {anterior}, usa el MISMO "
@@ -292,7 +294,7 @@ def ficha_fija(ident, ficha):
     ficha = ficha if isinstance(ficha, dict) else {"descripcion": ficha}
     nombre = _limpio(ficha.get("nombre")) or ident.replace("_", " ").title()
     papel = _limpio(ficha.get("papel"))
-    aspecto = _limpio(ficha.get("descripcion"))
+    aspecto = fidelidad.ficha_en_su_epoca(ident, _limpio(ficha.get("descripcion")))
     linea = f"• {nombre.upper()}" + (f" ({papel})" if papel else "")
     if aspecto and aspecto.lower() != ident.lower():
         linea += f": {aspecto}"

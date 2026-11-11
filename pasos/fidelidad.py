@@ -96,6 +96,7 @@ def es_biblico(*textos):
 EPOCAS = {
     "nt": {
         "nombre": "siglo I d. C., Judea y Galilea bajo Roma (Jesús y los apóstoles)",
+        "ingles": "first-century",
         "palabras": ("jesus", "cristo", "apostol", "apostoles", "discipulos",
                      "evangelio", "galilea", "nazaret", "herodes", "pilato",
                      "fariseos", "fariseo", "saduceos", "romanos", "romano",
@@ -136,6 +137,7 @@ EPOCAS = {
     },
     "patriarcas": {
         "nombre": "los patriarcas (hacia 2000-1700 a. C.), Canaán y Mesopotamia",
+        "ingles": "Middle Bronze Age (around 1800 BC)",
         "palabras": ("abraham", "abram", "sara", "isaac", "jacob", "esau",
                      "rebeca", "raquel", "lot", "haran", "ur de los caldeos",
                      "canaan", "patriarca", "patriarcas", "sodoma", "genesis"),
@@ -154,6 +156,7 @@ EPOCAS = {
     },
     "exodo": {
         "nombre": "Egipto y el éxodo (Moisés, el desierto del Sinaí)",
+        "ingles": "Late Bronze Age (around 1300 BC)",
         "palabras": ("moises", "aaron", "faraon", "egipto", "egipcios",
                      "exodo", "plagas", "mar rojo", "sinai", "horeb",
                      "tabernaculo", "arca del pacto", "mana", "desierto",
@@ -177,7 +180,10 @@ EPOCAS = {
     },
     "reyes": {
         "nombre": "los reyes de Israel y Judá (siglos X-VI a. C., Edad del Hierro)",
+        "ingles": "Iron Age (around 1000 BC)",
         "palabras": ("rey david", "david", "saul", "salomon", "goliat",
+                     "salmista", "kinnor", "betsabe", "natan", "absalon",
+                     "jonatan", "isai",
                      "samuel", "elias", "eliseo", "jezabel", "acab",
                      "ezequias", "josias", "filisteos", "arca", "isaias",
                      "jeremias", "primer templo", "reyes", "cronicas"),
@@ -198,6 +204,7 @@ EPOCAS = {
     },
     "exilio": {
         "nombre": "el exilio en Babilonia y la época persa (siglos VI-V a. C.)",
+        "ingles": "sixth-century BC",
         "palabras": ("babilonia", "nabucodonosor", "daniel", "sadrac",
                      "ciro", "persia", "persas", "dario", "ester", "mardoqueo",
                      "nehemias", "esdras", "exilio", "cautiverio", "susa",
@@ -221,23 +228,109 @@ EPOCAS = {
 }
 
 
-def epocas(*textos, cuantas=2):
+def _cuentas(*textos):
+    """{clave de epoca: cuantas de sus palabras salen en el texto}."""
+    plegado = plegar(" ".join(str(t or "") for t in textos))
+    cuenta = {}
+    for clave, epoca in EPOCAS.items():
+        n = sum(1 for p in epoca["palabras"] if _hay(plegado, p))
+        if n:
+            cuenta[clave] = n
+    return cuenta
+
+
+def epocas(*textos, cuantas=2, minimo=2):
     """Las epocas de las que habla el texto, de mas a menos. -> [clave]
 
     Un video biblico sin pistas de epoca se toma del siglo I: es el caso del
     canal (Hechos, los evangelios) y el error mas frecuente.
+
+    `minimo=1` cuenta tambien la epoca que sale de pasada (un video del
+    Gólgota que cita a David): es lo que quiere el catalogo, que tiene que
+    vestir a CADA personaje con la suya.
     """
-    plegado = plegar(" ".join(str(t or "") for t in textos))
-    cuenta = []
-    for clave, epoca in EPOCAS.items():
-        n = sum(1 for p in epoca["palabras"] if _hay(plegado, p))
-        if n:
-            cuenta.append((n, clave))
-    cuenta.sort(key=lambda par: (-par[0], list(EPOCAS).index(par[1])))
-    elegidas = [clave for n, clave in cuenta if n >= 2][:cuantas]
+    cuenta = sorted(((n, c) for c, n in _cuentas(*textos).items()),
+                    key=lambda par: (-par[0], list(EPOCAS).index(par[1])))
+    elegidas = [clave for n, clave in cuenta if n >= minimo][:cuantas]
     if not elegidas and cuenta:
         elegidas = [cuenta[0][1]]
     return elegidas or ["nt"]
+
+
+def epoca_de_personaje(nombre, ficha=""):
+    """La epoca de UN personaje, o None si nada la delata. -> clave
+
+    Primero por su NOMBRE (david, jesus, moises: es lo que no se equivoca) y
+    solo si el nombre no dice nada, por su ficha. La ficha la escribe Claude y
+    puede traer la epoca equivocada --«a first-century-style ... Israelite
+    king» para David, medido en noviembre de 2026--, asi que no manda.
+    """
+    for texto in (nombre, ficha):
+        cuenta = _cuentas(str(texto or "").replace("_", " "))
+        if cuenta:
+            return max(cuenta, key=lambda c: (cuenta[c], -list(EPOCAS).index(c)))
+    return None
+
+
+def _texto_ficha(ficha):
+    if isinstance(ficha, dict):
+        return " ".join(str(ficha.get(k) or "") for k in ("nombre", "papel",
+                                                          "descripcion"))
+    return str(ficha or "")
+
+
+def epoca_del_plano(contexto, narracion="", personajes=(), fichas=None, que=""):
+    """La epoca de ESTE plano, no la del video. -> clave
+
+    Un video puede mezclar dos tiempos (David hacia el 1000 a. C. y la cruz en
+    el siglo I) y la ficha de epoca iba igual en todos los planos: la de la
+    mayoria. Aqui manda, por este orden, quien sale (su nombre), lo que se ve y
+    donde, y lo que se narra; y si nada de eso dice nada, la epoca del video.
+    """
+    fichas = fichas or {}
+    puntos = {}
+    for nombre in personajes or ():
+        clave = epoca_de_personaje(nombre, _texto_ficha(fichas.get(nombre)))
+        if clave:
+            puntos[clave] = puntos.get(clave, 0) + 3
+    for peso, texto in ((2, que), (1, narracion)):
+        for clave, n in _cuentas(str(texto or "").replace("_", " ")).items():
+            puntos[clave] = puntos.get(clave, 0) + peso * n
+    if puntos:
+        return max(puntos, key=lambda c: (puntos[c], -list(EPOCAS).index(c)))
+    return epocas(contexto)[0]
+
+
+_SIGLO_I = re.compile(r"\bfirst[- ]century(?:[- ]style)?\b", re.I)
+
+
+def ficha_en_su_epoca(nombre, ficha):
+    """La ficha de un personaje sin una epoca que no es la suya. -> str
+
+    Si el nombre delata otra epoca y la ficha dice «first-century», se cambia
+    por la suya («Iron Age (around 1000 BC)»). No toca nada mas.
+    """
+    texto = str(ficha or "")
+    clave = epoca_de_personaje(nombre)
+    if not clave or clave == "nt" or not _SIGLO_I.search(texto):
+        return texto
+    return _SIGLO_I.sub(EPOCAS[clave]["ingles"], texto)
+
+
+#: Lo que la costumbre dibuja mal en la crucifixion, segun los evangelios.
+CRUZ = re.compile(r"\b(cruz|cruces|crucific\w*|golgota|calvario|cross)\b")
+CRUCIFIXION = (
+    "EN LA CRUCIFIXIÓN: en el Gólgota hay TRES cruces --Jesús en la del centro y "
+    "un malhechor a cada lado (Lucas 23:33; Juan 19:18)--, salvo que el plano "
+    "sea un primer plano que solo deje ver la de Jesús. Mientras Jesús está vivo "
+    "y habla o grita («Elí, Elí, ¿lama sabactani?», «Consumado es») tiene la "
+    "cabeza ERGUIDA o alzada al cielo; solo la inclina sobre el pecho al morir, "
+    "después de su último grito (Juan 19:30). Nadie sonríe junto a la cruz salvo "
+    "los que se burlan, y con sorna, no con alegría")
+
+
+def _toca_cruz(*textos):
+    return CRUZ.search(plegar(" ".join(str(t or "") for t in textos))) is not None
 
 
 # ------------------------------------------------------- lugares y distancias
@@ -407,7 +500,7 @@ def pauta_claude(*textos, para="catalogo"):
     """
     if not es_biblico(*textos):
         return ""
-    claves = epocas(*textos)
+    claves = epocas(*textos, cuantas=3, minimo=1)
     lugares = lugares_en(" ".join(str(t or "") for t in textos))
     lineas = [
         "=====================================================================",
@@ -421,14 +514,24 @@ def pauta_claude(*textos, para="catalogo"):
     ]
     for clave in claves:
         lineas.append(_ficha_epoca(clave))
+    if len(claves) > 1:
+        lineas.append(
+            "ESTE VÍDEO MEZCLA ÉPOCAS. La época NO es una para todo el vídeo: "
+            "va con cada personaje, cada sitio y cada plano. David, Saúl o "
+            "Salomón son de la Edad del Hierro (hacia el 1000 a. C.) y visten, "
+            "viven y escriben como entonces aunque el vídeo hable de Jesús; "
+            "Jesús y los apóstoles, del siglo I. Nunca escribas «first-century» "
+            "en un personaje o un sitio de otra época.")
     if para == "catalogo":
         lineas.append(
             "En el REPARTO, cada `descripcion` escribe esto en inglés: origen "
-            "y aspecto de la época (p. ej. «a first-century Galilean Jewish "
-            "man, olive-brown skin, dark curly short hair, short dark beard»), "
-            "edad, y la ropa de la época con sus colores. En los SITIOS, la "
-            "arquitectura, materiales y paisaje reales del lugar y la época. "
-            "Si un personaje es conocido, su papel según el texto bíblico.")
+            "y aspecto de SU época (p. ej. «a first-century Galilean Jewish "
+            "man, olive-brown skin, dark curly short hair, short dark beard» "
+            "para un apóstol, o «an Iron Age Israelite king, around 1000 BC» "
+            "para David), edad, y la ropa de esa época con sus colores. En los "
+            "SITIOS, la arquitectura, materiales y paisaje reales del lugar y "
+            "la época. Si un personaje es conocido, su papel según el texto "
+            "bíblico.")
     else:
         lineas.append(
             "En cada plano, lo que se ve es de la época (gente, ropa, sitio, "
@@ -437,7 +540,12 @@ def pauta_claude(*textos, para="catalogo"):
             "distancia; si da una fecha, que se note la época o una línea de "
             "tiempo; si cita un versículo, la escena que ese versículo "
             "describe, tal como lo describe. Los nombres de un mapa cuentan "
-            "como rótulos permitidos (cortos y en el idioma del vídeo).")
+            "como rótulos permitidos (cortos y en el idioma del vídeo). La "
+            "cara de cada plano va con SU momento: junto a la cruz, en el dolor "
+            "o en la burla, nada de caras relajadas ni sonrisas (los que se "
+            "burlan, con sorna).")
+    if "nt" in claves and _toca_cruz(*textos):
+        lineas.append(CRUCIFIXION + ".")
     if len(lugares) >= 2:
         lineas.append("Lugares que nombra el guion y sus distancias reales "
                       "(úsalas tal cual si hace falta una cifra):")
@@ -486,20 +594,49 @@ def pauta_guion(*textos):
         "todo el vídeo: las que mejor cuentan la historia.")
 
 
-def pauta_imagen(contexto, narracion="", con_gente=True):
+def pauta_imagen(contexto, narracion="", con_gente=True, personajes=(),
+                 fichas=None, que=""):
     """Las lineas del prompt para copiar (modo manual), o [] si no es biblico.
 
-    `contexto` es el texto de todo el video (para decidir epoca); `narracion`,
-    la frase del plano (para lo que hay que explicar).
+    `contexto` es el texto de todo el video; `narracion`, la frase del plano;
+    `personajes`/`fichas`/`que`, quien sale y lo que se ve. La epoca es la DEL
+    PLANO (`epoca_del_plano`), no la del video. Sin nada del plano (el prompt
+    unico) y con un video que mezcla tiempos, se dicen todas y que cada uno
+    va con la suya.
     """
     if not es_biblico(contexto):
         return []
-    e = EPOCAS[epocas(contexto, narracion, cuantas=1)[0]]
+    del_plano = bool(narracion or personajes or que)
+    if not del_plano and len(epocas(contexto, cuantas=3, minimo=1)) > 1:
+        claves = epocas(contexto, cuantas=3, minimo=1)
+        lineas = ["ÉPOCAS (este vídeo mezcla tiempos; cada personaje, sitio e "
+                  "imagen con LA SUYA, fiel a la historia y a la Biblia):"]
+        for clave in claves:
+            e = EPOCAS[clave]
+            lineas.append(f"- {e['nombre']}. Sitios: {e['sitios']}. Objetos: "
+                          f"{e['objetos']}." + (f" Personas: {e['gente']}. Ropa: "
+                                               f"{e['ropa']}." if con_gente else "")
+                          + f" No dibujes: {e['evita']}.")
+        if "nt" in claves and _toca_cruz(contexto):
+            lineas.append(CRUCIFIXION + ".")
+        return lineas
+    clave = epoca_del_plano(contexto, narracion, personajes, fichas, que)
+    e = EPOCAS[clave]
     lineas = [f"ÉPOCA (fiel a la historia y a la Biblia, nada inventado): "
               f"{e['nombre']}. Sitios: {e['sitios']}. Objetos: {e['objetos']}."]
     if con_gente:
         lineas.append(f"PERSONAS DE LA ÉPOCA: {e['gente']}. Ropa: {e['ropa']}.")
+        otros = []
+        for nombre in personajes or ():
+            suya = epoca_de_personaje(nombre, _texto_ficha((fichas or {}).get(nombre)))
+            if suya and suya != clave:
+                otros.append(f"{nombre}: {EPOCAS[suya]['nombre']}")
+        if otros:
+            lineas.append("CADA UNO CON SU ÉPOCA (aunque salgan juntos): "
+                          + "; ".join(otros) + ".")
     lineas.append(f"NO DIBUJES: {e['evita']}.")
+    if clave == "nt" and _toca_cruz(narracion, que):
+        lineas.append(CRUCIFIXION + ".")
     que = explicar(narracion)
     if que:
         lineas.append(f"EXPLICA LO QUE SE CUENTA: {que}.")
