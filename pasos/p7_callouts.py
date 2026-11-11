@@ -497,13 +497,28 @@ SUB_ESCALA_VERTICAL_MAX = 1.35
 #: centro. Es la fraccion del alto que queda por debajo de la linea base.
 SUB_ALTURA_VERTICAL = 1.0 / 3.0
 
+#: LA POSICION DEL SUBTITULO, elegible (param `subtitulo_pos` de este paso,
+#: 11-nov-2026): «abajo» es lo de siempre -- el pie en horizontal y un tercio
+#: desde abajo en vertical -- y NO se escribe nunca en los params (moveria la
+#: firma de todo video que no lo tuvo); «centro» pone la linea base del ultimo
+#: renglon a esta fraccion del alto, que deja el bloque de una o dos lineas
+#: centrado a ojo en el cuadro. Gratis: solo pide volver a dibujar las capas.
+SUB_POSICIONES = ("abajo", "centro")
+SUB_ALTURA_CENTRO = 0.56
+
+
+def posicion_subtitulo(p=None):
+    """«abajo» o «centro», segun los params. Cualquier otra cosa es «abajo»."""
+    valor = str((p or {}).get("subtitulo_pos") or "abajo").strip().lower()
+    return valor if valor in SUB_POSICIONES else "abajo"
+
 
 def es_vertical(salida=None):
     return bool(salida) and len(salida) >= 2 and float(salida[1] or 0) > float(salida[0] or 0)
 
 
-def banda_subtitulo(salida):
-    """La banda del subtitulo de ESTA salida: la de siempre, o a un tercio."""
+def banda_subtitulo(salida, p=None):
+    """La banda del subtitulo de ESTA salida: la de siempre, a un tercio o al centro."""
     banda = subtitulos.banda_fija(salida[0], salida[1], margen=SUB_MARGEN,
                                   ancho_maximo=SUB_ANCHO)
     if es_vertical(salida):
@@ -511,6 +526,8 @@ def banda_subtitulo(salida):
         # banda) es el de siempre. Pasarle un tercio del alto como margen
         # dejaba la banda con ancho negativo y partia cada trozo en dos.
         banda["suelo"] = round(float(salida[1]) * (1.0 - SUB_ALTURA_VERTICAL), 1)
+    if posicion_subtitulo(p) == "centro":
+        banda["suelo"] = round(float(salida[1]) * SUB_ALTURA_CENTRO, 1)
     return banda
 
 
@@ -569,7 +586,7 @@ def cap_trozo_subtitulo(cap_linea, salida):
 def cap_subtitulo_de(p, plan):
     """La misma cuenta que hace `capa_fija_de`, para quien solo tiene el plan."""
     salida = salida_de(plan)
-    return cap_subtitulo(tamano_subtitulo(p, salida), banda_subtitulo(salida))
+    return cap_subtitulo(tamano_subtitulo(p, salida), banda_subtitulo(salida, p))
 
 
 def _medidor(fuente_nombre, tam, negrita=False):
@@ -720,7 +737,7 @@ def capa_fija_de(escena, p, banda=None, salida=SALIDA, primera=False):
     # EL GANCHO (pasos/gancho.py): param `gancho` de este paso. Sin el, todo
     # sale como siempre.
     con_gancho = bool(p.get("gancho"))
-    banda = banda or banda_subtitulo(salida)
+    banda = banda or banda_subtitulo(salida, p)
     paleta = paleta_de_guia((p.get("estilo") or {}).get("guia"), p.get("paleta"))
     # `diseno_de` devuelve (nombre, ficha): aqui interesa la ficha, que trae la
     # fuente
@@ -1516,7 +1533,7 @@ def ejecutar(proyecto, params, avisar=None, unidades=None):
     # aunque ya no dependa de ninguno: asi la vista previa y el repaso reciben
     # exactamente la misma, que es lo que sostiene que lo aprobado sea lo
     # renderizado.
-    banda = banda_subtitulo(salida)
+    banda = banda_subtitulo(salida, p)
 
     # LA PLANTILLA TIKTOK (pasos/plantilla_tiktok.py): barra de progreso y
     # «Sígueme» al final, en la capa quieta de cada plano. La barra necesita

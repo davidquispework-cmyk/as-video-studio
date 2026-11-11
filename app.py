@@ -4782,8 +4782,8 @@ def _medidor_de_subtitulo(ctx, plan):
         # margen y su ancho maximo son constantes suyas, y `banda_fija` sin
         # ellos da otra caja. Se le piden a el, no se copian.
         salida = p7.salida_de(plan)
-        banda = p7.banda_subtitulo(salida)
         params_callouts = ctx.estado.params("callouts") or {}
+        banda = p7.banda_subtitulo(salida, params_callouts)
         _, ficha_diseno = p7.diseno_de(params_callouts)
         # el cuerpo de ESTA salida: en vertical es mas grande (p7.escala_subtitulo)
         medir = p7._medidor((ficha_diseno or {}).get("fuente") or "Verdana",
@@ -10676,6 +10676,10 @@ def _sembrar_video_light(ctx, datos):
     resalte = str(datos.get("resalte") or "").strip().lower()
     if resalte in ("subrayado", "recuadro", "color"):
         ctx.estado.actualizar_params("callouts", {"resalte": resalte})
+    # LA POSICION DEL SUBTITULO (p7_callouts.posicion_subtitulo): «abajo» es lo
+    # de fabrica y no se escribe; solo «centro», si la piden.
+    if str(datos.get("subtitulo_pos") or "").strip().lower() == "centro":
+        ctx.estado.actualizar_params("callouts", {"subtitulo_pos": "centro"})
     # MAS IMAGENES EN LOS VIDEOS CORTOS (8-nov-2026, David): con las imagenes
     # GRATIS (modo manual) un video de 70 s con ritmo «Medio» salia con ~24
     # planos, una imagen cada 3 s, y lo que se contaba iba por delante de lo

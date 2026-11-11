@@ -6938,6 +6938,7 @@ function vistaElegidoLight() {
     selectorCamara(e, () => {}),
     selectorGancho(e.gancho, v => { e.gancho = v; pintarLight(); }),
     selectorLetras(e, () => {}),
+    selectorSubtitulo(e, () => {}),
     selectorPlantilla(e, true, pintarLight)));
 
   caja.appendChild(bloqueLight('El material',
@@ -7076,6 +7077,32 @@ function selectorMotion(valor, alCambiar) {
    palabra que importa, temblor en los impactos, respiración y arrastre a través
    del corte— o la «clásica» de antes. Vacío = no lo ha tocado nadie = viva. No
    mueve firmas: cambiarlo solo pide volver a montar, que es gratis. */
+/* DÓNDE VA EL SUBTÍTULO (11-nov): abajo (lo de siempre; en vertical, a un
+   tercio desde abajo) o en el centro. Param `subtitulo_pos` de callouts:
+   «abajo» se guarda VACÍO, que es lo que tiene todo vídeo que nunca lo eligió
+   (escribir «abajo» movería la firma sin que cambie nada). */
+function selectorSubtitulo(e, alCambiar) {
+  const caja = h('div', { clase: 'campo' });
+  const pintar = () => {
+    vaciar(caja);
+    const actual = e.subtitulo_pos === 'centro' ? 'centro' : 'abajo';
+    const tira = h('div', { clase: 'tira-modos formatos' });
+    [
+      { id: 'abajo', nombre: '⬇ Abajo', pista: 'Al pie, como siempre (en vertical, a un tercio desde abajo, donde no lo tapan los botones del móvil)' },
+      { id: 'centro', nombre: '⏺ Centro', pista: 'En mitad de la pantalla, más grande a la vista: estilo TikTok/Shorts' },
+    ].forEach(op => {
+      tira.appendChild(h('button', {
+        clase: 'mini' + (actual === op.id ? ' activo' : ''), title: op.pista,
+        onclick: () => { e.subtitulo_pos = op.id === 'centro' ? 'centro' : ''; alCambiar(); pintar(); },
+      }, op.nombre));
+    });
+    caja.append(h('label', {}, 'Subtítulo'), tira,
+      h('div', { clase: 'pista' }, 'Gratis: cambiarlo solo pide volver a dibujar los textos y montar.'));
+  };
+  pintar();
+  return caja;
+}
+
 function selectorCamara(e, alCambiar) {
   const caja = h('div', { clase: 'campo' });
   /* LA FUERZA (11-nov): suave / normal / fuerte, para afinarla viendo un vídeo
@@ -7455,6 +7482,7 @@ async function crearYGenerarLight(estilo) {
         gancho: !!e.gancho,
         letra: e.letra || '',
         resalte: e.resalte || '',
+        subtitulo_pos: e.subtitulo_pos || '',
         tiktok: e.tiktok || false,
       },
     });
@@ -7524,6 +7552,7 @@ const CAMPOS_ENCARGO = [
   { clave: 'gancho', paso: 'callouts', param: 'gancho' },
   { clave: 'letra', paso: 'callouts', param: 'letra' },
   { clave: 'resalte', paso: 'callouts', param: 'resalte' },
+  { clave: 'subtitulo_pos', paso: 'callouts', param: 'subtitulo_pos' },
   { clave: 'tiktok', paso: 'callouts', param: 'tiktok' },
 ];
 
@@ -7565,6 +7594,7 @@ function pedidoDelVideoLight() {
     gancho: !!params('callouts').gancho,
     letra: String(params('callouts').letra || ''),
     resalte: String(params('callouts').resalte || ''),
+    subtitulo_pos: String(params('callouts').subtitulo_pos || ''),
     tiktok: params('callouts').tiktok || false,
   };
   v.pedido = {
@@ -7622,6 +7652,7 @@ function vistaEncargoVideoLight() {
     selectorCamara(e, programarGuardadoEncargo),
     selectorGancho(e.gancho, valor => { e.gancho = valor; programarGuardadoEncargo(); pintarLight(); }),
     selectorLetras(e, programarGuardadoEncargo),
+    selectorSubtitulo(e, programarGuardadoEncargo),
     selectorPlantilla(e, false, () => { programarGuardadoEncargo(); pintarLight(); })));
 
   caja.appendChild(bloqueLight('El material',

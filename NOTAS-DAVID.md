@@ -342,10 +342,23 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    Prueba: `pasos/prueba_camara.py`.
    Pendiente: si con un vídeo real ninguna de las tres convence, ajustar los
    números de `camara.FUERZAS`.
-8. **SIGUIENTE:** decidir con David qué toca. Opciones que quedaron sobre la
-   mesa: grabar tu voz desde la propia página (sin WhatsApp); posición del
-   subtítulo elegible (centro/abajo); más giros «falso → verdadero» en el
-   gancho («mito», «en realidad»…); afinar la tabla de voces oyéndolas.
+8. Posición del subtítulo elegible — **HECHA (11-nov)** (la eligió David entre
+   cuatro opciones). Cómo se usa: al crear el vídeo o en «El encargo» hay una
+   fila «Subtítulo»: **⬇ Abajo** (lo de siempre: al pie en horizontal y a un
+   tercio desde abajo en vertical) o **⏺ Centro** (en mitad de la pantalla,
+   estilo TikTok/Shorts). Gratis: cambiarlo solo pide volver a dibujar los
+   textos y montar; no toca imágenes ni voz.
+   Código: `p7_callouts.posicion_subtitulo` + `banda_subtitulo(salida, p)`
+   (`SUB_ALTURA_CENTRO` = 0,56 del alto) + `app.py` (al crear solo escribe
+   `subtitulo_pos: "centro"`; «abajo» se guarda vacío para no mover firmas) +
+   `selectorSubtitulo` y `CAMPOS_ENCARGO` en `web/app.js`.
+   Prueba: `pasos/prueba_subtitulo_pos.py` (añadida a `pruebas.ps1`).
+   Pendiente: verlo en un vídeo real; si el centro queda alto/bajo, ajustar
+   `SUB_ALTURA_CENTRO`.
+9. **SIGUIENTE:** decidir con David qué toca. Opciones que quedan sobre la
+   mesa: grabar tu voz desde la propia página (sin WhatsApp); más giros
+   «falso → verdadero» en el gancho («mito», «en realidad»…); afinar la tabla
+   de voces oyéndolas.
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
 (abajo), un chat por punto. A, B+B+, C, **G con D** y **E** HECHOS (6-nov).
