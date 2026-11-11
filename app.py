@@ -1969,18 +1969,23 @@ def catalogo_voces_gratis(idioma: str = Query(default="es"),
 
 
 @app.get("/api/voces-gratis/muestra")
-def muestra_voz_gratis(peticion: Request, voz: str = Query(...)):
+def muestra_voz_gratis(peticion: Request, voz: str = Query(...),
+                       velocidad: int = Query(default=0)):
     """Unos segundos de esa voz, para escucharla. Se guarda: la segunda vez
-    no vuelve a salir a la red."""
+    no vuelve a salir a la red. `velocidad` en % sobre la normal."""
     if PASOS_MODULOS is None:
         raise ErrorApi(503, f"los pasos no se han podido cargar: {ERROR_PASOS}")
     mod = PASOS_MODULOS.voz_gratis
     if not mod.es_voz_gratis(voz):
         raise ErrorApi(400, f"{voz!r} no es una voz gratuita")
-    destino = os.path.join(mod.RAIZ_ESTUDIO, "cache", "muestras_voz", f"{voz}.mp3")
+    velocidad = max(-30, min(35, int(velocidad or 0)))
+    sufijo = f"_{velocidad:+d}" if velocidad else ""
+    destino = os.path.join(mod.RAIZ_ESTUDIO, "cache", "muestras_voz",
+                           f"{voz}{sufijo}.mp3")
     if not os.path.isfile(destino):
         try:
-            mod.muestra(voz, destino)
+            mod.muestra(voz, destino,
+                        velocidad=(velocidad / 35) if velocidad else None)
         except Exception as fallo:  # noqa: BLE001
             raise ErrorApi(502, f"no se ha podido sintetizar la muestra: {fallo}")
     return FileResponse(destino, media_type="audio/mpeg",
@@ -2039,7 +2044,8 @@ def describir_voz(pid: str, cuerpo: dict = Body(default=None)):
 def _voz_del_video_pendiente(ctx):
     """Si hay una voz elegida a mano en el video que aun no se ha grabado."""
     elegida = (ctx.estado.params("voz") or {}).get("voz_del_video")
-    return isinstance(elegida, dict) and bool(elegida.get("voz_id")) \
+    return isinstance(elegida, dict) and bool(
+        elegida.get("voz_id") or elegida.get("velocidad") is not None) \
         and not elegida.get("grabada")
 
 
@@ -2055,6 +2061,7 @@ def _voz_del_video_grabada(ctx, params_usados):
         ahora = (ctx.estado.params("voz") or {}).get("voz_del_video")
         if (isinstance(ahora, dict) and isinstance(usada, dict)
                 and ahora.get("voz_id") == usada.get("voz_id")
+                and ahora.get("velocidad") == usada.get("velocidad")
                 and not ahora.get("grabada")):
             ctx.estado.actualizar_params(
                 "voz", {"voz_del_video": dict(ahora, grabada=True)})
@@ -2085,10 +2092,13 @@ def _voz_que_suena(ctx, params):
     idioma = "es"
     voz_id = str(params.get("voz_id") or "").strip()
     nombre = str(params.get("voz_nombre") or voz_id or "")
+    velocidad = 0
     if p4 is not None:
         try:
             cfg = p4.resolver_params(p4.params_con_idioma(ctx.proyecto, params))
             idioma = cfg.get("idioma") or idioma
+            velocidad = int(PASOS_MODULOS.voz_gratis.porcentaje_velocidad(
+                cfg.get("velocidad")).rstrip("%"))
             if gratis:
                 voz_id = cfg.get("voz_gratis") or voz_id
                 ficha = next((f for f in PASOS_MODULOS.voz_gratis.voces(idioma)
@@ -2121,6 +2131,11 @@ def _voz_que_suena(ctx, params):
         "estilo": estilo if (gratis and p4 is not None
                              and PASOS_MODULOS.voz_gratis.es_voz_gratis(estilo)) else "",
         "pendiente": _voz_del_video_pendiente(ctx),
+        # en % sobre la normal (+10 = un 10 % mas rapida); `velocidad_a_mano`
+        # si la eligio alguien en la pantalla del guion para este video
+        "velocidad": velocidad,
+        "velocidad_a_mano": bool(p4 is not None and gratis
+                                 and p4.velocidad_del_video(params) is not None),
     }
 
 
@@ -2173,9 +2188,38 @@ def elegir_voz_del_video(pid: str, cuerpo: dict = Body(default=None)):
         raise ErrorApi(409, "la voz se está grabando ahora mismo: espera a que "
                             "termine para cambiarla")
     params = ctx.estado.params("voz") or {}
+    antes = params.get("voz_del_video") if isinstance(
+        params.get("voz_del_video"), dict) else {}
+    if "velocidad" in datos:
+        # SOLO LA VELOCIDAD, en % sobre la normal (-30..+35). La voz se queda.
+        bruto = datos.get("velocidad")
+        nueva = dict(antes)
+        if bruto in (None, "", 0):
+            nueva.pop("velocidad", None)
+        else:
+            try:
+                pct = max(-30, min(35, int(round(float(bruto)))))
+            except (TypeError, ValueError):
+                raise ErrorApi(400, f"velocidad no valida: {bruto!r}")
+            nueva["velocidad"] = round(pct / 35, 4)
+        mismo = (nueva.get("velocidad") == antes.get("velocidad"))
+        nueva["grabada"] = bool(antes.get("grabada")) if mismo else False
+        if not nueva.get("voz_id") and nueva.get("velocidad") is None:
+            params.pop("voz_del_video", None)
+            ctx.estado.set_params("voz", params)
+        else:
+            ctx.estado.actualizar_params("voz", {"voz_del_video": nueva})
+        ctx.bitacora.anotar("voz_del_video", "voz", {"velocidad": bruto})
+        return {"voz": _voz_que_suena(ctx, ctx.estado.params("voz") or {})}
     if not voz:
+        # quita la VOZ elegida; la velocidad elegida, si la hay, se queda
         if "voz_del_video" in params:
-            params.pop("voz_del_video")
+            resto = {k: v for k, v in antes.items()
+                     if k not in ("voz_id", "voz_nombre", "grabada")}
+            if resto.get("velocidad") is not None:
+                params["voz_del_video"] = dict(resto, grabada=False)
+            else:
+                params.pop("voz_del_video")
             ctx.estado.set_params("voz", params)
         ctx.bitacora.anotar("voz_del_video", "voz", {"voz": ""})
         return {"voz": _voz_que_suena(ctx, ctx.estado.params("voz") or {})}
@@ -2191,11 +2235,9 @@ def elegir_voz_del_video(pid: str, cuerpo: dict = Body(default=None)):
     except Exception:  # noqa: BLE001
         pass
     # si es la que ya suena grabada, no hay nada que regrabar
-    antes = params.get("voz_del_video") if isinstance(
-        params.get("voz_del_video"), dict) else {}
     ya = (antes.get("voz_id") == voz and antes.get("grabada"))
-    ctx.estado.actualizar_params("voz", {"voz_del_video": {
-        "voz_id": voz, "voz_nombre": nombre, "grabada": bool(ya)}})
+    ctx.estado.actualizar_params("voz", {"voz_del_video": dict(
+        antes, voz_id=voz, voz_nombre=nombre, grabada=bool(ya))})
     ctx.bitacora.anotar("voz_del_video", "voz", {"voz": voz, "nombre": nombre})
     return {"voz": _voz_que_suena(ctx, ctx.estado.params("voz") or {})}
 

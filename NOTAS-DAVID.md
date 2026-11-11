@@ -336,6 +336,10 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    Perú → Gonzalo Colombia); solo elige si el estilo no trae voz gratuita.
    (c) El recuadro dice de dónde sale la voz (tema, estilo, Configuración, a
    mano) y ya no manda a «cambiarla en el estilo o en Configuración».
+   (d) Debajo, «Velocidad:» (−15 % … +30 %) también solo para ese vídeo,
+   guardada en `voz_del_video.velocidad` (número −1..1, ×35 = %), fuera de
+   firma igual que la voz; «▶ Escuchar» la pone a esa velocidad. Más rápida =
+   el audio y el vídeo duran menos.
    Prueba: `pasos/prueba_voz_gratis.py` (`probar_voz_del_video`).
 7. Fuerza de la cámara elegible — **HECHO (11-nov)** (lo eligió David entre
    cuatro opciones). Cómo se usa: al crear el vídeo o en «El encargo», debajo

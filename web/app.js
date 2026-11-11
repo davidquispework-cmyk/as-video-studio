@@ -2405,12 +2405,14 @@ async function guardarAjusteVoz(cambios, aviso) {
 let REPRODUCTOR_MUESTRA = null;
 /* `repintar`: quién se entera. Configuración repinta las claves; la pantalla
    del guion (la voz de un vídeo) repinta el vídeo. */
-function escucharVozGratis(voz, repintar) {
+function escucharVozGratis(voz, repintar, velocidad) {
   const pinta = repintar || repintarClaves;
   if (REPRODUCTOR_MUESTRA) { REPRODUCTOR_MUESTRA.pause(); REPRODUCTOR_MUESTRA = null; }
   if (VOCES_GRATIS.sonando === voz) { VOCES_GRATIS.sonando = ''; pinta(); return; }
   VOCES_GRATIS.sonando = voz;
-  REPRODUCTOR_MUESTRA = new Audio(`${BASE}/api/voces-gratis/muestra?voz=${encodeURIComponent(voz)}`);
+  const ritmo = velocidad ? `&velocidad=${encodeURIComponent(velocidad)}` : '';
+  REPRODUCTOR_MUESTRA = new Audio(
+    `${BASE}/api/voces-gratis/muestra?voz=${encodeURIComponent(voz)}${ritmo}`);
   REPRODUCTOR_MUESTRA.addEventListener('ended', () => { VOCES_GRATIS.sonando = ''; pinta(); });
   REPRODUCTOR_MUESTRA.addEventListener('error', () => {
     VOCES_GRATIS.sonando = ''; toast('No se ha podido escuchar esa voz', true); pinta();
@@ -8421,15 +8423,18 @@ async function cargarVocesVideoLight(idioma) {
   pintarLight();
 }
 
-async function elegirVozDelVideoLight(voz) {
+/* `cambios`: { voz } o { velocidad } (en % sobre la normal). */
+async function elegirVozDelVideoLight(voz, cambios) {
   const v = APP.light.video;
   if (!v.pid || VOCES_VIDEO.guardando) return;
   VOCES_VIDEO.guardando = true;
   try {
     const r = await pedir(`${API.proyecto(v.pid)}/voz/del-video`,
-      { method: 'PUT', cuerpo: { voz } });
+      { method: 'PUT', cuerpo: cambios || { voz } });
     if (GRABACION.datos && GRABACION.pid === v.pid) GRABACION.datos.voz = r.voz;
-    toast(voz ? `Voz cambiada a ${r.voz.nombre} en este vídeo. Pulsa «Regenerar Audio» `
+    toast(cambios ? `Velocidad: ${textoVelocidad(r.voz.velocidad)}. Pulsa «Regenerar Audio» `
+      + 'para oírla: no toca las imágenes.'
+      : voz ? `Voz cambiada a ${r.voz.nombre} en este vídeo. Pulsa «Regenerar Audio» `
       + 'para oírla: no toca las imágenes.'
       : 'Vuelve la voz de antes. Pulsa «Regenerar Audio» para oírla.');
   } catch (e) {
@@ -8438,6 +8443,15 @@ async function elegirVozDelVideoLight(voz) {
   VOCES_VIDEO.guardando = false;
   refrescarPlanLight('voz', true);
   pintarLight();
+}
+
+/* La velocidad, en % sobre la normal. Más rápida = la voz dura menos y el
+   vídeo también (un +10 % recorta ~1 de cada 11 segundos de voz). */
+const VELOCIDADES_VIDEO = [-15, -10, -5, 0, 5, 10, 15, 20, 25, 30];
+function textoVelocidad(pct) {
+  const n = Number(pct) || 0;
+  return n === 0 ? 'normal' : `${n > 0 ? '+' : '−'}${Math.abs(n)} %`
+    + (n > 0 ? ' más rápida' : ' más lenta');
 }
 
 const ORIGEN_VOZ = {
@@ -8490,9 +8504,17 @@ function vozElegidaLight() {
     ...lista.map(v => h('option', { value: v.id, selected: v.id === actual },
       `${v.nombre} — ${v.genero === 'male' ? 'hombre' : v.genero === 'female' ? 'mujer' : ''}`
       + (v.nativa ? '' : ' (acento extranjero)'))));
+  const pct = Number(voz.velocidad) || 0;
   const escuchar = h('button', { clase: 'mini',
-    onclick: () => escucharVozGratis(elegir.value, pintarLight) },
+    onclick: () => escucharVozGratis(elegir.value, pintarLight, pct) },
     VOCES_GRATIS.sonando === actual ? '❚❚ Parar' : '▶ Escuchar');
+  const pasos = VELOCIDADES_VIDEO.includes(pct) ? VELOCIDADES_VIDEO
+    : [...VELOCIDADES_VIDEO, pct].sort((a, b) => a - b);
+  const ritmo = h('select', {
+    disabled: VOCES_VIDEO.guardando || !!trabajoVideoLight(),
+    onchange: ev => elegirVozDelVideoLight(null, { velocidad: Number(ev.target.value) }),
+  }, ...pasos.map(n => h('option', { value: String(n), selected: n === pct },
+    n === 0 ? 'Normal' : textoVelocidad(n))));
   caja.appendChild(h('div', { clase: 'meta voz-cambiar-titulo' },
     'Cambiarla solo para este vídeo:'));
   caja.appendChild(h('div', { clase: 'fila-clave' }, elegir, escuchar,
@@ -8503,6 +8525,11 @@ function vozElegidaLight() {
       : null));
   const ficha = lista.find(v => v.id === actual);
   if (ficha && ficha.descripcion) caja.appendChild(h('div', { clase: 'meta' }, ficha.descripcion));
+  caja.appendChild(h('div', { clase: 'fila-clave' },
+    h('span', { clase: 'meta' }, 'Velocidad:'), ritmo));
+  caja.appendChild(h('div', { clase: 'meta' },
+    'Más rápida = la voz dura menos, y el vídeo también. «▶ Escuchar» la '
+    + 'pone a esta velocidad.'));
   return caja;
 }
 

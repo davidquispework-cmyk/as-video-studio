@@ -392,6 +392,24 @@ def probar_voz_del_video():
     igual({p: ctx.estado.firma(p) for p in firmas}, firmas,
           "marcarla grabada tampoco mueve firmas")
 
+    print("\n  LA VELOCIDAD DEL VIDEO, A MANO")
+    cfg = p4_voz.resolver_params({"voz_id": "es-PE-AlexNeural", "idioma": "es",
+                                  "velocidad": "normal",
+                                  "voz_del_video": {"velocidad": round(10 / 35, 4)}})
+    igual(voz_gratis.porcentaje_velocidad(cfg["velocidad"]), "+10%",
+          "la velocidad elegida en el video manda (+10 %)")
+    ctx.estado.actualizar_params("voz", {"voz_del_video": dict(
+        ctx.estado.params("voz")["voz_del_video"], velocidad=round(10 / 35, 4),
+        grabada=False)})
+    igual({p: ctx.estado.firma(p) for p in firmas}, firmas,
+          "cambiar la velocidad no mueve ninguna firma")
+    ok(app._voz_del_video_pendiente(ctx), "y deja la voz pendiente de grabar")
+    ficha = app._voz_que_suena(ctx, ctx.estado.params("voz"))
+    igual((ficha["velocidad"], ficha["velocidad_a_mano"]), (10, True),
+          "la pantalla la ve: +10 %, elegida a mano")
+    app._voz_del_video_grabada(ctx, ctx.estado.params("voz"))
+    ok(not app._voz_del_video_pendiente(ctx), "grabada, deja de estar pendiente")
+
 
 def main():
     print("=" * 70)

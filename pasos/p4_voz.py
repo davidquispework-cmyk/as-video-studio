@@ -356,6 +356,10 @@ def resolver_params(params):
         emociones_crudas = base.get("emociones", [])
     emociones = normalizar_emociones(emociones_crudas)
     velocidad = normalizar_velocidad(elegir("velocidad", None))
+    # la velocidad elegida a mano en la pantalla del guion para ESTE video
+    # (solo voz gratuita; fuera de toda firma, ver `voz_del_video`)
+    if gratis() and velocidad_del_video(crudos) is not None:
+        velocidad = velocidad_del_video(crudos)
 
     voz_id = str(elegir("voz_id", "")).strip()
     # una voz gratuita guardada en un video, con Cartesia puesto: Cartesia no
@@ -423,6 +427,19 @@ def voz_del_video(params):
     voz = str((elegida or {}).get("voz_id") or "").strip() if isinstance(
         elegida, dict) else ""
     return voz if voz_gratis.es_voz_gratis(voz) else ""
+
+
+def velocidad_del_video(params):
+    """La velocidad elegida a mano para este video (pantalla del guion), o
+    None. Un numero en -1..1 (x35 = % de la voz gratuita) o un preset. Va en
+    `params["voz_del_video"]`, fuera de toda firma, como la voz."""
+    elegida = (params or {}).get("voz_del_video")
+    if not isinstance(elegida, dict):
+        return None
+    try:
+        return normalizar_velocidad(elegida.get("velocidad"))
+    except ValueError:
+        return None
 
 
 def grabacion_de(proyecto, cfg):
