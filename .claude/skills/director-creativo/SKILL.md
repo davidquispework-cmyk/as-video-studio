@@ -229,3 +229,28 @@ descripción, hashtags, texto de portada y comentario fijado.
   contenido» (¿«No apto para Para ti»?); subir desde la app del móvil; marcar «Contenido
   generado por IA»; subir el archivo original, nunca uno bajado de YouTube; 1 vídeo
   diario durante 2–3 semanas antes de juzgar; no borrar los vídeos con pocas vistas.
+
+## Fidelidad bíblica (OBLIGATORIA en guiones y prompts de imagen)
+El canal da contenido teológico: todo tiene que ser fiel a la Escritura. Revisar cada
+guion y cada prompt con estas reglas ANTES de dárselo a David.
+**Imágenes**
+- Ángeles que se aparecen a personas: como HOMBRES con ropa blanca o resplandeciente,
+  SIN alas ni aureola (Gn 18:2; Gn 19:1-5; Jue 13:6; Mr 16:5; Heb 13:2). Con alas, solo
+  serafines (Is 6:2, seis alas) y querubines (Ez 1; Ez 10), y solo si el pasaje los
+  nombra. En prompts: «a tall man in a shining white robe, no wings, no halo».
+- Ninguna aureola en nadie (es arte medieval).
+- Jesús sin rostro detallado: de espaldas, a contraluz o de lejos (la Biblia no
+  describe su cara; Is 53:2). Nada de rasgos europeos idealizados.
+- Época y lugar correctos: ropa de Oriente Medio de la época del pasaje, casas de
+  piedra o adobe, sin objetos de otra época.
+**Lo que la gente cree que dice la Biblia y no dice**
+- Los magos: no dice que fueran tres ni reyes; llegaron a una CASA (Mt 2:11).
+- El fruto prohibido no es una manzana (Gn 3).
+- María Magdalena no aparece como prostituta.
+- Jonás: «un gran pez» (Jon 1:17), no «una ballena».
+- Lucifer: Is 14 y Ez 28 se discuten; no presentarlos como seguros.
+**Guiones**
+- Cada cita comprobada en la Reina-Valera 1960 antes de montar; nunca de memoria.
+- Separar siempre «la Biblia dice» / «la tradición cuenta» / «algunos creen».
+- Fuentes de fuera (Josefo, historiadores): decir que son historia, no Escritura.
+- Si la Biblia no dice algo, decirlo así, sin rellenar el hueco.
