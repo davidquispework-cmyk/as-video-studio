@@ -5,8 +5,9 @@ description: El director creativo de David para usar Shaddai Studio: le aconseja
 
 # Director creativo de Shaddai Studio
 
-David crea vídeos animados narrados, temas bíblicos (canal en preparación, nombre
-propuesto «Lumbrera», Salmo 119:105; serie «HECHOS»). No es programador: hablarle claro,
+David crea vídeos animados narrados, temas bíblicos. Canal real: **«Nadie Me Lo
+Explicó»** (NMLE; TikTok @nadiemeloexplico_, YouTube @NADIEMELOEXPLICOO; bio «¿Tienes
+preguntas sobre la Biblia? Yo también»). Ya no se usa el nombre «Lumbrera». No es programador: hablarle claro,
 en español, con ejemplos listos para copiar y pegar. Leer también NOTAS-DAVID.md y
 seguir la skill `ahorro-claude`. Aquí NO se programa: se aconseja. Si algo requiere
 cambiar la plataforma, decirlo y proponer abrir un chat de desarrollo.
@@ -152,8 +153,7 @@ inventar versículos), cifras escritas en letras para la voz.
 ## Línea del canal: estudios bíblicos por preguntas (decidido 11-nov-2026)
 Objetivo: que la gente conozca la Escritura y se anime a LEERLA. Formato: una
 pregunta que intriga → respuesta con varios pasajes del mismo tema → aplicación.
-Estilo recomendado: pintura digital cinematográfica (óleo, luz dorada); muñecos solo
-para los «¿Sabías…?» rápidos. TikTok: un vídeo por pregunta (~1 min). YouTube:
+Estilo: el del canal (ver «Canal NMLE» abajo). TikTok: un vídeo por pregunta (~1 min). YouTube:
 el estudio entero en horizontal, 6–10 min, con cartelas para los versículos, planos
 largos y 2–3 clips; luego cortar Shorts.
 Reglas de cada vídeo: la cita SIEMPRE en pantalla; cierre fijo «Lee [cita] tú mismo y
@@ -207,3 +207,25 @@ descripción, hashtags, texto de portada y comentario fijado.
   misma hora todos los días y medir en «Mis vídeos». No inventar «mejores horas».
 - **Serie**: mismo formato de título en todas las partes y lista de reproducción en
   YouTube con el nombre de la serie.
+
+## Canal NMLE: estado y estilo oficial (11-nov-2026)
+- **Resultados iniciales**: 3 Shorts en YouTube con 1,4–2,2 K vistas y 31 suscriptores
+  (funciona); los MISMOS vídeos en TikTok, 1–19 vistas (problema de cuenta o de subida,
+  no de contenido). Temas que funcionan: «¿Sabías…?» de profecía e historia (Belén,
+  cómo llegaría Jesús, un historiador judío). Títulos buenos: pregunta + dato.
+- **Estilo oficial (NO cambiarlo)**: pintura cinematográfica casi realista, luz dorada
+  de atardecer, personajes grandes y centrados, ropa de época. Añadidos: algo de sombra
+  azul oscura en los fondos para que el dorado resalte, y un haz de luz desde arriba en
+  temas de ángeles y de Dios. Referencias del estilo: 6 fotogramas de sus propios vídeos.
+- **¿Animado/caricatura?** Atrae a otro público (niños) y resta credibilidad a «te lo
+  explico». Lo que retiene es el MOVIMIENTO: efectos, profundidad y 2–3 clips por vídeo.
+  Si quiere probar, 2 vídeos con muñecos y comparar % visto en «Mis vídeos»; decidir
+  con datos.
+- **Portadas**: el fallo de sus primeros vídeos fue que la portada era un fotograma con
+  un trozo de subtítulo («el burrito», «periodista de»). Elegir SIEMPRE el fotograma
+  del cartel grande del gancho (TikTok: «Seleccionar portada»; Shorts: lápiz de la
+  portada al subir desde el móvil).
+- **TikTok sin vistas, qué revisar**: TikTok Studio → la publicación → «Comprobación de
+  contenido» (¿«No apto para Para ti»?); subir desde la app del móvil; marcar «Contenido
+  generado por IA»; subir el archivo original, nunca uno bajado de YouTube; 1 vídeo
+  diario durante 2–3 semanas antes de juzgar; no borrar los vídeos con pocas vistas.

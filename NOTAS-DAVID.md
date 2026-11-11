@@ -29,7 +29,7 @@ Conectores de David: GitHub, Hostinger (solo estado/DNS), Google Drive, Google S
 Inspiración: TikTok @uncristianoinquieto (vertical 9:16, ~1:05 para Creator Rewards,
 gancho «¿Sabías…?», subtítulos palabra a palabra con la clave resaltada, cifras grandes,
 muñecos geométricos con túnica, personajes que SE MUEVEN). Inspirarse en el formato, no
-copiar su estilo exacto. Nombre de canal propuesto: «Lumbrera» (Salmo 119:105).
+copiar su estilo exacto. Canal real: «Nadie Me Lo Explicó» (NMLE); ver skill director-creativo.
 El VPS no tiene GPU: nada de modelos de vídeo locales. Todo a coste 0:
 1. **Etapa 1 — HECHA (5-nov-2026)**: efectos de ambiente en el render (luces que parpadean, partículas,
    agua, nubes, rayos) + profundidad 2.5D (separar personaje/fondo con rembg en CPU,
