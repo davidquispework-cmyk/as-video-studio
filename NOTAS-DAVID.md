@@ -326,6 +326,17 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    `.trans-vista`, `.lista-trans` en `estilo.css`.
    Pendiente: con eso delante, oír las voces y ajustar la tabla de
    `voz_tema.VOCES_ES`, y la fuerza del golpe/temblor de la cámara.
+   **Arreglo (11-nov)**: (a) en ese recuadro «🗣 Voz» ya se puede CAMBIAR la
+   voz gratuita de ESE vídeo (lista + «▶ Escuchar»; «Quitar mi elección» la
+   devuelve). Se guarda como elegida a mano en `voz.voz_del_video`, que NO entra
+   en ninguna firma (`nucleo/estado.py:FUERA_DE_FIRMA`): no deja obsoleta
+   ninguna imagen; se oye al pulsar «Regenerar Audio» (`app._esta_al_dia` da la
+   voz por pendiente hasta grabarla). Ruta `PUT /api/proyectos/{pid}/voz/del-video`.
+   (b) La voz por tema ya NO pisa la voz gratuita que trae el estilo (pasó: Alex
+   Perú → Gonzalo Colombia); solo elige si el estilo no trae voz gratuita.
+   (c) El recuadro dice de dónde sale la voz (tema, estilo, Configuración, a
+   mano) y ya no manda a «cambiarla en el estilo o en Configuración».
+   Prueba: `pasos/prueba_voz_gratis.py` (`probar_voz_del_video`).
 7. Fuerza de la cámara elegible — **HECHO (11-nov)** (lo eligió David entre
    cuatro opciones). Cómo se usa: al crear el vídeo o en «El encargo», debajo
    de «Cámara» (solo con 🎥 Cámara viva) sale «Fuerza del movimiento»:

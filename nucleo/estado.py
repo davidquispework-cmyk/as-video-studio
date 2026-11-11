@@ -70,6 +70,17 @@ CLAVE_UNIDADES = "unidades"
 #: PROPIA del paso (ver `_firma(propias=False)`), nunca de la que ven los demas.
 CORRECCIONES = {"guion": ("bloques",)}
 
+#: Params que NO ENTRAN EN NINGUNA FIRMA, ni la propia ni la de aguas abajo.
+#:
+#: `voz.voz_del_video` es la voz gratuita elegida a mano en la pantalla del
+#: guion para UN video. Cambiarla es volver a grabar el audio y nada mas: si
+#: entrara en la firma de la voz, la firma global de assets la encadena y TODAS
+#: las imagenes del video quedarian obsoletas (y en modo manual habria que
+#: volver a subirlas). Se aplica al pulsar «Regenerar Audio». Al ser una clave
+#: nueva, quitarla de la firma no mueve la de ningun video ya hecho; no metas
+#: aqui una clave que ya exista en proyectos guardados: esa SI las moveria.
+FUERA_DE_FIRMA = {"voz": ("voz_del_video",)}
+
 # Los `id` son el contrato (carpetas, params, firmas): NO se renombran nunca.
 # El `nombre` es solo lo que se enseña, y va alineado con las pestañas de la
 # interfaz: `ingesta` se enseña como «Origen» y `callouts` como «Rotulos».
@@ -221,7 +232,7 @@ class Estado:
 
     def _params_globales(self, paso_id, propias=True):
         params = self._doc["pasos"][paso_id].get("params", {})
-        fuera = {CLAVE_UNIDADES}
+        fuera = {CLAVE_UNIDADES} | set(FUERA_DE_FIRMA.get(paso_id) or ())
         if not propias:
             fuera |= set(CORRECCIONES.get(paso_id) or ())
         return {k: v for k, v in params.items() if k not in fuera}

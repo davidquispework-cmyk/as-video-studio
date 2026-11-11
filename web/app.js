@@ -2403,17 +2403,20 @@ async function guardarAjusteVoz(cambios, aviso) {
 }
 
 let REPRODUCTOR_MUESTRA = null;
-function escucharVozGratis(voz) {
+/* `repintar`: quién se entera. Configuración repinta las claves; la pantalla
+   del guion (la voz de un vídeo) repinta el vídeo. */
+function escucharVozGratis(voz, repintar) {
+  const pinta = repintar || repintarClaves;
   if (REPRODUCTOR_MUESTRA) { REPRODUCTOR_MUESTRA.pause(); REPRODUCTOR_MUESTRA = null; }
-  if (VOCES_GRATIS.sonando === voz) { VOCES_GRATIS.sonando = ''; repintarClaves(); return; }
+  if (VOCES_GRATIS.sonando === voz) { VOCES_GRATIS.sonando = ''; pinta(); return; }
   VOCES_GRATIS.sonando = voz;
   REPRODUCTOR_MUESTRA = new Audio(`${BASE}/api/voces-gratis/muestra?voz=${encodeURIComponent(voz)}`);
-  REPRODUCTOR_MUESTRA.addEventListener('ended', () => { VOCES_GRATIS.sonando = ''; repintarClaves(); });
+  REPRODUCTOR_MUESTRA.addEventListener('ended', () => { VOCES_GRATIS.sonando = ''; pinta(); });
   REPRODUCTOR_MUESTRA.addEventListener('error', () => {
-    VOCES_GRATIS.sonando = ''; toast('No se ha podido escuchar esa voz', true); repintarClaves();
+    VOCES_GRATIS.sonando = ''; toast('No se ha podido escuchar esa voz', true); pinta();
   });
   REPRODUCTOR_MUESTRA.play().catch(() => {});
-  repintarClaves();
+  pinta();
 }
 
 function seccionModoVoz() {
@@ -2463,8 +2466,9 @@ function seccionModoVoz() {
       h('span', { clase: 'nombre' }, (porTema ? '● ' : '○ ') + 'Elegir la voz según el tema'),
       h('span', { clase: 'meta' }, 'Al grabar la voz de un vídeo por primera vez, el '
         + 'estudio lee de qué trata (fe, historia, misterio, niños, motivación, ciencia…) '
-        + 'y le pone la voz que mejor le va. Gratis, sin gastar Claude. Si cambias la '
-        + 'voz a mano en un vídeo, manda la tuya.')));
+        + 'y le pone la voz que mejor le va. Si el estilo del vídeo ya trae una voz '
+        + 'gratuita, manda la del estilo. Gratis, sin gastar Claude. Si cambias la '
+        + 'voz a mano en un vídeo (pestaña Guion), manda la tuya.')));
     caja.appendChild(h('div', { clase: 'pista' },
       h('b', {}, 'La voz de tus vídeos: '),
       'la que elija cada estilo por su descripción; si un vídeo no tiene una '
@@ -8395,17 +8399,111 @@ async function quitarGrabacionLight() {
 /* QUÉ VOZ LLEVA ESTE VÍDEO Y POR QUÉ (punto 6 del orden nuevo). La voz por
    tema (pasos/voz_tema.py) se elegía en silencio: solo la bitácora decía cuál
    y por qué. Una línea encima del guion, y solo cuando hay algo que contar. */
+/* LA VOZ DEL VÍDEO, Y CAMBIARLA SOLO PARA ÉL. Con la voz gratuita se elige
+   aquí otra voz para ESTE vídeo (`PUT /voz/del-video`): se guarda como elegida
+   a mano y no entra en ninguna firma, así que no deja obsoleta ninguna imagen.
+   Se oye al pulsar «Regenerar Audio», que solo rehace la voz.
+
+   Ya NO dice «cámbiala en el estilo o en Configuración»: eso no tocaba a un
+   vídeo que ya tenía su voz guardada. */
+const VOCES_VIDEO = { idioma: '', lista: null, cargando: false, error: '', guardando: false };
+
+async function cargarVocesVideoLight(idioma) {
+  if (VOCES_VIDEO.cargando || (VOCES_VIDEO.lista && VOCES_VIDEO.idioma === idioma)) return;
+  VOCES_VIDEO.cargando = true;
+  try {
+    const r = await pedir(`${BASE}/api/voces-gratis?idioma=${encodeURIComponent(idioma)}`);
+    Object.assign(VOCES_VIDEO, { idioma, lista: r.voces || [], error: '' });
+  } catch (e) {
+    VOCES_VIDEO.error = e.message;
+  }
+  VOCES_VIDEO.cargando = false;
+  pintarLight();
+}
+
+async function elegirVozDelVideoLight(voz) {
+  const v = APP.light.video;
+  if (!v.pid || VOCES_VIDEO.guardando) return;
+  VOCES_VIDEO.guardando = true;
+  try {
+    const r = await pedir(`${API.proyecto(v.pid)}/voz/del-video`,
+      { method: 'PUT', cuerpo: { voz } });
+    if (GRABACION.datos && GRABACION.pid === v.pid) GRABACION.datos.voz = r.voz;
+    toast(voz ? `Voz cambiada a ${r.voz.nombre} en este vídeo. Pulsa «Regenerar Audio» `
+      + 'para oírla: no toca las imágenes.'
+      : 'Vuelve la voz de antes. Pulsa «Regenerar Audio» para oírla.');
+  } catch (e) {
+    toast(e.message, true);
+  }
+  VOCES_VIDEO.guardando = false;
+  refrescarPlanLight('voz', true);
+  pintarLight();
+}
+
+const ORIGEN_VOZ = {
+  video: 'elegida a mano para este vídeo',
+  a_mano: 'elegida a mano en este vídeo',
+  estilo: 'la del estilo del vídeo',
+  configuracion: 'la voz por defecto de Configuración (el estilo no trae voz gratuita)',
+};
+
 function vozElegidaLight() {
   const d = GRABACION.datos || {};
   const voz = d.voz || {};
   if (d.en_uso || !voz.nombre) return null;
   const tema = voz.por_tema;
-  return h('div', { clase: 'caja-info voz-elegida' },
-    h('b', {}, `🗣 Voz: ${voz.nombre}`),
-    h('span', { clase: 'meta' }, tema && !voz.a_mano
-      ? ` · elegida sola por el tema del vídeo (${tema.por_que || tema.tema}). `
-        + 'Si no te convence, cámbiala en el estilo o en Configuración → Voz.'
-      : (voz.a_mano ? ' · elegida a mano en este vídeo' : '')));
+  const origen = voz.origen === 'tema' && tema
+    ? `elegida sola por el tema del vídeo (${tema.por_que || tema.tema})`
+    : (ORIGEN_VOZ[voz.origen] || '');
+  const caja = h('div', { clase: 'caja-info voz-elegida' },
+    h('div', {},
+      h('b', {}, `🗣 Voz: ${voz.nombre}`),
+      h('span', { clase: 'meta' }, origen ? ` · ${origen}.` : '')));
+  if (!voz.gratis) return caja;
+  if (voz.pendiente) {
+    caja.appendChild(h('div', { clase: 'pista' },
+      'Aún no suena en el audio: pulsa «Regenerar Audio». Solo se rehace la voz; '
+      + 'las imágenes no se tocan.'));
+  }
+  const idioma = voz.idioma || 'es';
+  if (!VOCES_VIDEO.cargando && !VOCES_VIDEO.error
+      && !(VOCES_VIDEO.lista && VOCES_VIDEO.idioma === idioma)) {
+    setTimeout(() => cargarVocesVideoLight(idioma), 0);
+  }
+  if (VOCES_VIDEO.error) {
+    caja.appendChild(h('div', { clase: 'meta' },
+      `No se han podido leer las voces: ${VOCES_VIDEO.error}`));
+    return caja;
+  }
+  if (!VOCES_VIDEO.lista) {
+    caja.appendChild(h('div', { clase: 'meta' }, 'cargando las voces gratuitas…'));
+    return caja;
+  }
+  const lista = VOCES_VIDEO.lista;
+  const actual = voz.voz_id || '';
+  const elegir = h('select', {
+    disabled: VOCES_VIDEO.guardando || !!trabajoVideoLight(),
+    onchange: ev => elegirVozDelVideoLight(ev.target.value),
+  },
+    ...(lista.some(v => v.id === actual) ? []
+      : [h('option', { value: actual, selected: true }, voz.nombre)]),
+    ...lista.map(v => h('option', { value: v.id, selected: v.id === actual },
+      `${v.nombre} — ${v.genero === 'male' ? 'hombre' : v.genero === 'female' ? 'mujer' : ''}`
+      + (v.nativa ? '' : ' (acento extranjero)'))));
+  const escuchar = h('button', { clase: 'mini',
+    onclick: () => escucharVozGratis(elegir.value, pintarLight) },
+    VOCES_GRATIS.sonando === actual ? '❚❚ Parar' : '▶ Escuchar');
+  caja.appendChild(h('div', { clase: 'meta voz-cambiar-titulo' },
+    'Cambiarla solo para este vídeo:'));
+  caja.appendChild(h('div', { clase: 'fila-clave' }, elegir, escuchar,
+    voz.origen === 'video'
+      ? h('button', { clase: 'mini', disabled: VOCES_VIDEO.guardando,
+        onclick: () => elegirVozDelVideoLight('') },
+        voz.estilo ? 'Volver a la del estilo' : 'Quitar mi elección')
+      : null));
+  const ficha = lista.find(v => v.id === actual);
+  if (ficha && ficha.descripcion) caja.appendChild(h('div', { clase: 'meta' }, ficha.descripcion));
+  return caja;
 }
 
 function vozPropiaLight() {

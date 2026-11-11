@@ -319,6 +319,80 @@ def probar_voz_por_tema():
         ok(True, "voz_por_tema solo admite verdadero o falso")
 
 
+def probar_voz_del_video():
+    """La voz elegida a mano para UN video (pantalla del guion) y la del
+    estilo frente a la del tema. Sin red: el catalogo se dobla."""
+    print("\n  LA VOZ DEL VIDEO, A MANO, Y LA DEL ESTILO")
+    ajustes.guardar({"modo_voz": "gratis", "voz_gratis": "", "voz_por_tema": True})
+    cfg = p4_voz.resolver_params({"voz_id": "es-PE-AlexNeural", "idioma": "es",
+                                  "voz_del_video": {"voz_id": "es-CO-GonzaloNeural"}})
+    igual(cfg["voz_gratis"], "es-CO-GonzaloNeural",
+          "la voz elegida en el video manda sobre la del estilo")
+    cfg = p4_voz.resolver_params({"voz_id": "es-PE-AlexNeural", "idioma": "es",
+                                  "voz_del_video": {"voz_id": "a0e99841-438c"}})
+    igual(cfg["voz_gratis"], "es-PE-AlexNeural",
+          "una voz del video que no es gratuita no cuenta")
+
+    from nucleo.estado import Estado  # noqa: PLC0415
+    from nucleo.proyecto import Proyecto  # noqa: PLC0415
+    import app  # noqa: PLC0415
+    vg = app.PASOS_MODULOS.voz_gratis
+    vg.voces = lambda idioma=None, refrescar=False: [
+        {"id": "es-PE-AlexNeural", "nombre": "Alex (Perú)", "idioma": "es"},
+        {"id": "es-CO-GonzaloNeural", "nombre": "Gonzalo (Colombia)", "idioma": "es"}]
+
+    class Bitacora:
+        def anotar(self, *_a, **_k):
+            pass
+
+    class Ctx:
+        pass
+
+    def nuevo(nombre, voz):
+        ctx = Ctx()
+        ctx.proyecto = Proyecto.crear(os.path.join(CARPETA, "proyectos"), nombre)
+        ctx.estado = Estado(ctx.proyecto)
+        ctx.bitacora = Bitacora()
+        ctx.estado.set_params("ingesta", {"texto": "Jesús oró y Dios escuchó. "
+                                          "La fe de Pedro y la cruz."})
+        ctx.estado.set_params("voz", {"voz_id": voz, "idioma": "es"})
+        return ctx
+
+    ctx = nuevo("estilo con voz gratis", "es-PE-AlexNeural")
+    igual(app._voz_por_tema(ctx), None,
+          "con una voz gratuita del estilo, el tema no la cambia")
+    igual(ctx.estado.params("voz")["voz_id"], "es-PE-AlexNeural",
+          "y sigue la del estilo (Alex)")
+    igual(app._voz_que_suena(ctx, ctx.estado.params("voz"))["origen"], "estilo",
+          "la pantalla dice que es la del estilo")
+
+    ctx2 = nuevo("estilo con voz de Cartesia", "a0e99841-438c-4a64-b679-ae501e7d6091")
+    elegida = app._voz_por_tema(ctx2)
+    ok(elegida and elegida["tema"] == "fe",
+       "si el estilo trae una voz de Cartesia, el tema si elige")
+
+    firmas = {p: ctx.estado.firma(p) for p in ("voz", "revision_audio", "assets", "render")}
+    unidad = ctx.estado.firma_unidad("assets", "S01")
+    ok(app._esta_al_dia(ctx, {"id": "voz"}) is False, "sin audio, la voz esta pendiente")
+    ctx.estado.actualizar_params("voz", {"voz_del_video": {
+        "voz_id": "es-CO-GonzaloNeural", "voz_nombre": "Gonzalo", "grabada": False}})
+    igual({p: ctx.estado.firma(p) for p in firmas}, firmas,
+          "elegir la voz del video no mueve ninguna firma")
+    igual(ctx.estado.firma_unidad("assets", "S01"), unidad,
+          "ni la de una imagen")
+    ok(app._voz_del_video_pendiente(ctx), "queda pendiente de grabar")
+    ficha = app._voz_que_suena(ctx, ctx.estado.params("voz"))
+    igual((ficha["origen"], ficha["nombre"], ficha["pendiente"], ficha["estilo"]),
+          ("video", "Gonzalo (Colombia)", True, ""),
+          "la pantalla la da por elegida a mano y por oir")
+    usados = ctx.estado.params("voz")
+    app._voz_del_video_grabada(ctx, usados)
+    ok(not app._voz_del_video_pendiente(ctx), "grabada la voz, deja de estar pendiente")
+    igual(app._voz_por_tema(ctx), None, "y el tema no la toca")
+    igual({p: ctx.estado.firma(p) for p in firmas}, firmas,
+          "marcarla grabada tampoco mueve firmas")
+
+
 def main():
     print("=" * 70)
     print("PRUEBA DE LA VOZ GRATUITA (servicio doblado, sin red)")
@@ -330,6 +404,7 @@ def main():
     probar_trozos()
     probar_intencion()
     probar_voz_por_tema()
+    probar_voz_del_video()
     probar_toma()
     probar_paso()
     print()

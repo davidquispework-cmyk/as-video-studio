@@ -2627,6 +2627,8 @@ button.avisa:hover:not(:disabled) { border-color: var(--aviso); }
 
 /* Punto 6: qué voz y qué transición eligió el estudio, y por qué */
 .voz-elegida { margin-bottom: 8px; }
+.voz-elegida .pista { margin-top: 6px; }
+.voz-cambiar-titulo { margin-top: 8px; }
 .trans-vista summary { cursor: pointer; font-weight: 600; }
 .lista-trans { margin: 6px 0 0; padding-left: 22px; max-height: 320px; overflow-y: auto; }
 .lista-trans li { margin: 3px 0; }

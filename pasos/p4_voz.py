@@ -391,7 +391,8 @@ def resolver_params(params):
         "motor_voz": motor_voz,
         # la voz gratuita que se usaria: la del video si es gratuita, si no la
         # de Configuracion, si no la de fabrica del idioma
-        "voz_gratis": voz_gratis.elegir(voz_id, idioma, defecto_gratis),
+        "voz_gratis": voz_gratis.elegir(voz_del_video(crudos) or voz_id, idioma,
+                                        defecto_gratis),
         "preset": nombre_preset or None,
         "modelo": modelo,
         "voz_id": voz_id,
@@ -407,6 +408,21 @@ def resolver_params(params):
     if grabacion:
         cfg["grabacion"] = grabacion
     return cfg
+
+
+def voz_del_video(params):
+    """La voz gratuita elegida A MANO para este video en la pantalla del
+    guion, o "". -> ShortName
+
+    Va en `params["voz_del_video"]`, que NO entra en ninguna firma (ver
+    `nucleo.estado.FUERA_DE_FIRMA`): cambiarla solo pide volver a grabar el
+    audio, no deja obsoletas las imagenes. Manda sobre la voz del estilo y la
+    del tema, y solo con la voz gratuita: Cartesia no la conoce.
+    """
+    elegida = (params or {}).get("voz_del_video")
+    voz = str((elegida or {}).get("voz_id") or "").strip() if isinstance(
+        elegida, dict) else ""
+    return voz if voz_gratis.es_voz_gratis(voz) else ""
 
 
 def grabacion_de(proyecto, cfg):

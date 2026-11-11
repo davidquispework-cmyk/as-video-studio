@@ -379,11 +379,21 @@ def _voz_por_tema(ctx):
     gratuita, esta apagado en Configuracion, la voz se eligio a mano en el
     video, ya se eligio antes o el video ya tiene voz grabada. Nunca falla: si
     algo va mal, se queda la voz de siempre.
+
+    NI SI EL ESTILO TRAE UNA VOZ GRATUITA. El estilo la elige por su
+    descripcion y la copia a los params al crear el video (`voz_id`); si es una
+    voz gratuita, es una decision de quien hizo el estilo y manda sobre el
+    tema. Paso el 11-11: el estilo decia Alex (Peru) y el tema la cambio por
+    Gonzalo (Colombia). Si el estilo trae un id de Cartesia, con la voz gratis
+    no sirve de nada y el tema si elige.
     """
     try:
         params = ctx.estado.params("voz") or {}
         if (not PASOS_MODULOS.p4_voz.gratis() or not AJUSTES.voz_por_tema()
                 or params.get("voz_a_mano") or params.get("voz_por_tema")
+                or PASOS_MODULOS.p4_voz.voz_del_video(params)
+                or PASOS_MODULOS.voz_gratis.es_voz_gratis(
+                    str(params.get("voz_id") or "").strip())
                 or params.get("grabacion")
                 or ctx.estado.salidas("voz") or ctx.estado.versiones("voz")):
             return None
@@ -461,6 +471,8 @@ def _correr_paso(avisar, ctx, paso_id, unidades, opciones=None):
 
     ligeras, recortadas = _aligerar(salidas)
     version = ctx.estado.completar(paso_id, ligeras, mapa)
+    if paso_id == "voz":
+        _voz_del_video_grabada(ctx, params)
     # Las unidades que el paso dice que YA NO EXISTEN se des-declaran, aqui y en
     # todo lo que cuelga. Un id de plano es posicional y se hereda entre planes;
     # sin esto, un recorte que deja fuera un plano dejaba su unidad declarada
@@ -2024,6 +2036,94 @@ def describir_voz(pid: str, cuerpo: dict = Body(default=None)):
 # debajo, como debe. Quitarla borra la clave y el video vuelve a la voz
 # sintetica. Ver pasos/voz_propia.py.
 
+def _voz_del_video_pendiente(ctx):
+    """Si hay una voz elegida a mano en el video que aun no se ha grabado."""
+    elegida = (ctx.estado.params("voz") or {}).get("voz_del_video")
+    return isinstance(elegida, dict) and bool(elegida.get("voz_id")) \
+        and not elegida.get("grabada")
+
+
+def _voz_del_video_grabada(ctx, params_usados):
+    """Tras grabar la voz entera: la voz elegida a mano ya suena en el video.
+
+    Solo si la que se uso es la que sigue puesta (alguien pudo cambiarla a
+    media toma). `voz_del_video` no entra en ninguna firma: escribir aqui no
+    deja nada obsoleto.
+    """
+    try:
+        usada = (params_usados or {}).get("voz_del_video")
+        ahora = (ctx.estado.params("voz") or {}).get("voz_del_video")
+        if (isinstance(ahora, dict) and isinstance(usada, dict)
+                and ahora.get("voz_id") == usada.get("voz_id")
+                and not ahora.get("grabada")):
+            ctx.estado.actualizar_params(
+                "voz", {"voz_del_video": dict(ahora, grabada=True)})
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _voz_del_estilo(ctx):
+    """El id de voz que guarda el estilo con el que nacio el video, o ""."""
+    try:
+        pid = ctx.proyecto.config.get(CONFIG_ESTILO_LIGHT)
+        ficha = _presets().leer(pid) if pid else None
+        return str((((ficha or {}).get("datos") or {}).get("voz") or {})
+                   .get("voz_id") or "").strip()
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def _voz_que_suena(ctx, params):
+    """Que voz lleva el video, de donde sale y que se puede hacer. -> dict
+
+    Solo lee: no mueve ninguna firma. `origen` es una de: video (elegida aqui,
+    a mano), a_mano (cambiada a mano por otra via), tema, estilo,
+    configuracion (la voz del video no es gratuita: suena la de Configuracion).
+    """
+    p4 = PASOS_MODULOS.p4_voz if PASOS_MODULOS is not None else None
+    gratis = bool(p4 and p4.gratis())
+    idioma = "es"
+    voz_id = str(params.get("voz_id") or "").strip()
+    nombre = str(params.get("voz_nombre") or voz_id or "")
+    if p4 is not None:
+        try:
+            cfg = p4.resolver_params(p4.params_con_idioma(ctx.proyecto, params))
+            idioma = cfg.get("idioma") or idioma
+            if gratis:
+                voz_id = cfg.get("voz_gratis") or voz_id
+                ficha = next((f for f in PASOS_MODULOS.voz_gratis.voces(idioma)
+                              if f.get("id") == voz_id), None)
+                nombre = (ficha or {}).get("nombre") or voz_id
+        except Exception:  # noqa: BLE001
+            pass
+    del_video = p4.voz_del_video(params) if p4 is not None else ""
+    propia = str(params.get("voz_id") or "").strip()
+    if gratis and del_video:
+        origen = "video"
+    elif params.get("voz_a_mano"):
+        origen = "a_mano"
+    elif isinstance(params.get("voz_por_tema"), dict):
+        origen = "tema"
+    elif gratis and not (p4 and PASOS_MODULOS.voz_gratis.es_voz_gratis(propia)):
+        origen = "configuracion"
+    else:
+        origen = "estilo"
+    estilo = _voz_del_estilo(ctx)
+    return {
+        "nombre": nombre,
+        "voz_id": voz_id,
+        "idioma": idioma,
+        "gratis": gratis,
+        "origen": origen,
+        "por_tema": params.get("voz_por_tema") if isinstance(
+            params.get("voz_por_tema"), dict) else None,
+        "a_mano": bool(params.get("voz_a_mano")) or origen == "video",
+        "estilo": estilo if (gratis and p4 is not None
+                             and PASOS_MODULOS.voz_gratis.es_voz_gratis(estilo)) else "",
+        "pendiente": _voz_del_video_pendiente(ctx),
+    }
+
+
 def _ficha_grabacion(ctx):
     params = ctx.estado.params("voz") or {}
     raiz = ctx.proyecto.raiz
@@ -2047,13 +2147,57 @@ def _ficha_grabacion(ctx):
         # QUE VOZ LLEVA EL VIDEO Y POR QUE (punto 6 del orden nuevo): la
         # pantalla del guion lo dice en una linea en vez de esconderlo en la
         # bitacora. Solo lectura de params: no mueve ninguna firma.
-        "voz": {
-            "nombre": str(params.get("voz_nombre") or params.get("voz_id") or ""),
-            "por_tema": params.get("voz_por_tema") if isinstance(
-                params.get("voz_por_tema"), dict) else None,
-            "a_mano": bool(params.get("voz_a_mano")),
-        },
+        "voz": _voz_que_suena(ctx, params),
     }
+
+
+@app.put("/api/proyectos/{pid}/voz/del-video")
+def elegir_voz_del_video(pid: str, cuerpo: dict = Body(default=None)):
+    """Elige la voz gratuita de ESTE video, a mano (pantalla del guion).
+
+    Se guarda en `voz.voz_del_video`, que NO entra en ninguna firma: no deja
+    obsoleto nada, ni el audio ni las imagenes. Se oye al pulsar «Regenerar
+    Audio», que rehace la voz y su revision y nada mas (`_esta_al_dia` da la
+    voz por pendiente mientras no se haya grabado con ella). `voz: ""` la
+    quita y vuelve a la del estilo / tema.
+    """
+    ctx = contexto(pid)
+    if PASOS_MODULOS is None:
+        raise ErrorApi(503, f"los pasos no se han podido cargar: {ERROR_PASOS}")
+    datos = _cuerpo(cuerpo)
+    voz = str(datos.get("voz") or "").strip()
+    if not PASOS_MODULOS.p4_voz.gratis():
+        raise ErrorApi(409, "esto es para la voz gratuita: en Configuración → Voz "
+                            "está puesta Cartesia")
+    if ctx.estado.estado_de("voz") == "ejecutando":
+        raise ErrorApi(409, "la voz se está grabando ahora mismo: espera a que "
+                            "termine para cambiarla")
+    params = ctx.estado.params("voz") or {}
+    if not voz:
+        if "voz_del_video" in params:
+            params.pop("voz_del_video")
+            ctx.estado.set_params("voz", params)
+        ctx.bitacora.anotar("voz_del_video", "voz", {"voz": ""})
+        return {"voz": _voz_que_suena(ctx, ctx.estado.params("voz") or {})}
+    mod = PASOS_MODULOS.voz_gratis
+    if not mod.es_voz_gratis(voz):
+        raise ErrorApi(400, f"{voz!r} no es una voz gratuita")
+    nombre = voz
+    try:
+        idioma = PASOS_MODULOS.p4_voz.resolver_params(
+            PASOS_MODULOS.p4_voz.params_con_idioma(ctx.proyecto, params))["idioma"]
+        ficha = next((f for f in mod.voces(idioma) if f.get("id") == voz), None)
+        nombre = (ficha or {}).get("nombre") or voz
+    except Exception:  # noqa: BLE001
+        pass
+    # si es la que ya suena grabada, no hay nada que regrabar
+    antes = params.get("voz_del_video") if isinstance(
+        params.get("voz_del_video"), dict) else {}
+    ya = (antes.get("voz_id") == voz and antes.get("grabada"))
+    ctx.estado.actualizar_params("voz", {"voz_del_video": {
+        "voz_id": voz, "voz_nombre": nombre, "grabada": bool(ya)}})
+    ctx.bitacora.anotar("voz_del_video", "voz", {"voz": voz, "nombre": nombre})
+    return {"voz": _voz_que_suena(ctx, ctx.estado.params("voz") or {})}
 
 
 @app.get("/api/proyectos/{pid}/voz/grabacion")
@@ -6810,6 +6954,11 @@ def _esta_al_dia(ctx, tarea):
     hace la pantalla para pintar su pastilla.
     """
     tid = tarea["id"]
+    if tid == "voz" and _voz_del_video_pendiente(ctx):
+        # la voz elegida a mano en el video no entra en la firma (ver
+        # `nucleo.estado.FUERA_DE_FIRMA`): sin esto el paso diria «al dia» y
+        # «Regenerar Audio» no tendria nada que hacer
+        return False
     if tid in PASOS_POR_ID:
         # `al_dia` y no `estado_de`: el trabajo de la tanda se registra EN UN
         # PASO, asi que preguntar por el estado devuelve "ejecutando" -- el
