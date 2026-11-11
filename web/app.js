@@ -2313,6 +2313,7 @@ function pintarConfig() {
   caja.appendChild(seccionModoClaude());
   caja.appendChild(seccionModoVoz());
   caja.appendChild(seccionModoImagen());
+  if (modoImagen() === 'manual') caja.appendChild(seccionPromptPara());
   caja.appendChild(seccionModoClip());
   caja.appendChild(seccionOpenAI(ficha));
   /* la calidad solo importa si se paga a OpenAI */
@@ -2530,6 +2531,65 @@ function seccionModoImagen() {
   caja.appendChild(h('div', { clase: 'meta' },
     'Se aplica al momento y a todos los vídeos. Cambiarlo no borra ni rehace '
     + 'ninguna imagen que ya tengas.'));
+  return caja;
+}
+
+/* PARA QUÉ GENERADOR ES «COPIAR PROMPT» (modo manual): 'chat' (Gemini,
+   ChatGPT: largo, por apartados) o 'meta' (Meta AI: «Imagina:» y corto). Es un
+   ajuste del servidor (`prompt_para`) leído al copiar: no es un param, no mueve
+   firmas ni deja nada obsoleto. */
+function promptPara() {
+  const datos = estadoConfig().ajustes;
+  return (datos && datos.ajustes && datos.ajustes.prompt_para) || 'chat';
+}
+
+async function guardarPromptPara(para) {
+  const vista = estadoConfig();
+  try {
+    const r = await pedir(API.ajustes(),
+                          { method: 'PUT', cuerpo: { prompt_para: para } });
+    vista.ajustes = { ...(vista.ajustes || {}), ajustes: r.ajustes, costes: r.costes };
+    SUBIDAS.datos = null;           // el panel de Imágenes vuelve a preguntar
+    toast(para === 'meta'
+      ? 'Los prompts ahora son para Meta AI (empiezan por «Imagina:»)'
+      : 'Los prompts ahora son para Gemini o ChatGPT');
+  } catch (e) {
+    vista.error = e.message;
+  }
+  repintarClaves();
+}
+
+function seccionPromptPara() {
+  const datos = estadoConfig().ajustes;
+  const para = promptPara();
+  const caja = h('section', { clase: 'bloque-config' },
+    h('div', { clase: 'fila' },
+      h('h3', {}, 'Para qué generador es el prompt'),
+      h('span', { clase: 'crece' }),
+      datos ? pastillaEstado('ok', para === 'meta' ? 'Meta AI' : 'Gemini / ChatGPT')
+        : null));
+  if (!datos) return caja;
+  const opciones = [
+    { id: 'chat', nombre: 'Gemini o ChatGPT',
+      texto: 'El prompt completo, por apartados: estilo, qué se ve, quién sale, '
+        + 'la época, lo que no se dibuja y la continuidad con el plano anterior.' },
+    { id: 'meta', nombre: 'Meta AI',
+      texto: 'Empieza por «Imagina:» y es corto: qué se ve, los personajes, el '
+        + 'estilo y las reglas bíblicas esenciales. Pégalo tal cual en Meta AI.' },
+  ];
+  opciones.forEach(op => {
+    const puesta = op.id === para;
+    caja.appendChild(h('button', {
+      clase: 'fila-modo-imagen' + (puesta ? ' elegida' : ''),
+      disabled: puesta,
+      onclick: () => guardarPromptPara(op.id),
+    },
+      h('span', { clase: 'nombre' }, (puesta ? '● ' : '○ ') + op.nombre),
+      h('span', { clase: 'meta' }, op.texto)));
+  });
+  caja.appendChild(h('div', { clase: 'meta' },
+    'Solo cambia el texto que copias en la pestaña Imágenes; no toca ninguna '
+    + 'imagen ni ningún vídeo. El «prompt único» sigue siendo para Gemini.'));
   return caja;
 }
 
@@ -9739,7 +9799,7 @@ function tarjetaSubida(plano) {
       h('pre', {}, plano.prompt)),
     h('div', { clase: 'subida-mandos' },
       h('button', { clase: 'mini primario', onclick: () => copiarPrompt(plano.prompt) },
-        'Copiar prompt'),
+        (SUBIDAS.datos && SUBIDAS.datos.para === 'meta') ? 'Copiar prompt (Meta AI)' : 'Copiar prompt'),
       botonElegirFicheros(plano.subida ? 'Cambiar' : 'Elegir', { accept: 'image/*' },
         files => subirAPlanos(files, plano.id)),
       plano.subida ? h('button', { clase: 'mini fantasma peligro',

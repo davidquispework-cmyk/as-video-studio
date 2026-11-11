@@ -113,6 +113,35 @@ def probar_piezas():
         ok(True, "un fichero que no es imagen se rechaza con su motivo")
 
 
+def probar_prompt_meta():
+    escena = {"id": "S002", "personajes": ["Gabriel", "María"],
+              "direccion": "el ángel Gabriel se aparece a María en su casa",
+              "narracion": "Y el ángel Gabriel le dijo a María: no temas"}
+    fichas = {"Gabriel": "a tall man in shining white clothes",
+              "María": "a young first-century Galilean Jewish woman, blue mantle"}
+    contexto = "El ángel Gabriel anunció a María en Nazaret que Jesús nacería"
+    largo = subidas.prompt_para_copiar(escena, guia="acuarela suave " * 40,
+                                       formato="vertical", fichas=fichas,
+                                       contexto=contexto)
+    meta = subidas.prompt_para_copiar(escena, guia="acuarela suave " * 40,
+                                      formato="vertical", fichas=fichas,
+                                      contexto=contexto, para="meta")
+    ok(meta.startswith("Imagina: "), "el de Meta AI empieza por «Imagina:»")
+    ok(len(meta) < len(largo) and len(meta) < 1300, f"y es corto ({len(meta)} letras)")
+    ok("Gabriel" in meta and "María" in meta and "Estilo:" in meta,
+       "lleva los personajes y el estilo")
+    ok("sin alas" in meta and "sin aureolas" in meta and "contraluz" in meta,
+       "y las reglas bíblicas esenciales")
+    ok("9:16" in meta and "\n" not in meta, "en una sola línea, con su formato")
+    fondo = subidas.prompt_para_copiar(escena, fichas=fichas, contexto=contexto,
+                                       para="meta", munecos=True)
+    ok("Personajes:" not in fondo and "Solo el fondo" in fondo,
+       "con muñecos, solo el fondo")
+    laico = subidas.prompt_para_copiar({"direccion": "un pan recién horneado"},
+                                       para="meta")
+    ok("Reglas:" not in laico, "un vídeo no bíblico no lleva reglas")
+
+
 def probar_prompt_unico():
     print("\n  ETAPA 6: UN SOLO PROMPT PARA TODAS LAS IMAGENES")
     reparto = {"pedro": {"nombre": "Pedro", "papel": "el apóstol",
@@ -184,6 +213,18 @@ def main():
 
     probar_piezas()
     probar_prompt_unico()
+    probar_prompt_meta()
+
+    # EL PROMPT PARA META AI es un ajuste leido al copiar, no un param
+    ok(ajustes.leer()["prompt_para"] == "chat", "de fabrica, prompt para Gemini/ChatGPT")
+    ajustes.guardar({"prompt_para": "meta"})
+    ok(ajustes.prompt_para() == "meta", "se guarda el prompt para Meta AI")
+    try:
+        ajustes.guardar({"prompt_para": "midjourney"})
+        ok(False, "un generador que no existe deberia rechazarse")
+    except ValueError:
+        ok(True, "un generador que no existe se rechaza")
+    ajustes.guardar({"prompt_para": "chat"})
 
     # EL GENERADOR NO SE PUEDE LLAMAR: si alguna linea del modo manual se
     # escapara hacia OpenAI, revienta aqui con su traza en vez de salir a red

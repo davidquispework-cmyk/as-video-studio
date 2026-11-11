@@ -681,6 +681,35 @@ def pauta_imagen(contexto, narracion="", con_gente=True, personajes=(),
     return lineas
 
 
+def reglas_cortas(contexto, narracion="", con_gente=True, personajes=(),
+                  fichas=None, que=""):
+    """Lo ESENCIAL de la fidelidad en pocas palabras (el prompt de Meta AI).
+
+    La epoca del plano, la gente de la epoca, las reglas sagradas y la
+    crucifixion, todo en frases cortas. [] si el video no es biblico."""
+    if not es_biblico(contexto):
+        return []
+    clave = epoca_del_plano(contexto, narracion, personajes, fichas, que)
+    reglas = [f"época: {EPOCAS[clave]['nombre']}, fiel a la Biblia"]
+    if con_gente:
+        reglas.append("gente de Oriente Medio de esa época (piel morena oliva, "
+                      "pelo y ojos oscuros), ropa sencilla de la época, nada "
+                      "de rasgos europeos ni ropa medieval")
+    plegado = plegar(" ".join(str(t or "") for t in
+                              (contexto, narracion, que, " ".join(personajes or ()))))
+    reglas.append("sin aureolas en nadie")
+    if _ANGEL.search(plegado):
+        reglas.append("los ángeles son hombres con ropa blanca brillante, sin "
+                      "alas ni aureola (alas solo serafines o querubines si se "
+                      "nombran)")
+    if _JESUS.search(plegado):
+        reglas.append("Jesús de espaldas, a contraluz o de lejos, sin rostro "
+                      "detallado")
+    if clave == "nt" and _toca_cruz(narracion, que):
+        reglas.append("en el Gólgota tres cruces, Jesús en la del centro")
+    return reglas
+
+
 def insertar(instruccion, bloque, antes_de):
     """Mete `bloque` justo antes de `antes_de` (o al final si no esta)."""
     if not bloque:

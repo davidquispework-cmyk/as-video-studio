@@ -70,6 +70,10 @@ MODOS_VOZ = ("gratis", "cartesia")
 #:   auto    los pide el estudio a fal.ai pagando (~0,28 $ por clip). APAGADO:
 #:           ademas de elegirlo hace falta la variable de entorno FAL_KEY.
 MODOS_CLIP = ("manual", "auto")
+#: Para que generador se escribe el prompt de «Copiar prompt» (modo manual):
+#: 'chat' (Gemini, ChatGPT: largo y por apartados) o 'meta' (Meta AI: empieza
+#: por «Imagina:» y es corto). Se LEE AL COPIAR: no es un param, no mueve firmas.
+PROMPTS_PARA = ("chat", "meta")
 
 #: CUANTO SE GASTA DE LA CUENTA DE CLAUDE (ver cli_claude.MODOS_CLAUDE). Se lee
 #: en cada llamada, no entra en ninguna firma. De fabrica, 'equilibrado'.
@@ -104,6 +108,8 @@ POR_DEFECTO = {
     "voz_por_tema": True,
     # Los clips de video de los planos: manual (gratis) de fabrica.
     "modo_clip": "manual",
+    # El prompt para copiar: 'chat' (Gemini/ChatGPT) o 'meta' (Meta AI).
+    "prompt_para": "chat",
     # Claude: lo recomendado por fase de fabrica; las suites que miran el
     # modelo exacto fijan 'potente' con ESTUDIO_MODO_CLAUDE.
     "modo_claude": os.environ.get("ESTUDIO_MODO_CLAUDE") or "equilibrado",
@@ -129,6 +135,8 @@ def leer():
     salida["voz_gratis"] = str(salida.get("voz_gratis") or "")
     if salida.get("modo_imagen") not in MODOS_IMAGEN:
         salida["modo_imagen"] = POR_DEFECTO["modo_imagen"]
+    if salida.get("prompt_para") not in PROMPTS_PARA:
+        salida["prompt_para"] = POR_DEFECTO["prompt_para"]
     if salida.get("modo_clip") not in MODOS_CLIP:
         salida["modo_clip"] = POR_DEFECTO["modo_clip"]
     if salida.get("modo_claude") not in MODOS_CLAUDE:
@@ -162,6 +170,9 @@ def guardar(cambios):
         if clave == "modo_imagen" and valor not in MODOS_IMAGEN:
             raise ValueError(
                 f"modo de imagen {valor!r}: solo {', '.join(MODOS_IMAGEN)}")
+        if clave == "prompt_para" and valor not in PROMPTS_PARA:
+            raise ValueError(
+                f"prompt para {valor!r}: solo {', '.join(PROMPTS_PARA)}")
         if clave == "modo_clip" and valor not in MODOS_CLIP:
             raise ValueError(
                 f"modo de clip {valor!r}: solo {', '.join(MODOS_CLIP)}")
@@ -195,6 +206,11 @@ def voz_gratis_por_defecto():
 def modo_imagen():
     """'manual' (las imagenes las sube una persona) u 'openai'."""
     return leer()["modo_imagen"]
+
+
+def prompt_para():
+    """'chat' (Gemini, ChatGPT) o 'meta' (Meta AI): como se escribe el prompt."""
+    return leer()["prompt_para"]
 
 
 def imagenes_manuales():

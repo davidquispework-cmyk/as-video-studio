@@ -251,7 +251,7 @@ def _colocar_subida(nombre, destino, p):
             "coste": 0.0}
 
 
-def prompts_para_subir(proyecto, params, plan=None):
+def prompts_para_subir(proyecto, params, plan=None, para="chat", munecos=False):
     """El prompt de cada plano que necesita imagen, para copiarlo. -> [ficha]
 
     No genera nada ni llama a ningun modelo: lee el plan (el corte en planos,
@@ -295,7 +295,8 @@ def prompts_para_subir(proyecto, params, plan=None):
                 fichas={n: reparto.get(n) for n in escena.get("personajes") or []
                         if reparto.get(n)},
                 sitio=sets.get(escena.get("set")) or "",
-                anterior=anterior, contexto=contexto),
+                anterior=anterior, contexto=contexto, para=para,
+                munecos=munecos),
             "subida": sid in hechas,
             "mtime": (hechas.get(sid) or {}).get("mtime"),
         })

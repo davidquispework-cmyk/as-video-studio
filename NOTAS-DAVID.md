@@ -733,6 +733,17 @@ Visto en el vídeo del rey David (borrado después; no se arregló ese vídeo).
   para verlo. Pruebas: `prueba_fidelidad.py`, `prueba_marioneta.py`, `prueba_motion.py`.
   Pendiente: el muñeco de Jesús sigue con cara (es un muñeco, no un retrato).
 
+## Prompt para Meta AI (11-nov-2026)
+- Configuración → «Para qué generador es el prompt» (sale solo en modo manual):
+  **Gemini o ChatGPT** (el largo de siempre) o **Meta AI**: una línea que empieza
+  por «Imagina:» con qué se ve, personajes (aspecto resumido), estilo y las reglas
+  bíblicas esenciales (`fidelidad.reglas_cortas`). El botón de cada plano dice
+  «Copiar prompt (Meta AI)». Con muñecos, solo el fondo.
+- Cómo quedó: ajuste `prompt_para` («chat» | «meta») en `ajustes.json`, leído al
+  copiar (`app._ficha_subidas` → `p6_assets.prompts_para_subir(para=)` →
+  `subidas.prompt_meta`). No es un param: NO mueve firmas. El «prompt único» sigue
+  siendo para Gemini. Prueba: `probar_prompt_meta` en `pasos/prueba_subidas.py`.
+
 ## Pendiente / ideas
 1. Catálogo de la mamá: faltan nombre de tienda, WhatsApp, prendas y fotos.
 2. Web del negocio.

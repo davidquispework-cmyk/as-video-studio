@@ -5379,14 +5379,18 @@ def _tamano_de_plano(ctx):
 
 def _ficha_subidas(ctx):
     p6 = PASOS_MODULOS.p6_assets
-    planos = p6.prompts_para_subir(ctx.proyecto, ctx.estado.params("assets") or {})
+    # PARA QUE GENERADOR (Gemini/ChatGPT o Meta AI): un ajuste leido al copiar,
+    # no un param, asi que cambiarlo no mueve ninguna firma.
+    para = AJUSTES.prompt_para()
+    munecos = bool((ctx.estado.params("render") or {}).get("marioneta"))
+    planos = p6.prompts_para_subir(ctx.proyecto, ctx.estado.params("assets") or {},
+                                   para=para, munecos=munecos)
     hechas = sum(1 for f in planos if f["subida"])
     # LOS CLIPS (etapa 2): cada plano dice si lleva video y trae el prompt de
     # movimiento para Kling / Hailuo / Meta AI.
     con_clip = CLIPS.listar(ctx.proyecto.raiz)
     plan = PASOS_MODULOS.p6_assets.plan_actual(ctx.proyecto) or {}
     escenas = {e.get("id"): e for e in plan.get("escenas") or []}
-    munecos = bool((ctx.estado.params("render") or {}).get("marioneta"))
     unidades_render = (ctx.estado.params("render") or {}).get("unidades") or {}
     for f in planos:
         info = con_clip.get(f["id"])
@@ -5397,7 +5401,7 @@ def _ficha_subidas(ctx):
             escenas.get(f["id"]) or {}, plan.get("formato") or "")
         # CON MUÑECOS la imagen es SOLO EL FONDO: los personajes los pinta el
         # render encima (pasos/marioneta.py); si vinieran dibujados, saldrian dos veces.
-        if munecos and f.get("prompt"):
+        if munecos and f.get("prompt") and para != "meta":
             f["prompt"] = PASOS_MODULOS.marioneta.solo_fondo(f["prompt"])
         # LOS EFECTOS DE AMBIENTE: los que saldrian solos y, si la persona
         # eligio otros en la tarjeta, esos (None = automatico).
@@ -5409,7 +5413,7 @@ def _ficha_subidas(ctx):
         f["ambiente"] = ((unidades_render.get(f"escena:{f['id']}") or {})
                          .get("ambiente"))
     auto, motivo = CLIPS.automatico_disponible()
-    return {"modo": AJUSTES.modo_imagen(), "planos": planos,
+    return {"modo": AJUSTES.modo_imagen(), "planos": planos, "para": para,
             "efectos": ["luz", "particulas", "agua", "nubes", "lluvia",
                         "rayos", "gloria"],   # = ambiente.EFECTOS
             "modo_clip": AJUSTES.leer().get("modo_clip", "manual"),

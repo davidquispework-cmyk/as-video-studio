@@ -218,7 +218,8 @@ def importar_zip(raiz_proyecto, datos, validos, tamano="apaisado"):
 # --------------------------------------------------- los prompts para copiar
 
 def prompt_para_copiar(escena, guia="", idioma="", formato="", fichas=None,
-                       sitio="", anterior=None, contexto=""):
+                       sitio="", anterior=None, contexto="", para="chat",
+                       munecos=False):
     """Un prompt corto y en limpio para pegar en Gemini, ChatGPT o similar.
 
     El prompt del motor esta escrito para gpt-image con sus referencias
@@ -230,7 +231,13 @@ def prompt_para_copiar(escena, guia="", idioma="", formato="", fichas=None,
     epoca (gente, ropa, sitios y objetos reales, y lo que NO va) y lo que la
     frase tiene que EXPLICAR -- dos lugares piden un mapa con su distancia --.
     Ver `fidelidad.py`.
+
+    `para="meta"`: el prompt corto de Meta AI (`prompt_meta`). Lo decide el
+    ajuste `prompt_para`, leido al copiar: no es un param, no mueve firmas.
     """
+    if para == "meta":
+        return prompt_meta(escena, guia=guia, formato=formato, fichas=fichas,
+                           sitio=sitio, contexto=contexto, munecos=munecos)
     partes = []
     vertical = str(formato or "").lower().startswith("vert")
     partes.append("Crea UNA sola ilustración "
@@ -277,6 +284,55 @@ def prompt_para_copiar(escena, guia="", idioma="", formato="", fichas=None,
         partes.append("Sin texto, sin letras, sin rótulos, sin marcos ni viñetas: "
                       "una sola escena a sangre.")
     return "\n".join(partes)
+
+
+def _corto(texto, maximo):
+    """Recorta en la ultima palabra entera antes de `maximo` caracteres."""
+    texto = " ".join(str(texto or "").split()).rstrip(" .")
+    if len(texto) <= maximo:
+        return texto
+    return texto[:maximo].rsplit(" ", 1)[0].rstrip(" ,;:.")
+
+
+def prompt_meta(escena, guia="", formato="", fichas=None, sitio="",
+                contexto="", munecos=False):
+    """El prompt para Meta AI: empieza por «Imagina:» y es CORTO.
+
+    Meta AI dibuja al leer «Imagina» y se pierde con los prompts largos por
+    apartados: aqui va solo lo que se ve, los personajes (aspecto resumido),
+    el estilo y las reglas biblicas esenciales (`fidelidad.reglas_cortas`).
+    Con muñecos (`munecos=True`), solo el fondo, sin gente.
+    """
+    que = _corto(escena.get("prompt") or escena.get("direccion")
+                 or escena.get("accion") or escena.get("narracion") or "", 320)
+    lugar = _corto(escena.get("lugar") or escena.get("set") or sitio or "", 140)
+    personajes = [] if munecos else list(escena.get("personajes") or [])
+    fichas = fichas or {}
+    vertical = str(formato or "").lower().startswith("vert")
+    frase = "Imagina: " + (que or "una escena del vídeo")
+    if lugar and lugar.lower() not in frase.lower():
+        frase += f", en {lugar}"
+    partes = [frase.rstrip(" .") + "."]
+    if munecos:
+        partes.append("Solo el fondo, sin ninguna persona ni animal; el centro "
+                      "y el suelo despejados.")
+    if personajes:
+        quienes = []
+        for nombre in personajes:
+            descr = _corto(fidelidad.ficha_en_su_epoca(nombre, fichas.get(nombre) or ""), 110)
+            quienes.append(f"{nombre} ({descr})" if descr else str(nombre))
+        partes.append("Personajes: " + "; ".join(quienes) + ".")
+    if guia:
+        partes.append("Estilo: " + _corto(guia, 220) + ".")
+    narrado = " ".join(str(escena.get("narracion") or "").split())
+    reglas = fidelidad.reglas_cortas(
+        contexto, narrado, con_gente=bool(personajes), personajes=personajes,
+        fichas=fichas, que=" ".join(str(x or "") for x in (que, lugar)))
+    if reglas:
+        partes.append("Reglas: " + "; ".join(reglas) + ".")
+    partes.append(("Formato vertical 9:16" if vertical else "Formato horizontal 16:9")
+                  + ", sin texto ni letras.")
+    return " ".join(partes)
 
 
 # ------------------------------------------ ETAPA 6: un solo prompt para todas
