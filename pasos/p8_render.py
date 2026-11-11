@@ -60,6 +60,7 @@ import medios  # noqa: E402
 import plantilla_tiktok  # noqa: E402
 import sonido  # noqa: E402
 import transiciones  # noqa: E402
+import camara  # noqa: E402
 
 PARAMS_POR_DEFECTO = {
     "fps": 30,
@@ -401,7 +402,7 @@ function suavizar(u){ return u*u*(3-2*u); }
 // es 16:9, asi que se respeta el ancho y se recorta el alto sobre el mismo
 // centro. Recortar aqui y no en el motor evita tocar lo que ya usan otros pasos.
 function ventana(u){
-  const a = MOV.ventana_ini, b = MOV.ventana_fin, e = suavizar(u);
+  const a = MOV.ventana_ini, b = MOV.ventana_fin, e = CAM ? curvaCam(u) : suavizar(u);
   const x = a[0] + (b[0]-a[0])*e, y = a[1] + (b[1]-a[1])*e;
   const w = a[2] + (b[2]-a[2])*e, h = a[3] + (b[3]-a[3])*e;
   const cx = (x + w/2) * HW, cy = (y + h/2) * HH;
@@ -442,6 +443,11 @@ __MARJS__
 const MG = __MG__;
 __MGJS__
 
+// LA CAMARA VIVA (pasos/camara.py, punto F): null = la camara de siempre.
+const CAM = __CAM__;
+__CAMJS__
+const QUIETO = JSON.stringify(MOV.ventana_ini) === JSON.stringify(MOV.ventana_fin);
+
 function pintar(t){
   const u = DUR > 0 ? Math.min(1, Math.max(0, t/DUR)) : 0;
   const v = ventana(u), s = W / v[2];
@@ -453,6 +459,7 @@ function pintar(t){
     extra = 'translate(' + W/2 + 'px,' + H/2 + 'px) rotate(' + r.toFixed(3) +
             'deg) scale(1.015) translate(' + (-W/2) + 'px,' + (-H/2) + 'px) ';
   }
+  if (CAM) extra = extraCam(t, QUIETO) + extra;
   camara.style.transform = extra +
     'translate(' + (-v[0]*s).toFixed(3) + 'px,' + (-v[1]*s).toFixed(3) +
     'px) scale(' + s.toFixed(6) + ')';
@@ -483,7 +490,7 @@ def _url_local(ruta):
 
 
 def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
-               amb=None, fotos_clip=None, mar=None, mg=None):
+               amb=None, fotos_clip=None, mar=None, mg=None, cam=None):
     ancho, alto = [int(v) for v in p["resolucion"]]
     hw, hh = mov.get("hyperframe_px") or [3072, 2048]
     duracion = float(escena["t_out"]) - float(escena["t_in"])
@@ -500,6 +507,8 @@ def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
             .replace("__MGHTML__", mg_html)
             .replace("__MGJS__", motion.MOTION_JS if mg else "")
             .replace("__MG__", mg_json or "null")
+            .replace("__CAMJS__", camara.CAMARA_JS if cam else "")
+            .replace("__CAM__", json.dumps(cam) if cam else "null")
             .replace("__MARCSS__", mar_css)
             .replace("__MARHTML__", mar_html)
             .replace("__MARJS__", marioneta.MARIONETA_JS if mar else "")
@@ -1088,7 +1097,8 @@ def renderizar_plano(tarea, navegador=None):
                         os.path.join(carpeta, "escena.html"),
                         capa_fija=tarea.get("capa_fija") or "", fps=fps,
                         amb=tarea.get("ambiente"), fotos_clip=fotos_clip,
-                        mar=tarea.get("marioneta"), mg=tarea.get("motion"))
+                        mar=tarea.get("marioneta"), mg=tarea.get("motion"),
+                        cam=tarea.get("camara"))
 
     navegador.abrir(pagina)
     for numero in range(total):
@@ -1464,6 +1474,14 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
         fichas_reparto = {}
     if con_munecos:
         fichas_reparto = _fichas_reparto(proyecto)
+    # LA CAMARA VIVA (pasos/camara.py, punto F): curva, golpes de zoom en la
+    # palabra que importa, temblor, respiracion y arrastre a traves del corte.
+    # Las cartelas y el motion graphics llevan su propia camara.
+    confs_camara = {} if con_motion else camara.preparar(
+        escenas, cortes, p, semilla=(plan.get("semilla") or 0),
+        excluir={e.get("id") for e in escenas
+                 if e.get("cartela") or (movimientos.get(e.get("id")) or {})
+                 .get("origen_centro") == "cartela"})
     for indice, escena in enumerate(escenas):
         sid = escena["id"]
         uid = f"escena:{sid}"
@@ -1561,7 +1579,13 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
         mg = confs_motion.get(sid) if con_motion else None
         if con_motion:
             print(f"[render] {sid}: {motion.resumen(mg)}", flush=True)
+        cam = confs_camara.get(sid)
+        if cam and con_clip:
+            cam = dict(cam, respira=False)   # el clip ya trae su movimiento
+        if cam:
+            print(f"[render] {sid}: {camara.resumen(cam)}", flush=True)
         tareas.append({
+            "camara": cam,
             "motion": mg,
             "marioneta": mar,
             "ambiente": amb,

@@ -6935,6 +6935,7 @@ function vistaElegidoLight() {
     selectorFormato(e.formato, v => { e.formato = v; }),
     selectorDibujo(e.marioneta, v => { e.marioneta = v; }),
     selectorMotion(e.motion, v => { e.motion = v; }),
+    selectorCamara(e.camara, v => { e.camara = v; }),
     selectorGancho(e.gancho, v => { e.gancho = v; pintarLight(); }),
     selectorLetras(e, () => {}),
     selectorPlantilla(e, true, pintarLight)));
@@ -7066,6 +7067,32 @@ function selectorMotion(valor, alCambiar) {
       ]);
     }
     caja.appendChild(h('div', { clase: 'pista' }, 'Con motion graphics cada plano se explica solo: versículo, mapa con la distancia, línea de tiempo, reloj, barras, antes/ahora, árbol genealógico, lista o contador; si no, la imagen del plano como lámina con los muñecos delante. Gratis: solo se vuelve a montar.'));
+  };
+  pintar();
+  return caja;
+}
+
+/* LA CÁMARA (pasos/camara.py, punto F): «viva» de fábrica —golpe de zoom en la
+   palabra que importa, temblor en los impactos, respiración y arrastre a través
+   del corte— o la «clásica» de antes. Vacío = no lo ha tocado nadie = viva. No
+   mueve firmas: cambiarlo solo pide volver a montar, que es gratis. */
+function selectorCamara(valor, alCambiar) {
+  let actual = valor === 'clasica' ? 'clasica' : 'viva';
+  const caja = h('div', { clase: 'campo' });
+  const pintar = () => {
+    vaciar(caja);
+    const tira = h('div', { clase: 'tira-modos formatos' });
+    [
+      { id: 'viva', nombre: '🎥 Cámara viva', pista: 'Movimiento continuo, golpe de zoom en la palabra que importa, temblor en los golpes, cámara al hombro y transiciones elegidas por lo que dice la frase' },
+      { id: 'clasica', nombre: '🖼 Clásica', pista: 'El zoom suave de siempre, sin golpes ni temblores' },
+    ].forEach(op => {
+      tira.appendChild(h('button', {
+        clase: 'mini' + (actual === op.id ? ' activo' : ''), title: op.pista,
+        onclick: () => { actual = op.id; alCambiar(op.id); pintar(); },
+      }, op.nombre));
+    });
+    caja.append(h('label', {}, 'Cámara'), tira,
+      h('div', { clase: 'pista' }, 'Gratis: cambiarla solo pide volver a montar el vídeo.'));
   };
   pintar();
   return caja;
@@ -7409,6 +7436,7 @@ async function crearYGenerarLight(estilo) {
         cta: e.cta,
         marioneta: !!e.marioneta,
         motion: e.motion || false,
+        camara: e.camara || '',
         gancho: !!e.gancho,
         letra: e.letra || '',
         resalte: e.resalte || '',
@@ -7515,6 +7543,7 @@ function pedidoDelVideoLight() {
     cta: ctaLeida(params('guion').cta),
     marioneta: !!params('render').marioneta,
     motion: params('render').motion || false,
+    camara: String(params('render').camara || ''),
     gancho: !!params('callouts').gancho,
     letra: String(params('callouts').letra || ''),
     resalte: String(params('callouts').resalte || ''),
@@ -7572,6 +7601,7 @@ function vistaEncargoVideoLight() {
     selectorFormato(e.formato, valor => { e.formato = valor; programarGuardadoEncargo(); }),
     selectorDibujo(e.marioneta, valor => { e.marioneta = valor; programarGuardadoEncargo(); }),
     selectorMotion(e.motion, valor => { e.motion = valor; programarGuardadoEncargo(); }),
+    selectorCamara(e.camara, valor => { e.camara = valor; programarGuardadoEncargo(); }),
     selectorGancho(e.gancho, valor => { e.gancho = valor; programarGuardadoEncargo(); pintarLight(); }),
     selectorLetras(e, programarGuardadoEncargo),
     selectorPlantilla(e, false, () => { programarGuardadoEncargo(); pintarLight(); })));

@@ -263,12 +263,38 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    Pendiente: afinar la tabla de voces oyéndolas; ver en la pantalla del vídeo qué
    voz eligió y por qué (hoy va en la bitácora y en los params de la voz).
 3. Etapa 7, publicar fácil — **HECHA (11-nov)** (ver la etapa 7 de la hoja de ruta).
-4. **SIGUIENTE:** F, movimiento y transiciones.
-Más adelante: la voz grabada de David.
+4. F, movimiento y transiciones — **HECHO (11-nov)**. Cómo se usa: nada; está
+   encendido de fábrica. Al crear el vídeo (o en «El encargo») hay una fila nueva,
+   «Cámara»: **🎥 Cámara viva** (de fábrica) o **🖼 Clásica** (el zoom de antes).
+   Gratis: cambiarla solo pide volver a montar.
+   Qué hace la cámara viva (en cada imagen, no en motion graphics ni cartelas):
+   movimiento continuo (sin pararse en seco al principio y al final); **golpe de
+   zoom** con anticipación y rebote en la palabra que importa (cifra, nombre
+   propio, «nunca/todo/Dios…», la Y de «no X, sino Y», la clave de una pregunta o
+   exclamación), como mucho uno cada 4 s en todo el vídeo; **temblor** corto en
+   palabras de impacto (cayó, trueno, estalló…); **cámara al hombro** mínima
+   para que ningún plano esté muerto; un plano sin recorrido se acerca o aleja un
+   4 %; y **arrastre a través del corte**: antes de un latigazo la cámara acelera
+   de lado y el plano siguiente llega con ese impulso (con zoom igual).
+   **Transiciones con intención**: se lee cómo EMPIEZA la frase del plano que
+   entra: «años después» → fuga de luz larga; «recuerda / hace siglos» →
+   deformación; «pero / sin embargo» → latigazo; «de repente / entonces / ¡» →
+   destello; fuego → quemado; muerte/pecado/oscuridad → disolución; agua/sueño →
+   ondas; desierto → calor; luz/cielo/milagro → fuga de luz; «dentro de» → zoom;
+   «¿…?» → iris. Si no dice nada, el reparto de siempre. Nunca dos iguales
+   seguidas; los temas no se repiten en 3 cortes.
+   Código: `pasos/camara.py` (`preparar` y `CAMARA_JS`) + `p8_render` (`__CAM__`,
+   `confs_camara`) + `transiciones.INTENCIONES`/`intencion` + `selectorCamara` en
+   `web/app.js` + `app.py` (param `camara` del render: solo se escribe
+   «clasica», o «viva» para volver; no mueve firmas). `"intencion": false` en el
+   render apaga la intención. Prueba: `pasos/prueba_camara.py`.
+   Pendiente: verlo en un vídeo real y ajustar fuerza del golpe (5,5 %) y del
+   temblor; ver en la pantalla qué transición eligió y por qué.
+5. **SIGUIENTE:** la voz grabada de David.
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
 (abajo), un chat por punto. A, B+B+, C, **G con D** y **E** HECHOS (6-nov).
-Sigue **F** (movimiento y transiciones). Mientras: David saca la clave de YouTube
+F HECHO (11-nov, ver orden nuevo). Mientras: David saca la clave de YouTube
 (gratis), prueba «💡 Ideas» y publica para tener datos («Mis vídeos»). Después,
 etapa 6 de la hoja de ruta (un solo prompt para todas las imágenes).
 
@@ -411,7 +437,7 @@ E+. **Arreglos tras probar E (8-nov-2026)** — lo que vio David en su vídeo:
      rápido». En un vídeo ya hecho no se cambia solo (rehace todas las imágenes).
    Pendiente: oír los tonos con la voz de David y ajustar `intencion.PROSODIA`
    y `intencion.PISTAS` si alguno se pasa o falla.
-F. **Movimiento de imágenes y transiciones**: mejor movimiento de cámara, cortes al
+F. **Movimiento de imágenes y transiciones — HECHO (11-nov-2026)**, ver el punto 4 del ORDEN NUEVO: mejor movimiento de cámara, cortes al
    ritmo de la voz, transiciones con intención y cosas que otros no hacen.
 G. **FIGURAS PLANAS PROPIAS (decidido 6-nov)**: personajes de colores lisos como el
    vídeo «¿Se les debe rezar a los santos?» (cabeza redonda, cara simple, túnica en
@@ -584,7 +610,7 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Pendiente: detectar más formas de «lo falso → lo verdadero» (p. ej. «mito»,
    «en realidad»); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir el ORDEN NUEVO (11-nov): ahora el punto F, movimiento y transiciones.
+Luego seguir el ORDEN NUEVO (11-nov): F HECHO; ahora la voz grabada de David.
 
 ## Pendiente / ideas
 1. Catálogo de la mamá: faltan nombre de tienda, WhatsApp, prendas y fotos.

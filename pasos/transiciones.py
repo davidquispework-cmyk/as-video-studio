@@ -44,6 +44,7 @@ ESTE video y no es un efecto de catalogo pegado encima.
 """
 import json
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -246,6 +247,99 @@ def _sin_repetir_familia(bolsa, arranque, familias_recientes):
     return (libres or orden)[0]
 
 
+# ===========================================================================
+# LA INTENCION (punto F, 11-nov-2026)
+#
+# Hasta aqui la transicion salia de una bolsa al azar (determinista) segun la
+# ranura. Ahora, ANTES de ir a la bolsa, se lee lo que dice el plano que entra:
+# un salto en el tiempo pide luz que pasa, un «pero» pide un latigazo, un «de
+# repente» pide destello, el fuego quema y el agua ondula. Cuando la frase no
+# dice nada, la bolsa de siempre. La transicion cuenta algo en vez de decorar.
+#
+# Cada regla: (motivo, patron sobre el arranque del plano que entra, sin
+# tildes y en minusculas, transiciones preferidas en orden, factor de duracion)
+# ===========================================================================
+
+INTENCIONES = (
+    ("salto en el tiempo",
+     r"\b(anos|siglos|decadas|generaciones|dias|meses|semanas) (despues|mas tarde)\b"
+     r"|\b(mas tarde|tiempo despues|al dia siguiente|a la manana siguiente|"
+     r"con el tiempo|mucho tiempo|siglos)\b",
+     ("light-leak", "cross-warp-morph", "fundido"), 1.6),
+    ("recuerdo",
+     r"\b(recuerd\w*|record[oa]\w*|en el pasado|hace (mil|miles|cientos|siglos|anos)|"
+     r"tiempo atras|antiguamente)\b",
+     ("cross-warp-morph", "ripple-waves", "fundido"), 1.5),
+    ("giro o contraste",
+     r"^\W*(pero|sin embargo|en cambio|no obstante|aunque|al contrario|mientras tanto)\b",
+     ("whip-pan", "chromatic-split", "flash-through-white"), 0.9),
+    ("revelacion",
+     r"^\W*(de repente|de pronto|entonces|en ese (momento|instante)|y de golpe|"
+     r"justo entonces|pero entonces)\b|^\W*\u00a1",
+     ("flash-through-white", "cinematic-zoom"), 1.0),
+    ("fuego",
+     r"\b(fuego|llamas?|ardi\w*|arde\w*|quem\w*|incendi\w*|hoguera)\b",
+     ("ridged-burn", "light-leak"), 1.2),
+    ("oscuridad",
+     r"\b(muerte|muri[oe]\w*|muere\w*|pecado\w*|oscur\w*|tinieblas|tumba|"
+     r"sangre|guerra|maldici\w*|infierno)\b",
+     ("domain-warp", "fundido"), 1.4),
+    ("tecnologia",
+     r"\b(pantalla|senal|ordenador|computador\w*|internet|digital|codigo|"
+     r"radar|satelite|camaras?)\b",
+     ("glitch", "chromatic-split"), 1.0),
+    ("agua o sueno",
+     r"\b(agua|mar|rio|lago|olas?|diluvio|sueno|sono|vision|reflejo)\b",
+     ("ripple-waves", "fundido"), 1.3),
+    ("calor",
+     r"\b(desierto|calor|sol abrasador|arena|sequia)\b",
+     ("thermal-distortion", "light-leak"), 1.2),
+    ("luz o gloria",
+     r"\b(luz|gloria|cielo|angel\w*|milagro\w*|resucit\w*|brill\w*|amanec\w*)\b",
+     ("light-leak", "flash-through-white"), 1.4),
+    ("acercarse",
+     r"\b(dentro de|en el interior|en el corazon|de cerca|mas de cerca|"
+     r"en lo profundo)\b",
+     ("cinematic-zoom", "sdf-iris"), 1.0),
+    ("pregunta",
+     r"^\W*\u00bf",
+     ("sdf-iris", "cinematic-zoom"), 1.0),
+)
+
+#: Las que hablan de la FORMA del relato (tiempo, giro, sorpresa, pregunta)
+#: valen siempre. Las del TEMA (fuego, agua, luz...) no se repiten dentro de
+#: VENTANA_FAMILIA cortes: en un video sobre el diluvio cada plano dice «agua».
+ESTRUCTURALES = {"salto en el tiempo", "recuerdo", "giro o contraste",
+                 "revelacion", "pregunta"}
+
+#: cuantas palabras del arranque del plano se leen. La intencion es la de
+#: COMO EMPIEZA: un «pero» a mitad de frase no pide latigazo en el corte.
+PALABRAS_INTENCION = 10
+
+
+def _llano(texto):
+    texto = str(texto or "").lower()
+    return texto.translate(str.maketrans("áéíóúüñ", "aeiouun"))
+
+
+def intencion(escena, disponibles):
+    """(nombre, factor, motivo) de la transicion que pide este plano, o None.
+
+    `disponibles`: las que se pueden usar. Si nadie eligio paleta, el catalogo
+    entero (la intencion manda); si la persona eligio, solo las suyas.
+    """
+    arranque = " ".join(_llano(escena.get("narracion")).split()[:PALABRAS_INTENCION])
+    if not arranque:
+        return None
+    for motivo, patron, preferidas, factor in INTENCIONES:
+        if not re.search(patron, arranque):
+            continue
+        for nombre in preferidas:
+            if nombre in disponibles:
+                return nombre, factor, motivo
+    return None
+
+
 def resolver(escenas, params=None, semilla=0):
     """Que transicion concreta lleva cada plano. Determinista.
 
@@ -260,6 +354,12 @@ def resolver(escenas, params=None, semilla=0):
     elegidas = elegidas_de(p)
     suaves, acentos = _bolsas(elegidas)
     base = float(p.get("duracion_transicion") or 0.4)
+    # LA INTENCION (ver INTENCIONES): de fabrica encendida. Si la persona
+    # eligio su paleta, la intencion solo usa las suyas; si no, todo el
+    # catalogo. `"intencion": false` en el render vuelve al reparto a ciegas.
+    con_intencion = p.get("intencion", True) is not False
+    disponibles = set(elegidas) if p.get("transiciones") else (set(CATALOGO) - {"corte"})
+    anterior, motivos = None, []
 
     salida, familias = {}, []
     for indice, escena in enumerate(escenas or []):
@@ -290,17 +390,32 @@ def resolver(escenas, params=None, semilla=0):
                            "ranura": "corte"}
             continue
         bolsa = acentos if ranura == "acento" else suaves
-        arranque = medios.desempatar(semilla, sid, "transicion") % len(bolsa)
-        nombre = _sin_repetir_familia(bolsa, arranque,
-                                      set(familias[-VENTANA_FAMILIA:]))
+        querida = intencion(escena, disponibles) if con_intencion else None
+        # la intencion no repite la transicion de justo antes: dos latigazos
+        # seguidos ya no cuentan nada
+        if querida and (querida[0] == anterior or (
+                querida[2] not in ESTRUCTURALES
+                and querida[2] in motivos[-VENTANA_FAMILIA:])):
+            querida = None
+        if querida:
+            nombre, factor_int, motivo = querida
+        else:
+            arranque = medios.desempatar(semilla, sid, "transicion") % len(bolsa)
+            nombre = _sin_repetir_familia(bolsa, arranque,
+                                          set(familias[-VENTANA_FAMILIA:]))
+            factor_int, motivo = 1.0, ""
         familias.append(CATALOGO[nombre]["familia"])
-        duracion = base * float(CATALOGO[nombre]["factor"])
+        anterior = nombre
+        motivos.append(motivo)
+        duracion = base * float(CATALOGO[nombre]["factor"]) * factor_int
         plano = float(escena.get("duracion") or
                       (float(escena.get("t_out") or 0) - float(escena.get("t_in") or 0)))
         if plano > 0:
             duracion = min(duracion, plano * FRACCION_MAXIMA)
         salida[sid] = {"tipo": nombre, "shader": frag_de(nombre),
                        "duracion": round(max(0.0, duracion), 3), "ranura": ranura}
+        if motivo:
+            salida[sid]["intencion"] = motivo
     return salida
 
 

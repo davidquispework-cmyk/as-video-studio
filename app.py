@@ -10544,6 +10544,15 @@ def _sembrar_video_light(ctx, datos):
             if motion_pedido.get(clave) is False:
                 limpio[clave] = False
         ctx.estado.actualizar_params("render", {"motion": limpio})
+    # LA CAMARA (pasos/camara.py, punto F): «viva» de fabrica sin escribir
+    # nada. Solo se escribe «clasica» si la piden, y «viva» solo para VOLVER de
+    # clasica: escribirla en un video que nunca tuvo el param moveria la firma
+    # del render sin que nadie hubiera cambiado nada (regla 1 de CLAUDE.md).
+    camara_pedida = str(datos.get("camara") or "").strip().lower()
+    if camara_pedida == "clasica":
+        ctx.estado.actualizar_params("render", {"camara": "clasica"})
+    elif camara_pedida == "viva" and (ctx.estado.params("render") or {}).get("camara"):
+        ctx.estado.actualizar_params("render", {"camara": "viva"})
     # EL GANCHO (pasos/gancho.py): cartel «¿Sabías…?» y subtitulos palabra a
     # palabra. Param del paso callouts, y tambien solo si lo pidieron.
     if datos.get("gancho"):
