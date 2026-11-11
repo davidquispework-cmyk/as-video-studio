@@ -203,11 +203,20 @@ COMPLETA y pulida, calidad profesional, no en versión mínima; pero con ahorro-
 (leer solo lo necesario, una prueba corta final). Innovar y contextualizar cada vez más:
 cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
 
-PLAN INMEDIATO (orden cambiado el 6-nov): primero los puntos de «OPINIÓN DE DAVID»
-(abajo), un chat por punto. A, B+B+, C, **G con D** y **E** HECHOS (6-nov).
-Sigue **F** (movimiento y transiciones). Mientras: David saca la clave de YouTube
-(gratis), prueba «💡 Ideas» y publica para tener datos («Mis vídeos»). Después,
-etapa 6 de la hoja de ruta (un solo prompt para todas las imágenes).
+PLAN INMEDIATO (orden cambiado el 11-nov tras la revisión «como creador»):
+A, B+B+, C, **G con D**, **E** y **E+** HECHOS. El siguiente chat hace, EN ESTE ORDEN:
+1. **Etapa 6** (un solo prompt para todas las imágenes): el cuello de botella es
+   hacer ~35 imágenes a mano por vídeo; sin quitarlo no hay constancia al publicar.
+   Que la ficha fija de cada personaje mantenga la misma cara/ropa entre imágenes.
+2. **Voz grabada por David** (nuevo): subir su propia locución (móvil) y que el
+   estudio la use en lugar de la voz sintética (tiempos de palabras para subtítulos
+   incluidos). Mejora más barata de calidad y protege de «contenido no auténtico».
+3. **Etapa 7** (publicar fácil y medir: título, hashtags, miniatura, Drive, «Mis vídeos»).
+4. **F** (movimiento y transiciones), corrigiendo con los datos de lo publicado.
+Mientras, SIN código: David publica 3 vídeos con lo que hay, saca la clave de YouTube
+(gratis) y mira la retención en los 3 primeros segundos y a mitad de vídeo.
+Criterio de marca: apostar por UN estilo reconocible (figuras planas + fondos) y
+añadir en cada vídeo algo propio de David (enseñanza/aplicación), no solo el relato.
 
 Mensaje que David pega en cada chat nuevo (con el repo as-video-studio elegido):
 «Lee NOTAS-DAVID.md y la skill ahorro-claude. Haz la siguiente etapa de la HOJA DE
