@@ -21,6 +21,10 @@ def main():
     assert a["mujer"] and not a["barba"] and a["tunica"] == marioneta.COLORES["azul"]
     b = marioneta.aspecto("Pedro", "pescador con barba, túnica marrón")
     assert b["barba"] and b["tunica"] == marioneta.COLORES["marron"]
+    g = marioneta.aspecto("Gabriel", "el ángel Gabriel, túnica azul")
+    assert g["angel"] and not g["barba"] and g["tunica"] == "#f6f3ea", g
+    js = marioneta.__dict__.get("JS") or open(marioneta.__file__, encoding="utf-8").read()
+    assert "#f3d77a" not in js, "el muñeco del ángel ya no lleva aureola"
     escena = {"id": "S003", "personajes": ["Pedro", "Juan", "Pablo", "Ana"],
               "narracion": "Pedro dijo: mirad, y señaló la puerta"}
     conf = marioneta.configurar(escena, {"Pedro": "túnica marrón"})

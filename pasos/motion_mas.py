@@ -459,11 +459,9 @@ function hazFigura(f, padre, k){
   const raiz = mk('g', {}, g);
   const sombra = mk('ellipse', {rx: 22, ry: 4, fill: '#000', opacity: .16}, raiz);
   const cuerpo = mk('g', {}, raiz);
-  const alas = f.angel ? mk('g', {}, cuerpo) : null;
-  if (alas){
-    mk('path', {d: 'M-8,-50 C-46,-74 -52,-30 -34,-18 C-26,-24 -18,-30 -8,-36z', fill: '#fff', stroke: T0, 'stroke-width': sw}, alas);
-    mk('path', {d: 'M8,-50 C46,-74 52,-30 34,-18 C26,-24 18,-30 8,-36z', fill: '#fff', stroke: T0, 'stroke-width': sw}, alas);
-  }
+  // angel: hombre con ropa blanca y un brillo suave detras; sin alas ni aureola
+  if (f.angel) [[44, 60, .10], [35, 52, .14], [27, 45, .18]].forEach(([rx, ry, o]) =>
+    mk('ellipse', {cy: -32, rx, ry, fill: '#FFF8D7', opacity: o}, cuerpo));
   const pie1 = mk('ellipse', {cx: -7, cy: -3, rx: 6.5, ry: 3.6, fill: '#5a3b26', stroke: T0, 'stroke-width': 1.5}, cuerpo);
   const pie2 = mk('ellipse', {cx: 7, cy: -3, rx: 6.5, ry: 3.6, fill: '#5a3b26', stroke: T0, 'stroke-width': 1.5}, cuerpo);
   const tronco = mk('g', {}, cuerpo);
@@ -500,7 +498,6 @@ function hazFigura(f, padre, k){
   const rayas = mk('g', {opacity: 0}, cabeza);
   [[-14, -30, -18, -38], [0, -33, 0, -42], [14, -30, 18, -38]].forEach(([a, b, c, d]) => mk('path', {d: `M${a},${b} L${c},${d}`, stroke: MGT.acento, 'stroke-width': 2.6, 'stroke-linecap': 'round'}, rayas));
   const vena = mk('path', {d: 'M12,-18 l4,-4 m-4,0 l4,4', stroke: MGT.acento, 'stroke-width': 2.4, 'stroke-linecap': 'round', opacity: 0}, cabeza);
-  if (f.angel) mk('ellipse', {cy: -30, rx: 16, ry: 4.4, fill: 'none', stroke: MGT.oro, 'stroke-width': 3.6}, cabeza);
   let etq = null;
   if (f.etiqueta){
     etq = mk('g', {}, g);

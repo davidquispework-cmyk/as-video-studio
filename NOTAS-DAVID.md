@@ -722,6 +722,17 @@ Visto en el vídeo del rey David (borrado después; no se arregló ese vídeo).
   Prueba: `pasos/prueba_fidelidad.py`. Pendiente: por qué el corte dejó un plano
   de 0,3 s («Y»); ya no desfasa nada, pero un plano así sobra.
 
+## Ángeles, aureolas y Jesús (11-nov-2026)
+- **Reglas generales de todo vídeo bíblico** (`fidelidad.reglas_sagradas`, entran
+  en `pauta_imagen` y `pauta_claude`): NINGUNA aureola en nadie (siempre); si salen
+  ángeles, hombres con ropa blanca resplandeciente SIN alas ni aureola (alas solo
+  para serafines/querubines si el texto los nombra); si sale Jesús, de espaldas, a
+  contraluz o de lejos, sin rostro detallado. Solo texto de encargo: no mueve firmas.
+- **Muñecos** (`marioneta.py`, `motion_mas.py`): el ángel ya no lleva alas ni
+  aureola; túnica blanca y un brillo suave detrás. Hay que volver a montar el vídeo
+  para verlo. Pruebas: `prueba_fidelidad.py`, `prueba_marioneta.py`, `prueba_motion.py`.
+  Pendiente: el muñeco de Jesús sigue con cara (es un muñeco, no un retrato).
+
 ## Pendiente / ideas
 1. Catálogo de la mamá: faltan nombre de tienda, WhatsApp, prendas y fotos.
 2. Web del negocio.

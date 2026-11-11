@@ -165,6 +165,29 @@ viejo = p6_assets._lo_dirigido({"unidades": {"escena:S001": {"direccion": "sin s
 comprobar("lo guardado sin sello se lee como siempre (no mueve firmas)",
           (viejo.get("S001") or {}).get("direccion") == "sin sello")
 
+# Reglas generales (11-nov-2026): angeles sin alas, ninguna aureola, Jesus sin rostro
+ang = "\n".join(fidelidad.pauta_imagen(
+    "El ángel Gabriel visitó a María en Nazaret; Jesús nacería en Belén",
+    "Y el ángel le dijo: no temas"))
+comprobar("ángel: hombre con ropa blanca, sin alas ni aureola",
+          "SIN alas" in ang and "ropa blanca" in ang, ang)
+comprobar("ninguna aureola en nadie", "NINGUNA AUREOLA" in ang, ang)
+comprobar("Jesús de espaldas o a contraluz", "contraluz" in ang, ang)
+comprobar("los serafines y querubines solo si el texto los nombra",
+          "serafines" in ang and "querubines" in ang, ang)
+comprobar("ya no se permite la aureola «si lo pide el estilo»",
+          "salvo que lo pida el estilo" not in ang, ang)
+sin = "\n".join(fidelidad.pauta_imagen("Moisés sacó a Israel de Egipto por el mar",
+                                        "Moisés alzó la vara"))
+comprobar("sin ángeles ni Jesús, solo la regla de la aureola",
+          "NINGUNA AUREOLA" in sin and "LOS ÁNGELES" not in sin
+          and "JESÚS NUNCA" not in sin, sin)
+cla = fidelidad.pauta_claude("Los ángeles anunciaron a los pastores el nacimiento de Jesús")
+comprobar("al catálogo también le llegan las reglas",
+          "SIN alas" in cla and "contraluz" in cla, cla)
+comprobar("un vídeo no bíblico no recibe nada",
+          fidelidad.pauta_imagen("Cómo hacer pan casero", "amasa la harina") == [])
+
 print()
 if fallos:
     print(f"FALLARON {len(fallos)} comprobaciones:")

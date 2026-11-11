@@ -130,7 +130,7 @@ EPOCAS = {
                     "bronce y plata"),
         "evita": ("rasgos europeos, ojos azules, pelo rubio; ropa medieval o "
                   "renacentista, colores chillones o tejidos estampados; "
-                  "aureolas doradas (salvo que lo pida el estilo); cruces "
+                  "aureolas o halos en nadie; ángeles con alas; cruces "
                   "como adorno o en iglesias; cúpulas y minaretes (son siglos "
                   "posteriores); libros encuadernados, cristal en ventanas, "
                   "pantalones, metal moderno"),
@@ -327,6 +327,40 @@ CRUCIFIXION = (
     "cabeza ERGUIDA o alzada al cielo; solo la inclina sobre el pecho al morir, "
     "después de su último grito (Juan 19:30). Nadie sonríe junto a la cruz salvo "
     "los que se burlan, y con sorna, no con alegría")
+
+
+#: Reglas generales de todo video biblico (11-nov-2026, David). Solo es
+#: TEXTO del encargo: no es un param y no mueve ninguna firma.
+SIN_AUREOLA = ("NINGUNA AUREOLA: nadie lleva aureola, halo ni círculo de luz "
+               "sobre la cabeza (ni Jesús, ni María, ni los apóstoles, ni los "
+               "ángeles)")
+ANGELES = (
+    "LOS ÁNGELES, como los describe la Biblia (Marcos 16:5; Lucas 24:4; "
+    "Hechos 1:10): HOMBRES con ropa blanca resplandeciente y un brillo suave, "
+    "SIN alas y SIN aureola; nada de niños alados ni querubines de adorno. "
+    "Solo llevan alas los serafines (Isaías 6:2) y los querubines (Ezequiel "
+    "1 y 10) cuando el texto los nombra")
+JESUS = (
+    "JESÚS NUNCA DE FRENTE CON EL ROSTRO DETALLADO: de espaldas, a contraluz, "
+    "en silueta o de lejos, sin rasgos de la cara definidos; lo que cuenta "
+    "son sus gestos, su postura y la gente que lo rodea")
+_ANGEL = re.compile(r"\b(angel|angeles|gabriel|miguel|serafin\w*|querubin\w*|"
+                    r"angel of|angels?)\b")
+_JESUS = re.compile(r"\b(jesus|jesucristo|cristo|mesias|nazareno|hijo del hombre)\b")
+
+
+def reglas_sagradas(*textos):
+    """Las reglas generales de un video biblico que tocan a este texto.
+
+    La de la aureola va siempre; la de los angeles, si salen ángeles; la de
+    Jesús, si sale Jesús. -> lista de frases (sin punto final)."""
+    plegado = plegar(" ".join(str(t or "") for t in textos))
+    reglas = [SIN_AUREOLA]
+    if _ANGEL.search(plegado):
+        reglas.append(ANGELES)
+    if _JESUS.search(plegado):
+        reglas.append(JESUS)
+    return reglas
 
 
 def _toca_cruz(*textos):
@@ -544,6 +578,7 @@ def pauta_claude(*textos, para="catalogo"):
             "cara de cada plano va con SU momento: junto a la cruz, en el dolor "
             "o en la burla, nada de caras relajadas ni sonrisas (los que se "
             "burlan, con sorna).")
+    lineas.extend(r + "." for r in reglas_sagradas(*textos))
     if "nt" in claves and _toca_cruz(*textos):
         lineas.append(CRUCIFIXION + ".")
     if len(lugares) >= 2:
@@ -617,6 +652,7 @@ def pauta_imagen(contexto, narracion="", con_gente=True, personajes=(),
                           f"{e['objetos']}." + (f" Personas: {e['gente']}. Ropa: "
                                                f"{e['ropa']}." if con_gente else "")
                           + f" No dibujes: {e['evita']}.")
+        lineas.extend(r + "." for r in reglas_sagradas(contexto))
         if "nt" in claves and _toca_cruz(contexto):
             lineas.append(CRUCIFIXION + ".")
         return lineas
@@ -635,6 +671,8 @@ def pauta_imagen(contexto, narracion="", con_gente=True, personajes=(),
             lineas.append("CADA UNO CON SU ÉPOCA (aunque salgan juntos): "
                           + "; ".join(otros) + ".")
     lineas.append(f"NO DIBUJES: {e['evita']}.")
+    lineas.extend(r + "." for r in reglas_sagradas(contexto, narracion, que,
+                                                   " ".join(personajes or ())))
     if clave == "nt" and _toca_cruz(narracion, que):
         lineas.append(CRUCIFIXION + ".")
     que = explicar(narracion)

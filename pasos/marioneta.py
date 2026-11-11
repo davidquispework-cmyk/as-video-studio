@@ -100,7 +100,12 @@ def aspecto(nombre, ficha=""):
     pelo = "#d8d4cc" if viejo else ("#2a1d14" if _numero(nombre + "p", 3) else "#4a3020")
     if re.search(r"\b(rubi|rubio|dorado)", f):
         pelo = "#c9a14a"
-    angel = bool(re.search(r"\b(angel|gabriel|miguel)\b", f + _plano(nombre)))
+    angel = bool(re.search(r"\b(angel|angeles|gabriel|miguel)\b", f + _plano(nombre)))
+    if angel:
+        # Como lo cuenta la Biblia (Marcos 16:5, Lucas 24:4, Hechos 1:10): un
+        # hombre con ropa blanca resplandeciente. Sin alas ni aureola: el brillo
+        # suave lo pone el dibujo (11-nov-2026, David).
+        tunica, manto = "#f6f3ea", "#ffffff"
     return {"nombre": str(nombre), "tunica": tunica, "manto": manto,
             "piel": PIELES[_numero(nombre + "piel", len(PIELES))], "pelo": pelo,
             "barba": barba and not angel, "mujer": mujer, "nino": nino,
@@ -189,6 +194,12 @@ const MUN = [];
     const raiz = mel('g', {}, MSVG);
     mel('ellipse', {cx: 0, cy: 100, rx: 24, ry: 4, fill: 'rgba(0,0,0,0.28)'}, raiz);
     const cuerpo = mel('g', {}, raiz);
+    // angel: un brillo suave detras (hombre con ropa blanca, sin alas ni aureola)
+    if (f.angel){
+      mel('ellipse', {cx: 0, cy: 58, rx: 40, ry: 58, fill: 'rgba(255,248,215,0.10)'}, cuerpo);
+      mel('ellipse', {cx: 0, cy: 58, rx: 31, ry: 50, fill: 'rgba(255,248,215,0.14)'}, cuerpo);
+      mel('ellipse', {cx: 0, cy: 58, rx: 23, ry: 43, fill: 'rgba(255,252,235,0.18)'}, cuerpo);
+    }
     // pies
     const pieI = mel('ellipse', {cx: -7, cy: 98, rx: 6, ry: 3, fill: '#4a3424'}, cuerpo);
     const pieD = mel('ellipse', {cx: 7, cy: 98, rx: 6, ry: 3, fill: '#4a3424'}, cuerpo);
@@ -207,12 +218,6 @@ const MUN = [];
     const bI = brazo(-1);
     // torso: tunica trapecio, cinturon y manto cruzado
     const torso = mel('g', {}, cuerpo);
-    if (f.angel){
-      mel('path', {d: 'M-10 44 C-40 30 -46 62 -30 80 C-24 66 -16 58 -10 56 Z',
-                   fill: 'rgba(255,250,235,0.9)'}, torso);
-      mel('path', {d: 'M10 44 C40 30 46 62 30 80 C24 66 16 58 10 56 Z',
-                   fill: 'rgba(255,250,235,0.9)'}, torso);
-    }
     mel('path', {d: 'M-13 37 L13 37 L21 96 L-21 96 Z', fill: f.tunica,
                  stroke: 'rgba(0,0,0,0.3)', 'stroke-width': 1}, torso);
     mel('path', {d: 'M-13 37 L2 37 L21 90 L12 96 Z', fill: f.manto, opacity: 0.92}, torso);
@@ -229,8 +234,6 @@ const MUN = [];
       mel('path', {d: 'M-10.5 21 C-11 10 11 10 10.5 21 C7 15 -7 15 -10.5 21 Z', fill: f.pelo}, cabeza);
       if (f.barba) mel('path', {d: 'M-9 24 C-8 36 8 36 9 24 C5 30 -5 30 -9 24 Z', fill: f.pelo}, cabeza);
     }
-    if (f.angel) mel('ellipse', {cx: 0, cy: 8, rx: 9, ry: 2.2, fill: 'none',
-                                 stroke: '#f3d77a', 'stroke-width': 1.6}, cabeza);
     const ojos = mel('g', {}, cabeza);
     mel('circle', {cx: -3.6, cy: 21, r: 1.2, fill: '#1d1712'}, ojos);
     mel('circle', {cx: 3.6, cy: 21, r: 1.2, fill: '#1d1712'}, ojos);
