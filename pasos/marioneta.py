@@ -247,6 +247,14 @@ const MUN = [];
 function rot(el, a, cx, cy){ el.setAttribute('transform',
   'rotate(' + a.toFixed(2) + ' ' + cx + ' ' + cy + ')'); }
 
+// [[t, abertura, redonda]] de pasos/boca.py -> [abertura, redonda] en t
+function marBoca(lista, t){
+  if (!lista.length || t < lista[0][0] || t >= lista[lista.length - 1][0]) return [0, 0];
+  let i = 0;
+  while (i + 1 < lista.length && lista[i + 1][0] <= t) i++;
+  const ah = lista[i], an = i ? lista[i - 1] : ah, u = Math.min(1, (t - ah[0]) / 0.06);
+  return [an[1] + (ah[1] - an[1]) * u, an[2] + (ah[2] - an[2]) * u];
+}
 function marionetas(t){
   const k = Math.min(1, t / 0.5);          // entra en el gesto, no de golpe
   const kk = k * k * (3 - 2 * k);
@@ -288,9 +296,13 @@ function marionetas(t){
     const ciclo = (ph * 0.27) % 1;
     m.ojos.setAttribute('transform', ciclo < 0.033
       ? 'translate(0 21) scale(1 0.15) translate(0 -21)' : '');
-    // la boca del que habla se abre y se cierra (no sigue la voz: la imita)
+    // la boca del que habla: con MAR.boca (pasos/boca.py) sigue el audio de
+    // verdad; sin ella se abre y se cierra imitando hablar
     let abre = 0.6;
-    if (m.f.habla && g !== 'escuchar'){
+    const bv = (m.f.habla && MAR.boca) ? marBoca(MAR.boca, t) : null;
+    if (bv){
+      abre = 0.6 + bv[0] * 2.6;
+    } else if (m.f.habla && g !== 'escuchar' && !MAR.boca){
       const s = Math.abs(Math.sin(ph * 9.3) * Math.sin(ph * 3.7 + 1));
       abre = 0.6 + s * 2.6;
     }

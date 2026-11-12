@@ -55,6 +55,7 @@ import letras  # noqa: E402
 import marioneta  # noqa: E402
 import motion  # noqa: E402
 import motion_mas  # noqa: E402
+import boca  # noqa: E402
 import motion_storyboard  # noqa: E402
 import rotulos  # noqa: E402
 import partida  # noqa: E402
@@ -1530,6 +1531,11 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
                 iconos=motion.ICONOS)
         confs_motion = motion.preparar(escenas, p, laminas, ancho, alto,
                                        fichas=fichas_reparto, claude=guion_claude)
+        # P7: la boca de los muñecos sigue el audio de verdad (pasos/boca.py)
+        n_bocas = boca.aplicar_motion(confs_motion, boca.formas_de(
+            audio, os.path.join(trabajo, "boca"), avisar=lambda m: print(m, flush=True)))
+        if n_bocas:
+            print(f"[render] boca de verdad en {n_bocas} muñecos", flush=True)
     else:
         fichas_reparto = {}
     if con_munecos:
@@ -1580,6 +1586,7 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
     except Exception as e:  # noqa: BLE001
         print(f"[render] sin decorado 3D ({e})", flush=True)
         confs_biblia = {}
+    formas_boca = None      # P7: se leen del audio la primera vez que hacen falta
     for indice, escena in enumerate(escenas):
         sid = escena["id"]
         uid = f"escena:{sid}"
@@ -1675,6 +1682,12 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
         mar = None
         if con_munecos and not con_clip:
             mar = marioneta.configurar(escena, fichas_reparto)
+            if mar:
+                if formas_boca is None:
+                    formas_boca = boca.formas_de(
+                        audio, os.path.join(trabajo, "boca"),
+                        avisar=lambda m: print(m, flush=True))
+                boca.aplicar_marioneta(mar, formas_boca, escena)
             if mar and amb:
                 amb["sin_balanceo"] = True   # los muñecos ya se mueven
             print(f"[render] {sid}: {marioneta.resumen(mar)}", flush=True)

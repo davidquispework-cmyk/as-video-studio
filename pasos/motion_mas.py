@@ -451,6 +451,15 @@ const MGCARAS = {
   tristeza: {ce: [-4, 2], oj: 6, pu: 3, bo: [5.5, -3.2, 0.6], lagrima: 1},
   enojo:    {ce: [4, -2.5], oj: 5.4, pu: 3.2, bo: [6.5, -1.5, 1.2], enojo: 1},
 };
+// LA BOCA DE VERDAD (pasos/boca.py): [[t, abertura, redonda]] sacado del
+// audio; entre dos puntos pasa en 0,06 s, no de golpe. -> [abre, redonda]|null
+function bocaEn(lista, T){
+  if (!lista || !lista.length || T < lista[0][0] || T >= lista[lista.length - 1][0]) return null;
+  let i = 0;
+  while (i + 1 < lista.length && lista[i + 1][0] <= T) i++;
+  const ah = lista[i], an = i ? lista[i - 1] : ah, u = Math.min(1, (T - ah[0])/0.06);
+  return [an[1] + (ah[1] - an[1])*u, an[2] + (ah[2] - an[2])*u];
+}
 function mgBoca(w, cu, op){
   return `M${-w},0 Q0,${cu.toFixed(2)} ${w},0 Q0,${(cu + op*2).toFixed(2)} ${-w},0Z`;
 }
@@ -523,6 +532,10 @@ function hazFigura(f, padre, k){
     (f.habla || []).forEach(([a, b, sil]) => {
       if (T >= a && T < b){ hablando = true; abre = Math.max(abre, Math.abs(Math.sin(Math.PI*sil*(T - a)/Math.max(0.05, b - a)))); }
     });
+    // con la boca de verdad manda el audio: cerrada en las pausas
+    let redonda = 0;
+    const bv = f.boca ? bocaEn(f.boca, T) : null;
+    if (bv){ hablando = true; abre = bv[0]; redonda = bv[1]; }
     // ENTRADA: salta desde abajo con resorte y se aplasta al aterrizar
     const r = resorte(s, 12, .42);
     let y = 0, x = 0, sx = 1, sy = 1, rot = 0;
@@ -580,7 +593,7 @@ function hazFigura(f, padre, k){
       c.setAttribute('d', `M${(sd*3.5).toFixed(1)},${(-10.5 + di).toFixed(1)} L${(sd*12).toFixed(1)},${(-10.5 + fu).toFixed(1)}`);
     });
     const [bw, bc, bo] = cara.bo;
-    boca.setAttribute('d', mgBoca(hablando ? Math.max(4, bw*0.85) : bw, bc, Math.max(bo, abre*5.2)));
+    boca.setAttribute('d', mgBoca(hablando ? Math.max(3, bw*0.85*(1 - 0.45*redonda)) : bw, bc, Math.max(bo, abre*5.2)));
     mejillas.forEach(m => m.setAttribute('opacity', cara.mej ? .55 : 0));
     sudor.setAttribute('opacity', cara.sudor ? 1 : 0);
     if (cara.sudor) sudor.setAttribute('transform', `translate(${(19*mira).toFixed(1)},${(-14 + ((t*0.8) % 1)*10).toFixed(1)})`);

@@ -415,7 +415,7 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    Pendiente: elegir la palabra tachada/resaltada a mano desde la pantalla
    (hoy se puede forzando `~~palabra~~` y `*palabra*` en el texto).
 10. **SIGUIENTE: el plan «NIVEL PROFESIONAL» (12-nov)** — ver la sección del
-   mismo nombre más abajo; P1, P2, P3, P4, P5 y P6 HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río); siguiente, P7. (Siguen sobre la mesa, para
+   mismo nombre más abajo; P1 a P7 HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río); siguiente, P8. (Siguen sobre la mesa, para
    después: grabar tu voz desde la propia página; afinar la tabla de voces.)
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
@@ -736,7 +736,7 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Pendiente: ~~más formas de «lo falso → lo verdadero»~~ (HECHO 11-nov, punto 9
    del orden nuevo); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1 a P6 HECHOS; ahora P7).
+Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1 a P7 HECHOS; ahora P8).
 
 ## NIVEL PROFESIONAL (decidido 12-nov-2026) — manda sobre el punto 10 del ORDEN NUEVO
 David quiere que sus vídeos queden AL MISMO NIVEL que los de referencia, no «parecidos
@@ -991,6 +991,22 @@ del VPS no debe depender de internet; anotar licencia de cada cosa en un LICENCI
   muñecos de plastilina DENTRO del decorado; que la página pase al cambiar de
   plano.
 - P7. Boca con Rhubarb y la voz grabada de David.
+  **HECHO (12-nov-2026)**: `pasos/boca.py`. Al montar, lee el audio de la
+  narración (tu grabación, la voz gratuita o Cartesia) y saca la forma de la
+  boca en cada momento: CERRADA en las pausas, abierta con cada golpe de voz,
+  redondeada en la «o»/«u». La usan los muñecos de motion graphics (quien habla)
+  y las marionetas. Con **Rhubarb** instalado (reconocedor fonético, vale para
+  el español) salen las 9 formas de verdad; sin él, va por la fuerza de la voz
+  (funciona siempre, algo menos fino). Se busca en `ESTUDIO_RHUBARB`, en el PATH
+  o en `motores/rhubarb/`. `ESTUDIO_BOCA=energia` fuerza lo segundo y
+  `ESTUDIO_BOCA=no` vuelve a la boca de antes. No es un param ni toca firmas:
+  basta «Regenerar Vídeo»; se guarda en `trabajo/boca/boca.json` por la huella
+  del audio. Prueba: `pasos/prueba_boca.py` (en `pruebas.ps1`).
+  Instalar Rhubarb en el VPS (una vez; fuera de /opt/as-video-studio porque
+  `asvs actualizar` borra lo que no es del repo):
+  `cd /opt && wget https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.13.0/Rhubarb-Lip-Sync-1.13.0-Linux.zip && unzip -o Rhubarb-Lip-Sync-1.13.0-Linux.zip && ln -sf /opt/Rhubarb-Lip-Sync-1.13.0-Linux/rhubarb /usr/local/bin/rhubarb && rhubarb --version`
+  Falta: verlo en un vídeo real con tu voz; si con Rhubarb un vídeo largo tarda
+  mucho en «[boca]», ver cuánto; formas de boca propias de cada estilo.
 - P8. Guion con la fórmula de arriba (plantilla en el encargo: gancho, dato,
   espejo con Jesús, final que pide algo, «reto de la semana», serie numerada).
 Al acabar cada etapa: hacer UN vídeo de prueba con su referencia al lado y apuntar
