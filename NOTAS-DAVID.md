@@ -415,7 +415,7 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    Pendiente: elegir la palabra tachada/resaltada a mano desde la pantalla
    (hoy se puede forzando `~~palabra~~` y `*palabra*` en el texto).
 10. **SIGUIENTE: el plan «NIVEL PROFESIONAL» (12-nov)** — ver la sección del
-   mismo nombre más abajo; P1 a P7 y P6b HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río; P6b = objetos de plastilina en la mesa); siguiente, P8. (Siguen sobre la mesa, para
+   mismo nombre más abajo; P1 a P7, P6b y P6c HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río; P6b = objetos de plastilina en la mesa; P6c = Claude construye cualquier otro objeto y lo guarda en una biblioteca); siguiente, P8. (Siguen sobre la mesa, para
    después: grabar tu voz desde la propia página; afinar la tabla de voces.)
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
@@ -736,7 +736,7 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Pendiente: ~~más formas de «lo falso → lo verdadero»~~ (HECHO 11-nov, punto 9
    del orden nuevo); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1 a P7 y P6b HECHOS; ahora P8).
+Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1 a P7, P6b y P6c HECHOS; ahora P8).
 
 ## NIVEL PROFESIONAL (decidido 12-nov-2026) — manda sobre el punto 10 del ORDEN NUEVO
 David quiere que sus vídeos queden AL MISMO NIVEL que los de referencia, no «parecidos
@@ -1003,6 +1003,26 @@ del VPS no debe depender de internet; anotar licencia de cada cosa en un LICENCI
   No toca firmas: basta «Regenerar Vídeo». Prueba: `pasos/prueba_biblia3d.py`.
   Falta: verlo en un vídeo real; elegir los objetos desde la pantalla (hoy
   solo en `plan.json`); los muñecos de plastilina dentro del decorado.
+- P6c. Que Claude construya con piezas de plastilina CUALQUIER objeto del guion.
+  **HECHO (12-nov-2026)**: `pasos/piezas3d.py` (+ `armar` en `biblia3d.BIBLIA_JS`).
+  Al montar un vídeo con «📖 Biblia 3D», UNA llamada a Claude por vídeo (sonnet,
+  esfuerzo bajo) mira la narración de los planos del decorado y dice qué objetos
+  nombra (lámpara, arpa, sandalia, pergamino, báculo...). Los que no están entre
+  los 18 de P6b los CONSTRUYE con piezas (esferas, cajas, cilindros, conos, aros
+  y cápsulas, con color, posición, tamaño y giro); el navegador las monta, las
+  ajusta a la medida de la mesa y las deja caer como las demás.
+  **Biblioteca**: cada objeto queda en `banco/objetos3d/<id>.json` con las
+  palabras que lo nombran (`asvs actualizar` no la borra). La próxima vez que un
+  guion diga esa palabra sale GRATIS, sin preguntar a Claude. Se puede borrar un
+  fichero para que lo vuelva a construir. Volver a montar el mismo vídeo
+  tampoco pregunta (cache en `trabajo/objetos3d.json`). Sin cupo de Claude, el
+  plano sale con los 18 de siempre y el montaje sigue.
+  A mano en `plan.json`: `"objetos": ["lampara"]` también vale con ids de la
+  biblioteca. Apagarlo: param del render `biblia3d: {"construir": false}` o
+  `ESTUDIO_PIEZAS3D=no`. No toca firmas: basta «Regenerar Vídeo».
+  Prueba: `pasos/prueba_biblia3d.py` (Claude de mentira; `--ver CARPETA` lo pinta).
+  Falta: verlo en un vídeo real con objetos construidos por Claude de verdad;
+  ver/borrar la biblioteca desde la pantalla (hoy, en la carpeta).
 - P7. Boca con Rhubarb y la voz grabada de David.
   **HECHO (12-nov-2026)**: `pasos/boca.py`. Al montar, lee el audio de la
   narración (tu grabación, la voz gratuita o Cartesia) y saca la forma de la

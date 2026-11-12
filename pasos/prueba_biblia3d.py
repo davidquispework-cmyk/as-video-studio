@@ -11,7 +11,11 @@ import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# la biblioteca de objetos (P6c) en una carpeta de usar y tirar, nunca la de verdad
+os.environ["ESTUDIO_OBJETOS3D"] = tempfile.mkdtemp(prefix="objetos3d_")
 import biblia3d  # noqa: E402
+import json  # noqa: E402
+import piezas3d  # noqa: E402
 from prueba_rotulos import _escena  # noqa: E402
 
 
@@ -67,6 +71,63 @@ def probar_objetos():
     assert c["objetos"] == obs and "con monedas, corona" in biblia3d.resumen(c)
 
 
+def probar_constructor():
+    """P6c: Claude (de mentira) construye una lámpara; la segunda vez es gratis."""
+    respuesta = {
+        "planos": {"a": [{"id": "lampara", "palabra": "lámpara"},
+                         {"id": "corona", "palabra": "rey"}, {"id": "dragon", "palabra": "x"}],
+                   "zz": [{"id": "lampara"}]},
+        "nuevos": [{"id": "Lámpara", "nombre": "lámpara", "palabras": ["lamparas", "candil", "rey", "dios"],
+                    "piezas": [{"forma": "cilindro", "color": "#b5652f", "pos": [0, .05, 0],
+                                "tam": [.1, .1, .12], "rot": [0, 0, 0]},
+                               {"forma": "cono", "color": "ffc35a", "pos": [0, 99, 0], "tam": [.03, .1]},
+                               {"forma": "dragon"}, "nada"]},
+                   {"id": "vacio", "piezas": []}],
+    }
+    llamadas = []
+
+    def falso(instruccion):
+        llamadas.append(instruccion)
+        assert "corona" in instruccion and "encendió la lámpara" in instruccion
+        return "Aquí va:\n" + json.dumps(respuesta) + "\nlisto"
+
+    e = _escena("a", "El rey encendió la lámpara de la casa", 0, 4)
+    with tempfile.TemporaryDirectory() as trabajo:
+        c = biblia3d.preparar([e], {"biblia3d": True}, 1080, 1920, lambda s: __file__,
+                              trabajo=trabajo, llamar=falso)["a"]
+        assert [o["id"] for o in c["objetos"]] == ["corona", "lampara"], c["objetos"]
+        assert c["objetos"][0]["t"] < c["objetos"][1]["t"]           # cae al decirse
+        figura = c["figuras"]["lampara"]
+        assert len(figura) == 2 and figura[1]["pos"][1] == 1 and figura[1]["color"] == "#ffc35a"
+        ficha = piezas3d.biblioteca()["lampara"]
+        assert "rey" not in ficha["palabras"] and "dios" not in ficha["palabras"], ficha
+        assert "candil" in ficha["palabras"] and "vacio" not in piezas3d.biblioteca()
+        # volver a montar: la cache del trabajo, sin preguntar
+        biblia3d.preparar([e], {"biblia3d": True}, 1080, 1920, lambda s: __file__,
+                          trabajo=trabajo, llamar=falso)
+        assert len(llamadas) == 1, llamadas
+    # otro vídeo que dice «candil»: sale de la biblioteca, sin Claude y sin trabajo
+    otro = biblia3d.preparar([_escena("b", "Tomó el candil y salió", 0, 4)], {"biblia3d": True},
+                             1080, 1920, lambda s: __file__)["b"]
+    assert [o["id"] for o in otro["objetos"]] == ["lampara"] and "lampara" in otro["figuras"]
+    # a mano con un id de la biblioteca; y Claude caído no rompe el montaje
+    assert [o["id"] for o in biblia3d.objetos_de(dict(e, objetos=["lampara"]), None,
+                                                 piezas3d.biblioteca())] == ["lampara"]
+
+    def roto(_):
+        raise RuntimeError("sin cupo")
+    with tempfile.TemporaryDirectory() as trabajo:
+        c = biblia3d.preparar([_escena("c", "Llevaba un arpa y una corona", 0, 4)],
+                              {"biblia3d": True}, 1080, 1920, lambda s: __file__,
+                              trabajo=trabajo, llamar=roto)["c"]
+        assert [o["id"] for o in c["objetos"]] == ["corona"]
+        apagado = biblia3d.preparar([_escena("d", "un arpa", 0, 4)],
+                                    {"biblia3d": {"construir": False}}, 1080, 1920,
+                                    lambda s: __file__, trabajo=trabajo, llamar=falso)
+        assert apagado["d"]["objetos"] == [] and len(llamadas) == 1
+    assert "armar(FIGURAS[id])" in biblia3d.BIBLIA_JS
+
+
 def ver(carpeta):
     import p8_render
     from playwright.sync_api import sync_playwright
@@ -78,7 +139,7 @@ def ver(carpeta):
     dib.rectangle([0, 700, 1536, 1024], fill=(150, 120, 70))
     dib.ellipse([600, 250, 950, 600], fill=(240, 200, 90))
     im.save(fondo)
-    e = _escena("s", "Mateo capítulo veintiséis: treinta monedas, la corona y un pez", 0, 4)
+    e = _escena("s", "Mateo veintiséis: un candil, treinta monedas y la corona", 0, 4)
     paginas = []
     for formato, (w, h) in (("horizontal", (1920, 1080)), ("vertical", (1080, 1920))):
         for toma in biblia3d.TOMAS:
@@ -118,6 +179,7 @@ def ver(carpeta):
 if __name__ == "__main__":
     probar_reparto()
     probar_objetos()
+    probar_constructor()
     if "--ver" in sys.argv:
         ver(sys.argv[sys.argv.index("--ver") + 1])
     print("prueba_biblia3d: OK")

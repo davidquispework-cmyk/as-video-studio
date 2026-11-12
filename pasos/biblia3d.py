@@ -28,6 +28,11 @@ en que se dice la palabra, con un botecito de plastilina al tocar la mesa.
 Hasta 3 por plano. A mano, en `plan.json`, escena: `"objetos": ["corona",
 "monedas"]` (ids de `OBJETOS`) o `false` (ese plano sin objetos).
 
+CUALQUIER OTRO OBJETO (P6c, `pasos/piezas3d.py`): lo que nombre el guion y no
+esté entre esos 18, Claude lo construye con piezas de plastilina y se guarda en
+la biblioteca (`banco/objetos3d/`) para la próxima vez. Sus ids también valen
+en `"objetos": [...]`.
+
 No toca firmas de imágenes: basta «Regenerar Vídeo». Si WebGL no arranca, el
 plano sale como siempre (la capa se oculta sola).
 """
@@ -37,6 +42,7 @@ import os
 import citas
 import editorial
 import partida
+import piezas3d
 import rotulos
 
 THREE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -87,29 +93,39 @@ _OBJETO_DE = {w: k for k, ws in OBJETOS.items() for w in ws}
 MAX_OBJETOS = 3
 
 
-def objetos_de(escena, v=None):
+def objetos_de(escena, v=None, fichas=None, extra=None):
     """Los objetos del plano y cuándo caen: [{"id", "t"}] (t relativo al plano).
 
     A mano: `"objetos": [...]` en la escena (o `false`, ninguno). Si no, los que
-    nombra la narración, en el orden en que se dicen, sin repetir.
+    nombra la narración, en el orden en que se dicen, sin repetir: primero los
+    18 hechos a mano, luego los de la biblioteca (`fichas`, P6c) y lo que
+    Claude vio en el plano (`extra`: [{id, palabra}]).
     """
     v = v or rotulos._Voz(escena)
+    fichas = fichas or {}
     propio = escena.get("objetos")
     if propio is False:
         return []
     if isinstance(propio, (list, tuple)):
-        ids = [x for x in dict.fromkeys(str(o).strip().lower() for o in propio)
-               if x in OBJETOS][:MAX_OBJETOS]
+        ids = [x for x in dict.fromkeys(piezas3d._id(o) for o in propio)
+               if x in OBJETOS or x in fichas][:MAX_OBJETOS]
         paso = min(.6, max(.2, (v.dur - .6) / max(1, len(ids))))
         return [{"id": x, "t": round(.2 + k * paso, 2)} for k, x in enumerate(ids)]
-    vistos = []
+    mapa = dict(piezas3d.palabras(fichas), **_OBJETO_DE)   # los fijos mandan
+    vistos = {}
     for i, w in enumerate(v.pl):
-        o = _OBJETO_DE.get(w)
-        if o and o not in (x["id"] for x in vistos):
-            vistos.append({"id": o, "t": round(v.t(i), 2)})
-            if len(vistos) == MAX_OBJETOS:
-                break
-    return vistos
+        o = mapa.get(w)
+        if o and o not in vistos:
+            vistos[o] = round(v.t(i), 2)
+    for o in extra or ():
+        if o["id"] in vistos or not (o["id"] in OBJETOS or o["id"] in fichas):
+            continue
+        dicho = o.get("palabra") or o["id"]
+        i = next((k for k, w in enumerate(v.pl)
+                  if w == dicho or (len(dicho) > 3 and w.startswith(dicho[:-1]))), None)
+        vistos[o["id"]] = round(v.t(i), 2) if i is not None else .2
+    orden = sorted(vistos.items(), key=lambda kv: kv[1])[:MAX_OBJETOS]
+    return [{"id": k, "t": t} for k, t in orden]
 
 
 def conf_de(p):
@@ -137,18 +153,21 @@ def _cabecera(v):
     return libros[0] if libros else ""
 
 
-def preparar(escenas, p, ancho, alto, imagen_de):
+def preparar(escenas, p, ancho, alto, imagen_de, trabajo=None, llamar=None):
     """El decorado de TODO el vídeo, por plano. -> {id: conf}
 
     `imagen_de(id)` da la ruta de la imagen del plano (o None). Las tomas se
     reparten en orden de aparición, para que dos planos seguidos no repitan
-    cámara.
+    cámara. Con `trabajo` (al montar), Claude mira los planos y construye los
+    objetos que falten (P6c, una llamada por vídeo, con cache); sin él, solo
+    los 18 fijos y la biblioteca.
     """
     modo = conf_de(p)
     if modo is None:
         return {}
     todos = bool(modo.get("todos"))
-    confs, n, primero = {}, 0, True
+    fichas = piezas3d.biblioteca()
+    confs, n, primero, suyas = {}, 0, True, {}
     for e in escenas:
         sid = e.get("id")
         if e.get("cartela"):
@@ -171,9 +190,25 @@ def preparar(escenas, p, ancho, alto, imagen_de):
             "toma": TOMAS[n % len(TOMAS)],
             "cabecera": _cabecera(v),
             "texto": " ".join(w["txt"] for w in tit),
-            "objetos": objetos_de(e, v),
+            "objetos": objetos_de(e, v, fichas),
         }
+        suyas[sid] = e
         n += 1
+    # P6c: lo que Claude ve en los planos que aún tienen hueco en la mesa
+    if trabajo is not None:
+        huecos = [e for sid, e in suyas.items() if "objetos" not in e
+                  and len(confs[sid]["objetos"]) < MAX_OBJETOS]
+        vio = piezas3d.detectar(huecos, trabajo, set(OBJETOS), set(_OBJETO_DE),
+                                p, llamar) if huecos else {}
+        if vio:
+            fichas = piezas3d.biblioteca()
+            for sid in vio:
+                confs[sid]["objetos"] = objetos_de(suyas[sid], None, fichas, vio[sid])
+    for conf in confs.values():
+        figuras = {o["id"]: fichas[o["id"]]["piezas"] for o in conf["objetos"]
+                   if o["id"] not in OBJETOS and o["id"] in fichas}
+        if figuras:
+            conf["figuras"] = figuras
     return confs
 
 
@@ -485,8 +520,39 @@ const B3 = (function(){
     ? [[-.6, 1.08, .3], [.6, 1.1, -.4], [-.05, 1.42, .1]]
     : [[-1.36, .22, .3], [1.38, .3, -.4], [-1.38, -.62, .2]];
   const TAM = E3.W < E3.H ? 1.1 : 1.3;
-  const caen = (E3.objetos || []).filter(o => HACER[o.id]).slice(0, HUECOS.length).map((o, k) => {
-    const g = HACER[o.id](), h = HUECOS[k];
+  // P6c: los objetos que construyo Claude (pasos/piezas3d.py), pieza a pieza.
+  // Se escalan a la medida de la mesa (unos 0,32) y se apoyan en y=0, digan
+  // lo que digan sus numeros.
+  function armar(piezas){
+    const g = grupo(), R = Math.PI / 180;
+    piezas.forEach(p => {
+      const t = p.tam || [.1, .1, .1], m = barro(new THREE.Color(p.color).getHex());
+      let geo, mesh;
+      if (p.forma === 'caja'){ mesh = caja(t[0], t[1], t[2], m, Math.min(t[0], t[1], t[2]) / 4); mesh.position.y = -t[1] / 2; }
+      else {
+        if (p.forma === 'esfera') geo = new THREE.SphereGeometry(1, 20, 14);
+        else if (p.forma === 'cilindro') geo = new THREE.CylinderGeometry(t[0], t[2] || t[0], t[1], 24);
+        else if (p.forma === 'cono') geo = new THREE.ConeGeometry(t[0], t[1], 20);
+        else if (p.forma === 'toro') geo = new THREE.TorusGeometry(t[0], t[1], 10, 24);
+        else geo = new THREE.CapsuleGeometry(t[0], t[1], 6, 14);
+        mesh = new THREE.Mesh(geo, m);
+        if (p.forma === 'esfera') mesh.scale.set(t[0], t[1], t[2]);
+      }
+      const pieza = grupo(); pieza.add(mesh);
+      const q = p.pos || [0, 0, 0], r = p.rot || [0, 0, 0];
+      pieza.position.set(q[0], q[1], q[2]); pieza.rotation.set(r[0] * R, r[1] * R, r[2] * R);
+      g.add(pieza);
+    });
+    const caja3 = new THREE.Box3().setFromObject(g), tam = caja3.getSize(new THREE.Vector3());
+    const s = .32 / Math.max(tam.x, tam.z, tam.y * .8, .01), centro = caja3.getCenter(new THREE.Vector3());
+    const fuera = grupo(); fuera.add(g);
+    g.position.set(-centro.x, -caja3.min.y, -centro.z); fuera.scale.setScalar(s);
+    return fuera;
+  }
+  const FIGURAS = E3.figuras || {};
+  const hacer = id => HACER[id] ? HACER[id]() : (FIGURAS[id] ? armar(FIGURAS[id]) : null);
+  const caen = (E3.objetos || []).filter(o => HACER[o.id] || FIGURAS[o.id]).slice(0, HUECOS.length).map((o, k) => {
+    const g = hacer(o.id), h = HUECOS[k];
     g.traverse(m => { if (m.isMesh){ m.castShadow = true; m.receiveShadow = true; } });
     const quieto = grupo(); quieto.add(g);
     quieto.position.set(h[0], 0, h[1]); quieto.rotation.y += h[2];

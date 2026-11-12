@@ -1582,7 +1582,8 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
     # con la imagen del plano en su pagina derecha.
     try:
         confs_biblia = ({} if con_motion else
-                        biblia3d.preparar(escenas, p, ancho, alto, _imagen_de))
+                        biblia3d.preparar(escenas, p, ancho, alto, _imagen_de,
+                                          trabajo=trabajo))
     except Exception as e:  # noqa: BLE001
         print(f"[render] sin decorado 3D ({e})", flush=True)
         confs_biblia = {}
