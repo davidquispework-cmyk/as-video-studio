@@ -1133,6 +1133,22 @@ tarda ~15 min por look). Comparado con el análisis de las referencias (arriba).
 6. **El cierre no pide nada en pantalla**: «Sígueme para la parte dos» va solo
    en la voz; falta la tarjeta final («PARTE 2: ¿tienes un ángel de la
    guarda?» + «Sígueme»). Y el vídeo acaba en negro casi 1 s.
+   **ARREGLADO (12-nov-2026)**: rótulo nuevo **«final»** (`pasos/rotulos.py`,
+   `_final`, `_tarjeta_final`): en el último plano (o el penúltimo, y sigue
+   quieta en el último) si la narración pide algo. Tarjeta oscura con borde de
+   oro: arriba la serie en rojo («PARTE 2» por «parte dos»; «PRÓXIMO VÍDEO»
+   por «en el próximo vídeo»), el título (lo que se dice detrás, hasta el fin
+   de la frase: «¿Tienes un ángel de la guarda?») y hasta 2 botones que laten:
+   sígueme → «+ SÍGUEME», suscríbete, comenta/cuéntame → «➜ COMENTA»,
+   comparte, envíaselo. Entra en la primera palabra que pide algo y siempre
+   1,3 s antes de acabar el plano, para estar entera. **Sin negro al final**:
+   en vídeos verticales o con tarjeta final, la cola de 3 s deja QUIETO el
+   último fotograma (con la tarjeta) en vez de fundir a negro
+   (`p8_render._cola_negra(quieta=)`); en horizontal sin tarjeta sigue el
+   negro. A mano en `plan.json`: `"rotulos": [{"tipo": "final", "serie":
+   "parte 3", "titulo": "Los jueces", "botones": ["SÍGUEME"]}]`. No toca
+   firmas: basta «Regenerar Vídeo». Prueba: `probar_tarjeta_final` en
+   `pasos/prueba_rotulos.py`.
 7. **Nubes del ambiente**: en el plano 1 salen como manchas blancas recortadas
    (feas); revisar el efecto «nubes» en vertical.
 8. **Biblia 3D (C)**: el decorado queda bien (mesa, Biblia, tomas), pero en la
@@ -1147,7 +1163,7 @@ tarda ~15 min por look). Comparado con el análisis de las referencias (arriba).
 **Siguiente (un chat cada uno, en este orden):** subtítulos grandes palabra a
 palabra (1) → gancho enorme (2) → citas dichas en palabras y pastilla al día
 (3, HECHO) → placas/sellos nuevos (4, HECHO) → titular editorial sin choque (5, HECHO) → tarjeta
-final (6). Luego repetir este vídeo de prueba y comparar.
+final (6, HECHO). Luego repetir este vídeo de prueba y comparar.
 
 ## Prompts de imagen: dos fallos de fondo arreglados (11-nov-2026)
 Visto en el vídeo del rey David (borrado después; no se arregló ese vídeo).

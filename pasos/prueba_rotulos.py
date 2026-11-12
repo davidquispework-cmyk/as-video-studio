@@ -144,6 +144,42 @@ def probar_placas_y_sellos():
     print("ok placas y sellos")
 
 
+def probar_tarjeta_final():
+    """Punto 6 del video de prueba: lo que se pide al acabar, en pantalla."""
+    escenas = [
+        _escena("s1", "Isaías dice: te puse nombre, mío eres tú.", 0),
+        _escena("s2", "Lee Lucas capítulo uno tú mismo y cuéntame qué te llamó "
+                      "la atención.", 6),
+        _escena("s3", "Sígueme para la parte dos: ¿tienes un ángel de la guarda?", 12),
+    ]
+    c = rotulos.preparar(escenas, {}, 1080, 1920)
+    fin = [r for r in c["s3"]["items"] if r["tipo"] == "final"]
+    assert len(fin) == 1 and not fin[0].get("fija"), c["s3"]
+    f = fin[0]
+    assert f["serie"] == "PARTE 2" and f["titulo"] == "¿Tienes un ángel de la guarda?", f
+    assert f["botones"] == ["SÍGUEME"] and f["t"] <= 6 - 1.3, f
+    assert not any(r["tipo"] == "final" for r in c.get("s2", {}).get("items", []))
+    assert rotulos.tiene_final(c)
+    # pedido en el penultimo: entra ahi y sigue quieta en el ultimo
+    escenas2 = [_escena("a", "Envíaselo a ese amigo. En el próximo vídeo,", 0),
+                _escena("b", "la historia de Jonás.", 6)]
+    c2 = rotulos.preparar(escenas2, {}, 1080, 1920)
+    fa = [r for r in c2["a"]["items"] if r["tipo"] == "final"][0]
+    fb = [r for r in c2["b"]["items"] if r["tipo"] == "final"][0]
+    assert fa["botones"] == ["ENVÍASELO"] and fa["serie"] == "PRÓXIMO VÍDEO", fa
+    assert fb["fija"], fb
+    # un plano de en medio que pide algo no pone tarjeta; sin pedir nada, nada
+    sin = rotulos.preparar([_escena("x", "Sígueme, dijo Jesús a Mateo.", 0),
+                            _escena("y", "Y se levantó.", 6),
+                            _escena("z", "Dejó todo atrás.", 12)], {}, 1080, 1920)
+    assert not rotulos.tiene_final(sin), sin
+    # a mano en plan.json
+    m = rotulos.preparar([dict(_escena("m", "Nos vemos.", 0), rotulos=[
+        {"tipo": "final", "serie": "parte 3", "titulo": "Los jueces"}])], {}, 1080, 1920)
+    assert m["m"]["items"][0]["serie"] == "PARTE 3" and m["m"]["items"][0]["botones"] == ["SÍGUEME"]
+    print("ok tarjeta final")
+
+
 def ver(carpeta):
     """Una pagina de render de verdad, con todos los rotulos, en Chromium."""
     import p8_render
@@ -188,5 +224,6 @@ if __name__ == "__main__":
     probar_video()
     probar_citas_dichas()
     probar_placas_y_sellos()
+    probar_tarjeta_final()
     if "--ver" in sys.argv:
         ver(sys.argv[sys.argv.index("--ver") + 1])

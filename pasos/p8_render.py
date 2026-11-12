@@ -662,8 +662,13 @@ COLA_NEGRO_S = 3.0
 ENTRADA_NEGRO_S = 0.8
 
 
-def _cola_negra(clips, trabajo, fps, calidad, segundos=COLA_NEGRO_S):
+def _cola_negra(clips, trabajo, fps, calidad, segundos=COLA_NEGRO_S, quieta=False):
     """Anade al final un clip de negro. -> [rutas]
+
+    Con `quieta` NO hay negro: el ultimo fotograma se queda quieto la cola
+    entera. Es lo de los videos verticales (TikTok, Shorts vuelven a empezar
+    solos: acabar en negro se ve como un corte) y lo de los que acaban con la
+    tarjeta final (rotulos «final»): se queda en pantalla para leerla.
 
     SE ANADE, NO SE FUNDE. La primera version fundia a negro los ultimos tres
     segundos del video, y eso es otra cosa: se lleva por delante tres segundos
@@ -698,7 +703,8 @@ def _cola_negra(clips, trabajo, fps, calidad, segundos=COLA_NEGRO_S):
         hacer = subprocess.run(
             [medios.ffmpeg(), "-y", "-loglevel", "error", "-loop", "1",
              "-framerate", str(fps), "-t", f"{segundos:g}", "-i", fotograma,
-             "-vf", f"fade=t=out:st=0:d={entrada:g}:color=black",
+             *([] if quieta else
+               ["-vf", f"fade=t=out:st=0:d={entrada:g}:color=black"]),
              "-c:v", "libx264", "-preset", ajustes["preset"],
              "-crf", ajustes["crf"], "-pix_fmt", "yuv420p", "-r", str(fps),
              "-an", negro],
@@ -711,7 +717,8 @@ def _cola_negra(clips, trabajo, fps, calidad, segundos=COLA_NEGRO_S):
 
 def _concatenar(clips, destino, audio, desfase, trabajo, musica=None,
                 efectos=None, duracion=0.0, lufs=None, cama=False,
-                ajuste_db=0.0, fps=12, calidad="media", efectos_db=0.0):
+                ajuste_db=0.0, fps=12, calidad="media", efectos_db=0.0,
+                cola_quieta=False):
     """Une los clips sin recodificar y mezcla la banda sonora.
 
     La banda son tres pistas: la locucion, el tema de fondo agachado bajo ella
@@ -726,7 +733,7 @@ def _concatenar(clips, destino, audio, desfase, trabajo, musica=None,
     # LA COLA DE NEGRO. Se hace aqui y no en el clip de cada plano porque
     # depende del ORDEN: es el final del VIDEO, no el de una escena, y hasta
     # que no estan todos no se sabe cual es el ultimo.
-    clips = _cola_negra(clips, trabajo, fps, calidad)
+    clips = _cola_negra(clips, trabajo, fps, calidad, quieta=cola_quieta)
     lista = os.path.join(trabajo, "clips.txt")
     with open(lista, "w", encoding="utf-8") as fh:
         for clip in clips:
@@ -1865,7 +1872,9 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
                 efectos=pista_efectos, duracion=largo_con_cola,
                 lufs=p.get("musica_lufs"), cama=cama, ajuste_db=ajuste_musica,
                 fps=fps, calidad=p.get("calidad") or "media",
-                efectos_db=ajuste_efectos)
+                efectos_db=ajuste_efectos,
+                # sin negro al final en vertical o con tarjeta final (punto 6)
+                cola_quieta=alto > ancho or rotulos.tiene_final(confs_rotulos))
     duracion = medios.duracion_media(destino)
 
     # los assets son unidades heredadas: no se renderizan, pero se sellan igual

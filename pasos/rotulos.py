@@ -35,7 +35,7 @@ try:
 except ImportError:  # importado como paquete (pasos.rotulos)
     from . import citas
 
-TIPOS = ("sello", "pastilla", "dato", "cifra", "rebobinar")
+TIPOS = ("sello", "pastilla", "dato", "cifra", "rebobinar", "final")
 ANIME = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                      "motores", "js", "anime.min.js")
 LETRA = "Shaddai Montserrat"     # pasos/letras.py: se declara si sale en la pagina
@@ -313,13 +313,17 @@ def _a_mano(escena, lista):
         else:
             r["texto"] = str(r.get("texto") or ("DATO" if r["tipo"] == "dato"
                                                else "")).upper()
-            if not r["texto"] and r["tipo"] != "rebobinar":
+            if not r["texto"] and r["tipo"] not in ("rebobinar", "final"):
                 continue
             if r["tipo"] == "rebobinar":
                 r["texto"] = r["texto"] or "REBOBINANDO"
                 r.setdefault("menos", "")
             if r["tipo"] == "dato":
                 r["palabra"] = str(r.get("palabra") or "").upper()
+        if r["tipo"] == "final":
+            r["serie"] = str(r.get("serie") or "").upper()
+            r["titulo"] = str(r.get("titulo") or "")
+            r["botones"] = [str(b).upper() for b in (r.get("botones") or ["SÍGUEME"])][:2]
         salida.append(r)
     return salida
 
@@ -374,6 +378,100 @@ def _marcadores(hechos):
                       "despues": f"/ {total}", "t": t})
 
 
+# ------------------------------------------------------------ la tarjeta final
+
+#: Lo que se le pide al espectador al acabar -> el boton de la tarjeta.
+_PIDE = (("sigueme", "SÍGUEME"), ("siguenos", "SÍGUENOS"),
+         ("suscribete", "SUSCRÍBETE"), ("suscribanse", "SUSCRÍBETE"),
+         ("comenta", "COMENTA"), ("comentame", "COMENTA"),
+         ("comentarios", "COMENTA"), ("cuentame", "COMENTA"),
+         ("compartelo", "COMPÁRTELO"), ("comparte", "COMPÁRTELO"),
+         ("enviaselo", "ENVÍASELO"), ("mandaselo", "ENVÍASELO"))
+_PROXIMO = (("proximo", "video"), ("siguiente", "video"), ("proximo", "capitulo"))
+
+
+def _final(v):
+    """La tarjeta del cierre si el plano pide algo. -> rotulo|None
+
+    «Sígueme para la parte dos: ¿tienes un ángel de la guarda?» ->
+    {"serie": "PARTE 2", "titulo": "¿Tienes un ángel de la guarda?",
+     "botones": ["SÍGUEME"]}. Entra en la primera palabra que pide algo
+    o que anuncia la serie.
+    """
+    pl, crudas = v.pl, v.crudas
+    botones, t0 = [], None
+    for i, w in enumerate(pl):
+        for clave, boton in _PIDE:
+            if w == clave and boton not in botones:
+                botones.append(boton)
+                t0 = i if t0 is None else t0
+    serie, titulo_desde = "", None
+    for i, w in enumerate(pl):
+        if w == "parte" and i + 1 < len(pl):
+            r = _numero(pl, i + 1)
+            if r and 0 < r[0] < 100:
+                serie, titulo_desde = f"PARTE {r[0]}", r[1]
+                t0 = i if t0 is None else min(t0, i)
+                break
+        par = tuple(pl[i:i + 2])
+        if par in _PROXIMO:
+            serie, titulo_desde = "PRÓXIMO VÍDEO", i + 2
+            t0 = i if t0 is None else min(t0, i)
+            break
+    if not botones and not serie:
+        return None
+    titulo = ""
+    if titulo_desde is not None:
+        # lo que viene detras, hasta el final de la frase: «¿tienes un angel...?»
+        trozo = []
+        for w in crudas[titulo_desde:]:
+            trozo.append(w)
+            if w.endswith(("?", ".", "!")):
+                break
+        while trozo and citas.plegar(trozo[0]) in ("", "de", "la", "el", "sobre",
+                                                    "es", "sera", "va"):
+            trozo = trozo[1:]
+        titulo = " ".join(trozo).strip(" :,;.«»\"")
+        if len(titulo.split()) > 10:
+            titulo = ""
+        elif titulo:
+            k = 1 if titulo[0] in "¿¡" else 0
+            titulo = titulo[:k] + titulo[k:k + 1].upper() + titulo[k + 1:]
+            if titulo.startswith("¿") and not titulo.endswith("?"):
+                titulo += "?"
+    return {"tipo": "final", "serie": serie, "titulo": titulo,
+            "botones": (botones or ["SÍGUEME"])[:2], "t": v.t(t0 or 0)}
+
+
+def _tarjeta_final(hechos):
+    """La tarjeta va en el ULTIMO plano que pide algo (de los dos ultimos), y
+    si se pidio en el penultimo, sigue quieta en el ultimo."""
+    vivos = [k for k, (e, propios, _i) in enumerate(hechos)
+             if propios is None or propios is True]
+    if not vivos:
+        return
+    for k in reversed(vivos[-2:]):
+        if any(r["tipo"] == "final" for r in hechos[k][2]):
+            return                         # puesta a mano
+    for k in reversed(vivos[-2:]):
+        v = _Voz(hechos[k][0])
+        r = _final(v)
+        if r:
+            # del todo en pantalla antes de acabar: la cola congela el ultimo
+            # fotograma, y una tarjeta a medio entrar se quedaria a medias
+            r["t"] = round(min(r["t"], max(0.0, v.dur - 1.3)), 3)
+            hechos[k][2].append(r)
+            if k != vivos[-1]:
+                hechos[vivos[-1]][2].append(dict(r, t=0.0, fija=True))
+            return
+
+
+def tiene_final(confs):
+    """¿Alguno de estos rotulos es la tarjeta final? (el render no funde a negro)"""
+    return any(r.get("tipo") == "final"
+               for c in (confs or {}).values() for r in c.get("items") or [])
+
+
 def _bloque(escena):
     """El bloque del guion del que sale el plano (B003), o '' si no se sabe."""
     return str((escena.get("origen") or {}).get("bloque") or "")
@@ -405,6 +503,7 @@ def preparar(escenas, p, ancho, alto):
             items = automaticos(e, sig)
         hechos.append((e, propios, items))
     _marcadores(hechos)
+    _tarjeta_final(hechos)
     con_cita = {_bloque(e) for e, _p, items in hechos
                 if _bloque(e) and any(r["tipo"] == "pastilla" for r in items)}
     confs, fija, bloque_fija = {}, None, ""
@@ -500,6 +599,20 @@ def css(conf):
 .rt-rebobinar{{left:{W*.05:.0f}px;top:{bajo_pastilla}px;font-size:{b*.05:.0f}px;
   letter-spacing:.08em;text-shadow:{b*.004:.0f}px 0 #FF2D55,-{b*.004:.0f}px 0 #2DE1FF}}
 .rt-rebobinar .menos{{display:block;font-size:{b*.075:.0f}px;color:#FFC845}}
+.rt-final{{left:50%;top:{H*(.2 if vertical else .22):.0f}px;width:{W*(.82 if vertical else .5):.0f}px;
+  margin-left:-{W*(.41 if vertical else .25):.0f}px;box-sizing:border-box;text-align:center;
+  background:rgba(20,16,40,.9);border:{max(2,b*.004):.0f}px solid #FFC845;
+  border-radius:{b*.035:.0f}px;padding:{b*.035:.0f}px {b*.04:.0f}px {b*.04:.0f}px;
+  box-shadow:0 {b*.012:.0f}px {b*.05:.0f}px rgba(0,0,0,.55),0 0 {b*.04:.0f}px rgba(255,200,69,.25)}}
+.rt-final .serie{{display:inline-block;background:#C62828;font-size:{b*.04:.0f}px;
+  letter-spacing:.12em;padding:{b*.008:.0f}px {b*.026:.0f}px;border-radius:{b*.01:.0f}px;
+  margin-bottom:{b*.022:.0f}px}}
+.rt-final .titulo{{display:block;font-family:'Shaddai Playfair',serif;font-weight:700;
+  font-size:{b*.068:.0f}px;line-height:1.12;margin-bottom:{b*.032:.0f}px}}
+.rt-final .botones{{display:flex;justify-content:center;flex-wrap:wrap;gap:{b*.02:.0f}px}}
+.rt-final .boton{{background:#FFC845;color:#1C1530;font-size:{b*.042:.0f}px;white-space:nowrap;
+  letter-spacing:.06em;padding:{b*.014:.0f}px {b*.03:.0f}px;border-radius:{b*.06:.0f}px}}
+.rt-final .boton .mas{{margin-right:.35em}}
 #rt-cinta{{position:absolute;left:0;top:0;width:{W}px;height:{H}px;opacity:0;
   background:repeating-linear-gradient(0deg,rgba(255,255,255,.07) 0 2px,
   rgba(0,0,0,0) 2px 5px);mix-blend-mode:screen}}
@@ -624,6 +737,36 @@ const RT_LINEAS = [];
       }
       tl.add({targets: num, scale: [1, 1.15, 1], duration: 360,
               easing: 'easeInOutSine'});
+    } else if (r.tipo === 'final'){
+      // LA TARJETA FINAL: lo que se pide en el cierre, escrito en pantalla
+      const d = el('rt-final');
+      if (r.serie){
+        const s = document.createElement('span'); s.className = 'serie';
+        s.textContent = r.serie; d.appendChild(s);
+      }
+      if (r.titulo){
+        const ti = document.createElement('span'); ti.className = 'titulo';
+        ti.textContent = r.titulo; d.appendChild(ti);
+      }
+      const fila = document.createElement('div'); fila.className = 'botones';
+      const botones = (r.botones || []).map(function(txt){
+        const b = document.createElement('span'); b.className = 'boton';
+        const m = document.createElement('span'); m.className = 'mas';
+        m.textContent = txt === 'SÍGUEME' || txt === 'SÍGUENOS' || txt === 'SUSCRÍBETE'
+          ? '+' : '➜';
+        b.appendChild(m); b.appendChild(document.createTextNode(txt));
+        fila.appendChild(b); return b;
+      });
+      d.appendChild(fila);
+      if (r.fija){ d.style.opacity = 1; return; }
+      const tl = linea(t)
+        .add({targets: d, opacity: [0, 1], translateY: [80, 0], scale: [0.85, 1],
+              duration: 650, easing: 'easeOutBack'});
+      if (botones.length)
+        tl.add({targets: botones, scale: [0.6, 1], opacity: [0, 1], duration: 420,
+                delay: anime.stagger(120), easing: 'easeOutBack'}, 380)
+          .add({targets: botones, scale: [1, 1.08, 1], duration: 700,
+                easing: 'easeInOutSine'}, 1200);
     } else if (r.tipo === 'rebobinar'){
       const d = el('rt-rebobinar');
       d.textContent = '◀◀ ' + (r.texto || 'REBOBINANDO');
