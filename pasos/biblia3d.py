@@ -21,6 +21,13 @@ del vídeo, para que el decorado se presente. A mano, en `plan.json`, escena:
 `"biblia3d": true` o `false`. En el render: param `biblia3d: true`, o
 `{"todos": true}` (todo el vídeo en el decorado).
 
+OBJETOS DE PLASTILINA (P6b): encima de la mesa, junto a la Biblia, caen los
+objetos que nombra la narración del plano —«treinta monedas» → un montón de
+monedas, «corona», «piedra», «pan», «peces», «cruz»…— cada uno EN EL MOMENTO
+en que se dice la palabra, con un botecito de plastilina al tocar la mesa.
+Hasta 3 por plano. A mano, en `plan.json`, escena: `"objetos": ["corona",
+"monedas"]` (ids de `OBJETOS`) o `false` (ese plano sin objetos).
+
 No toca firmas de imágenes: basta «Regenerar Vídeo». Si WebGL no arranca, el
 plano sale como siempre (la capa se oculta sola).
 """
@@ -42,6 +49,67 @@ _PALABRAS = {"biblia", "escritura", "escrituras", "escrito", "escrita", "escribi
              "versiculo", "versiculos", "capitulo", "capitulos", "profecia",
              "profecias", "profeta", "pergamino", "rollo", "rollos", "testamento",
              "evangelio", "evangelios", "salmo", "salmos", "palabra"}
+
+
+# Objetos que caen en la mesa: palabra plegada (sin tildes) -> id del objeto.
+# Cada id tiene su figura en BIBLIA_JS (`HACER`). Solo palabras que no dejan
+# duda: «agua» o «mar» no, que salen en cualquier frase.
+OBJETOS = {
+    "piedra": ("piedra", "piedras", "roca", "rocas", "honda", "apedrearon",
+               "apedrear", "lapida"),
+    "monedas": ("moneda", "monedas", "plata", "denario", "denarios", "siclos",
+                "talento", "talentos", "oro", "ofrenda", "diezmo"),
+    "corona": ("corona", "coronas", "coronado", "rey", "reyes", "reina", "trono",
+               "reino"),
+    "pan": ("pan", "panes", "maná", "mana", "levadura"),
+    "pez": ("pez", "peces", "pescado", "pescados", "pescador", "pescadores",
+            "ballena", "red", "redes"),
+    "cruz": ("cruz", "crucificado", "crucificaron", "crucifixion", "calvario",
+             "golgota"),
+    "espada": ("espada", "espadas", "batalla", "guerra", "ejercito", "soldado",
+               "soldados", "goliat"),
+    "cantaro": ("cantaro", "cantaros", "vasija", "vasijas", "tinaja", "tinajas",
+                "pozo", "aceite"),
+    "copa": ("copa", "caliz", "cena"),
+    "llave": ("llave", "llaves", "puerta", "puertas"),
+    "fruta": ("fruto", "fruta", "manzana", "higo", "higuera", "eden", "arbol"),
+    "corazon": ("corazon", "corazones", "amor", "amaba"),
+    "estrella": ("estrella", "estrellas", "magos", "lucero"),
+    "barca": ("barca", "barco", "barcas", "arca", "nave", "noe"),
+    "cadena": ("cadena", "cadenas", "carcel", "preso", "presos", "prision",
+               "esclavo", "esclavos", "esclavitud", "cautivo", "cautiverio"),
+    "clavos": ("clavo", "clavos", "clavaron", "clavado"),
+    "oveja": ("oveja", "ovejas", "cordero", "corderos", "rebaño", "rebano",
+              "pastor", "pastores"),
+    "serpiente": ("serpiente", "serpientes", "vibora", "viboras"),
+}
+_OBJETO_DE = {w: k for k, ws in OBJETOS.items() for w in ws}
+MAX_OBJETOS = 3
+
+
+def objetos_de(escena, v=None):
+    """Los objetos del plano y cuándo caen: [{"id", "t"}] (t relativo al plano).
+
+    A mano: `"objetos": [...]` en la escena (o `false`, ninguno). Si no, los que
+    nombra la narración, en el orden en que se dicen, sin repetir.
+    """
+    v = v or rotulos._Voz(escena)
+    propio = escena.get("objetos")
+    if propio is False:
+        return []
+    if isinstance(propio, (list, tuple)):
+        ids = [x for x in dict.fromkeys(str(o).strip().lower() for o in propio)
+               if x in OBJETOS][:MAX_OBJETOS]
+        paso = min(.6, max(.2, (v.dur - .6) / max(1, len(ids))))
+        return [{"id": x, "t": round(.2 + k * paso, 2)} for k, x in enumerate(ids)]
+    vistos = []
+    for i, w in enumerate(v.pl):
+        o = _OBJETO_DE.get(w)
+        if o and o not in (x["id"] for x in vistos):
+            vistos.append({"id": o, "t": round(v.t(i), 2)})
+            if len(vistos) == MAX_OBJETOS:
+                break
+    return vistos
 
 
 def conf_de(p):
@@ -103,6 +171,7 @@ def preparar(escenas, p, ancho, alto, imagen_de):
             "toma": TOMAS[n % len(TOMAS)],
             "cabecera": _cabecera(v),
             "texto": " ".join(w["txt"] for w in tit),
+            "objetos": objetos_de(e, v),
         }
         n += 1
     return confs
@@ -112,6 +181,8 @@ def resumen(conf):
     if not conf:
         return "sin decorado 3D"
     extra = f", «{conf['cabecera']}»" if conf.get("cabecera") else ""
+    if conf.get("objetos"):
+        extra += ", con " + ", ".join(o["id"] for o in conf["objetos"])
     return f"Biblia 3D (toma {conf['toma']}{extra})"
 
 
@@ -283,6 +354,157 @@ const B3 = (function(){
   const luzLlama = new THREE.PointLight(0xffa64a, 2.2, 4, 1.6);
   luzLlama.position.set(1.3, .35, -.15); esc.add(luzLlama);
 
+
+  // LOS OBJETOS DE PLASTILINA (P6b): figuras sencillas y gorditas, una por id
+  // de biblia3d.OBJETOS. Cada una mide unos 0,3 de ancho y se apoya en y=0.
+  function grupo(){ return new THREE.Group(); }
+  function pon(g, geo, mat, x, y, z){
+    const m = new THREE.Mesh(geo, mat); m.position.set(x || 0, y || 0, z || 0);
+    g.add(m); return m;
+  }
+  function torno(puntos, mat){
+    return new THREE.Mesh(new THREE.LatheGeometry(puntos.map(p => new THREE.Vector2(p[0], p[1])), 28), mat);
+  }
+  const HACER = {
+    piedra(){ const g = grupo(), m = barro(0x8d877e);
+      [[0,.07,0,.1],[.13,.05,.05,.07],[-.1,.045,.07,.06]].forEach(p => {
+        const s = pon(g, new THREE.IcosahedronGeometry(p[3], 1), m, p[0], p[1], p[2]);
+        s.scale.set(1.2, .75, 1); s.rotation.y = p[0] * 9; });
+      return g; },
+    monedas(){ const g = grupo(), m = barro(0xd8a83a);
+      const geo = new THREE.CylinderGeometry(.065, .065, .018, 28);
+      for (let k = 0; k < 6; k++) pon(g, geo, m, Math.sin(k * 2.1) * .015, .01 + k * .019, Math.cos(k * 1.7) * .015);
+      [[.13,.03],[-.11,.1],[.06,-.12]].forEach(p => {
+        const c = pon(g, geo, m, p[0], .01, p[1]); c.rotation.z = .08; });
+      return g; },
+    corona(){ const g = grupo(), oro = barro(0xd9a93b, {side: THREE.DoubleSide}), rojo = barro(0xb3202a);
+      pon(g, new THREE.CylinderGeometry(.13, .12, .08, 28, 1, true), oro, 0, .04, 0);
+      pon(g, new THREE.TorusGeometry(.125, .015, 8, 28), oro, 0, .005, 0).rotation.x = Math.PI / 2;
+      for (let k = 0; k < 6; k++){
+        const a = k / 6 * Math.PI * 2;
+        pon(g, new THREE.ConeGeometry(.03, .07, 10), oro, Math.cos(a) * .125, .115, Math.sin(a) * .125);
+        pon(g, new THREE.SphereGeometry(.015, 10, 8), rojo, Math.cos(a) * .125, .155, Math.sin(a) * .125);
+      }
+      return g; },
+    pan(){ const g = grupo(), m = barro(0xc68642), raya = barro(0x8a5a2b);
+      pon(g, new THREE.SphereGeometry(.12, 24, 16), m, 0, .055, 0).scale.set(1.5, .55, 1);
+      [-.06, 0, .06].forEach(x => { const r = pon(g, new THREE.BoxGeometry(.012, .02, .14), raya, x, .118, 0); r.rotation.y = .5; });
+      return g; },
+    pez(){ const g = grupo(), m = barro(0x6f93ad), ojo = barro(0x111111);
+      pon(g, new THREE.SphereGeometry(.09, 24, 16), m, 0, .055, 0).scale.set(1.7, .65, .75);
+      const c = pon(g, new THREE.ConeGeometry(.07, .1, 3), m, -.19, .055, 0);
+      c.rotation.z = Math.PI / 2; c.scale.set(1, 1, .4);
+      pon(g, new THREE.SphereGeometry(.014, 10, 8), ojo, .1, .075, .05);
+      return g; },
+    cruz(){ const g = grupo(), m = barro(0x6b4426);
+      g.add(caja(.05, .5, .05, m, .015));
+      const b = caja(.26, .05, .05, m, .015); b.position.y = .33; g.add(b);
+      pon(g, new THREE.SphereGeometry(.08, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), barro(0x7d6a55));
+      return g; },
+    espada(){ const g = grupo(), hoja = barro(0xb9bec4), mango = barro(0x5a3a20), oro = barro(0xd9a93b);
+      const h = caja(.04, .015, .42, hoja, .012); h.position.set(0, .012, -.1); g.add(h);
+      const gu = caja(.16, .025, .03, oro, .01); gu.position.set(0, .012, .12); g.add(gu);
+      const ma = caja(.03, .025, .11, mango, .012); ma.position.set(0, .012, .19); g.add(ma);
+      pon(g, new THREE.SphereGeometry(.022, 12, 8), oro, 0, .022, .255);
+      g.rotation.y = .9; return g; },
+    cantaro(){ const g = grupo(), m = barro(0x9c4f26);
+      g.add(torno([[0,0],[.07,0],[.12,.07],[.13,.13],[.09,.2],[.05,.24],[.06,.28],[0,.28]], m));
+      const a = pon(g, new THREE.TorusGeometry(.055, .014, 8, 16, Math.PI), m, .1, .2, 0);
+      a.rotation.z = -Math.PI / 2;
+      return g; },
+    copa(){ const g = grupo(), m = barro(0xcfa13c, {side: THREE.DoubleSide});
+      g.add(torno([[0,0],[.08,0],[.08,.015],[.02,.03],[.015,.12],[.04,.14],[.09,.2],[.095,.27],[.085,.27],[.0,.17]], m));
+      return g; },
+    llave(){ const g = grupo(), m = barro(0xc29a3a);
+      pon(g, new THREE.TorusGeometry(.06, .02, 10, 22), m, -.14, .02, 0).rotation.x = Math.PI / 2;
+      const v = caja(.24, .03, .03, m, .01); v.position.set(.03, .005, 0); g.add(v);
+      [.1, .14].forEach(x => { const d = caja(.025, .03, .06, m, .008); d.position.set(x, .005, .035); g.add(d); });
+      g.rotation.y = -.6; return g; },
+    fruta(){ const g = grupo();
+      pon(g, new THREE.SphereGeometry(.1, 24, 16), barro(0xb8262b), 0, .095, 0).scale.set(1, .92, 1);
+      pon(g, new THREE.CylinderGeometry(.008, .01, .06, 8), barro(0x5a3a20), 0, .2, 0);
+      const h = pon(g, new THREE.SphereGeometry(.04, 12, 8), barro(0x4f8a2e), .035, .21, 0);
+      h.scale.set(1, .25, .55); h.rotation.z = .5;
+      return g; },
+    corazon(){ const g = grupo(), m = barro(0xc0222e);
+      pon(g, new THREE.SphereGeometry(.07, 20, 14), m, -.055, .17, 0);
+      pon(g, new THREE.SphereGeometry(.07, 20, 14), m, .055, .17, 0);
+      const c = pon(g, new THREE.ConeGeometry(.115, .17, 24), m, 0, .08, 0); c.rotation.z = Math.PI;
+      g.scale.z = .7; return g; },
+    estrella(){ const g = grupo(), f = new THREE.Shape();
+      for (let k = 0; k < 10; k++){
+        const r = k % 2 ? .055 : .13, a = k / 10 * Math.PI * 2 + Math.PI / 2;
+        k ? f.lineTo(Math.cos(a) * r, Math.sin(a) * r) : f.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      const geo = new THREE.ExtrudeGeometry(f, {depth: .03, bevelEnabled: true, bevelThickness: .012,
+        bevelSize: .012, bevelSegments: 3});
+      geo.rotateX(-Math.PI / 2);
+      pon(g, geo, barro(0xe7b53c), 0, .012, 0);
+      return g; },
+    barca(){ const g = grupo(), m = barro(0x7a4a26, {side: THREE.DoubleSide});
+      const c = pon(g, new THREE.SphereGeometry(.12, 24, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), m, 0, .085, 0);
+      c.scale.set(2, .7, .85);
+      pon(g, new THREE.CylinderGeometry(.008, .008, .26, 8), m, 0, .2, 0);
+      const vela = new THREE.Shape(); vela.moveTo(0, 0); vela.lineTo(.13, 0); vela.lineTo(0, .2);
+      pon(g, new THREE.ShapeGeometry(vela), barro(0xefe4c8, {side: THREE.DoubleSide}), .01, .1, 0);
+      return g; },
+    cadena(){ const g = grupo(), m = barro(0x77787c);
+      for (let k = 0; k < 5; k++){
+        const e = pon(g, new THREE.TorusGeometry(.035, .012, 8, 16), m, -.16 + k * .075, .03, 0);
+        e.scale.x = 1.5;
+        if (k % 2){ e.rotation.x = Math.PI / 2; e.position.y = .013; }
+      }
+      g.rotation.y = .4; return g; },
+    clavos(){ const g = grupo(), m = barro(0x55565a);
+      [[0,0,0],[.05,.07,.7],[-.06,-.06,-.5]].forEach(p => {
+        const c = grupo();
+        pon(c, new THREE.CylinderGeometry(.012, .004, .22, 8), m).rotation.z = Math.PI / 2;
+        pon(c, new THREE.CylinderGeometry(.03, .03, .012, 14), m, -.11, 0, 0).rotation.z = Math.PI / 2;
+        c.position.set(p[0], .016, p[1]); c.rotation.y = p[2]; g.add(c);
+      });
+      return g; },
+    oveja(){ const g = grupo(), lana = barro(0xf1ece0), negro = barro(0x2a2522);
+      [[-.06,0],[.06,0]].forEach(p => [-1, 1].forEach(l =>
+        pon(g, new THREE.CylinderGeometry(.014, .014, .08, 8), negro, p[0], .04, l * .04)));
+      pon(g, new THREE.SphereGeometry(.09, 20, 14), lana, 0, .12, 0).scale.set(1.35, .9, .95);
+      for (let k = 0; k < 7; k++)
+        pon(g, new THREE.SphereGeometry(.045, 12, 8), lana, Math.cos(k) * .09, .17 + (k % 2) * .02, Math.sin(k * 1.3) * .05);
+      pon(g, new THREE.SphereGeometry(.045, 16, 10), negro, .13, .15, 0).scale.set(1.2, .9, .85);
+      return g; },
+    serpiente(){ const g = grupo(), m = barro(0x4d7a2e);
+      const curva = new THREE.CatmullRomCurve3([[-.2,.03,-.06],[-.1,.03,.08],[0,.03,-.06],[.1,.03,.07],[.18,.05,0],[.2,.1,-.02]]
+        .map(p => new THREE.Vector3(p[0], p[1], p[2])));
+      g.add(new THREE.Mesh(new THREE.TubeGeometry(curva, 48, .026, 10, false), m));
+      pon(g, new THREE.SphereGeometry(.038, 14, 10), m, .205, .115, -.02).scale.set(1.4, .8, 1);
+      pon(g, new THREE.SphereGeometry(.026, 12, 8), m, -.2, .03, -.06);
+      return g; },
+  };
+  // Los huecos de la mesa: en vertical, delante del libro (a los lados no se
+  // ve); en horizontal, a izquierda y derecha. La lampara esta en (1.3, -.5).
+  const HUECOS = E3.W < E3.H
+    ? [[-.6, 1.08, .3], [.6, 1.1, -.4], [-.05, 1.42, .1]]
+    : [[-1.36, .22, .3], [1.38, .3, -.4], [-1.38, -.62, .2]];
+  const TAM = E3.W < E3.H ? 1.1 : 1.3;
+  const caen = (E3.objetos || []).filter(o => HACER[o.id]).slice(0, HUECOS.length).map((o, k) => {
+    const g = HACER[o.id](), h = HUECOS[k];
+    g.traverse(m => { if (m.isMesh){ m.castShadow = true; m.receiveShadow = true; } });
+    const quieto = grupo(); quieto.add(g);
+    quieto.position.set(h[0], 0, h[1]); quieto.rotation.y += h[2];
+    quieto.visible = false; esc.add(quieto);
+    return {g: quieto, t: +o.t || 0};
+  });
+  // cae desde arriba y, al tocar la mesa, se aplasta y rebota como plastilina
+  function caer(t){
+    caen.forEach(o => {
+      const k = (t - o.t) / .4;
+      o.g.visible = k >= 0;
+      if (k < 0) return;
+      if (k < 1){ o.g.position.y = .55 * (1 - k * k); o.g.scale.setScalar(TAM); return; }
+      const s = .2 * Math.exp(-(k - 1) * 5) * Math.cos((k - 1) * 13);
+      o.g.position.y = 0; o.g.scale.set(TAM * (1 + s * .6), TAM * (1 - s), TAM * (1 + s * .6));
+    });
+  }
+
   esc.add(new THREE.HemisphereLight(0xffe9c8, 0x2a1a10, .9));
   const sol = new THREE.DirectionalLight(0xfff0d6, 2.1);
   sol.position.set(-2.5, 4, 2.2); sol.castShadow = true;
@@ -352,6 +574,7 @@ const B3 = (function(){
     cam.lookAt(lerp(toma[1], toma[3], e, M));
     const f = 1 + .12 * Math.sin(t * 9.1) + .07 * Math.sin(t * 23.3);
     llama.scale.set(1, f, 1); luzLlama.intensity = 2.2 * f;
+    caer(t);
     ren.render(esc, cam);
   }
   return {listo: listo, pintar: pintar};

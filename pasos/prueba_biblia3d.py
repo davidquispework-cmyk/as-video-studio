@@ -49,6 +49,24 @@ def probar_reparto():
         assert biblia3d.css(None) == biblia3d.html(None) == biblia3d.js(None) == ""
 
 
+def probar_objetos():
+    e = _escena("o", "Judas vendió a Jesús por treinta monedas de plata y una corona", 0, 6)
+    obs = biblia3d.objetos_de(e)
+    assert [o["id"] for o in obs] == ["monedas", "corona"], obs   # plata no repite
+    assert 0 < obs[0]["t"] < obs[1]["t"] < 6, obs                    # caen al decirse
+    assert biblia3d.objetos_de(_escena("v", "Y vino a casa con su amo", 0)) == []
+    muchas = "piedra pan pez cruz espada"
+    assert len(biblia3d.objetos_de(_escena("m", muchas, 0))) == biblia3d.MAX_OBJETOS
+    assert biblia3d.objetos_de(dict(e, objetos=False)) == []
+    mano = biblia3d.objetos_de(dict(e, objetos=["Oveja", "nada", "oveja", "cruz"]))
+    assert [o["id"] for o in mano] == ["oveja", "cruz"], mano
+    # cada id tiene su figura en el JavaScript
+    for k in biblia3d.OBJETOS:
+        assert f"    {k}(){{" in biblia3d.BIBLIA_JS, k
+    c = biblia3d.preparar([e], {"biblia3d": True}, 1080, 1920, lambda s: __file__)["o"]
+    assert c["objetos"] == obs and "con monedas, corona" in biblia3d.resumen(c)
+
+
 def ver(carpeta):
     import p8_render
     from playwright.sync_api import sync_playwright
@@ -60,7 +78,7 @@ def ver(carpeta):
     dib.rectangle([0, 700, 1536, 1024], fill=(150, 120, 70))
     dib.ellipse([600, 250, 950, 600], fill=(240, 200, 90))
     im.save(fondo)
-    e = _escena("s", "Mateo capítulo veintiséis cuenta la última cena", 0, 4)
+    e = _escena("s", "Mateo capítulo veintiséis: treinta monedas, la corona y un pez", 0, 4)
     paginas = []
     for formato, (w, h) in (("horizontal", (1920, 1080)), ("vertical", (1080, 1920))):
         for toma in biblia3d.TOMAS:
@@ -99,6 +117,7 @@ def ver(carpeta):
 
 if __name__ == "__main__":
     probar_reparto()
+    probar_objetos()
     if "--ver" in sys.argv:
         ver(sys.argv[sys.argv.index("--ver") + 1])
     print("prueba_biblia3d: OK")

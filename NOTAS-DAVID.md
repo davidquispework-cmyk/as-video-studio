@@ -415,7 +415,7 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    Pendiente: elegir la palabra tachada/resaltada a mano desde la pantalla
    (hoy se puede forzando `~~palabra~~` y `*palabra*` en el texto).
 10. **SIGUIENTE: el plan «NIVEL PROFESIONAL» (12-nov)** — ver la sección del
-   mismo nombre más abajo; P1 a P7 HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río); siguiente, P8. (Siguen sobre la mesa, para
+   mismo nombre más abajo; P1 a P7 y P6b HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río; P6b = objetos de plastilina en la mesa); siguiente, P8. (Siguen sobre la mesa, para
    después: grabar tu voz desde la propia página; afinar la tabla de voces.)
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
@@ -736,7 +736,7 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Pendiente: ~~más formas de «lo falso → lo verdadero»~~ (HECHO 11-nov, punto 9
    del orden nuevo); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1 a P7 HECHOS; ahora P8).
+Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1 a P7 y P6b HECHOS; ahora P8).
 
 ## NIVEL PROFESIONAL (decidido 12-nov-2026) — manda sobre el punto 10 del ORDEN NUEVO
 David quiere que sus vídeos queden AL MISMO NIVEL que los de referencia, no «parecidos
@@ -990,6 +990,19 @@ del VPS no debe depender de internet; anotar licencia de cada cosa en un LICENCI
   Falta: verlo en un vídeo real con «El origen de las cosas» al lado; los
   muñecos de plastilina DENTRO del decorado; que la página pase al cambiar de
   plano.
+- P6b. Objetos 3D de plastilina en la mesa según el guion.
+  **HECHO (12-nov-2026)**: en `pasos/biblia3d.py` (`OBJETOS`, `objetos_de`).
+  En los planos con «📖 Biblia 3D», junto al libro CAEN los objetos que nombra
+  la narración, cada uno en el momento en que se dice la palabra, con un
+  botecito de plastilina al tocar la mesa. Hasta 3 por plano. 18 objetos:
+  piedra, monedas (plata, denarios…), corona (rey, trono…), pan, pez, cruz,
+  espada, cántaro, copa, llave, fruta (Edén, higuera…), corazón (amor),
+  estrella, barca (arca, Noé), cadena (cárcel, esclavo…), clavos, oveja
+  (cordero, pastor) y serpiente. A mano en `plan.json`, escena:
+  `"objetos": ["corona", "monedas"]` o `false` (ese plano sin objetos).
+  No toca firmas: basta «Regenerar Vídeo». Prueba: `pasos/prueba_biblia3d.py`.
+  Falta: verlo en un vídeo real; elegir los objetos desde la pantalla (hoy
+  solo en `plan.json`); los muñecos de plastilina dentro del decorado.
 - P7. Boca con Rhubarb y la voz grabada de David.
   **HECHO (12-nov-2026)**: `pasos/boca.py`. Al montar, lee el audio de la
   narración (tu grabación, la voz gratuita o Cartesia) y saca la forma de la
