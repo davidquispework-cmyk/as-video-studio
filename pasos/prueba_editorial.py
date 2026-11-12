@@ -153,10 +153,76 @@ def ver(carpeta):
     print("  paginas en", carpeta)
 
 
+def probar_punto5():
+    """Lo que fallo en el video de prueba de los angeles (12-nov-2026)."""
+    import json
+    # 1) el titular automatico no copia la cita (ya va en la pastilla)
+    v = rotulos._Voz(_escena("a", "Le dice en Daniel, capítulo diez, versículo once: "
+                                  "Daniel, varón muy amado."))
+    t = _palabras(editorial.titular_auto(v))
+    assert "capítulo" not in t and "versículo" not in t and "dice" not in t, t
+    # 2) los cuadros de esa historia
+    pl = lambda s: [editorial.citas.plegar(w) for w in s.split()]  # noqa: E731
+    assert editorial.tema_de(pl("Zacarías está en el templo")) == "Zacharias"
+    assert editorial.tema_de(pl("María recibe al ángel")) == "Annunciation"
+    assert editorial.tema_de(pl("Daniel recibe la visita")) == "Prophet Daniel|Daniel"
+    # 3) los titulares de Claude: una llamada, cache, misma idea quieta
+    escenas = [_escena("s1", "¿Los ángeles conocen tu nombre? La Biblia da pistas.", 0),
+               _escena("s2", "Mira cuatro veces en que un ángel llama a alguien.", 6),
+               _escena("s3", "Primera. Zacarías está en el templo.", 12),
+               dict(_escena("s4", "Tercera. Daniel, varón muy amado.", 18),
+                    titular="Un varón *vestido* de lino")]
+    llamadas = []
+
+    def falso_claude(instruccion):
+        llamadas.append(instruccion)
+        assert "s4" not in instruccion        # el de a mano no se pregunta
+        return json.dumps({"titulares": {
+            "s1": "¿Los ángeles conocen tu *nombre*?",
+            "s2": "¿Los ángeles conocen tu *nombre*?",
+            "s3": "Lucas 1:13 en el templo"}})   # con cita: no vale
+    with tempfile.TemporaryDirectory() as d:
+        arriba = {"s2": 300}
+        c = editorial.preparar(escenas, {"editorial": {"cuadros": False}}, 1080, 1920,
+                               d, trabajo=d, llamar=falso_claude, arriba=arriba)
+        assert len(llamadas) == 1
+        assert _palabras(c["s1"]["titular"]) == "¿Los ángeles conocen tu nombre?", c["s1"]
+        assert [w["txt"] for w in c["s1"]["titular"] if w["acento"]] == ["nombre?"]
+        assert all(w["t"] > 0 for w in c["s1"]["titular"])
+        assert all(w["t"] < 0 for w in c["s2"]["titular"]), c["s2"]   # quieto
+        assert "Lucas" not in _palabras(c["s3"]["titular"])          # el automatico
+        assert _palabras(c["s4"]["titular"]) == "Un varón vestido de lino"
+        # el titular empieza debajo de los rotulos de arriba
+        assert c["s2"]["arriba"] == 300 and "arriba" not in c["s1"]
+        css = editorial.css(c["s2"])
+        assert "padding-top:327px" in css, css[:300]
+        # la segunda vez, de la cache: sin preguntar
+        editorial.preparar(escenas, {"editorial": {"cuadros": False}}, 1080, 1920,
+                           d, trabajo=d, llamar=falso_claude)
+        assert len(llamadas) == 1
+        # apagado: sin preguntar
+        os.environ["ESTUDIO_TITULARES"] = "no"
+        try:
+            editorial.preparar(escenas, {"editorial": True}, 1080, 1920, d,
+                               buscar=lambda *_: None, trabajo=os.path.join(d, "x"),
+                               llamar=falso_claude)
+        finally:
+            del os.environ["ESTUDIO_TITULARES"]
+        assert len(llamadas) == 1
+    # 4) lo que ocupan los rotulos de arriba
+    conf = {"W": 1080, "H": 1920, "items": [{"tipo": "pastilla"}]}
+    solo = rotulos.ocupado_arriba(conf)
+    conf["items"].append({"tipo": "cifra"})
+    assert 0 < solo < rotulos.ocupado_arriba(conf) < 1920 * .3
+    assert rotulos.ocupado_arriba({"W": 1, "H": 1, "items": []}) == 0
+    print("  ok punto 5 (titular sin cita, de Claude, sin choque; cuadros)")
+
+
 if __name__ == "__main__":
     probar_titular()
     probar_temas()
     probar_video()
+    probar_punto5()
     if "--red" in sys.argv:
         with tempfile.TemporaryDirectory() as d:
             probar_red(d)

@@ -1113,6 +1113,23 @@ tarda ~15 min por look). Comparado con el análisis de las referencias (arriba).
    arriba); el titular es un trozo de la narración («dice en Daniel capítulo
    diez versículo») en vez de una idea («4 VECES QUE UN ÁNGEL DIJO UN NOMBRE»);
    y en 118 s solo salió UN cuadro (Lorenzo Monaco): pocas.
+   **ARREGLADO (12-nov-2026)**, en `pasos/editorial.py`: **sin choque**: el
+   titular empieza debajo de la pastilla y de lo que cuelga de ella (cifra,
+   DATO, rebobinando), medido en `rotulos.ocupado_arriba`. **Titular = idea**:
+   al montar, UNA llamada a Claude por vídeo (sonnet, esfuerzo bajo; cache en
+   `trabajo/titulares.json`) escribe el de cada plano, 3-7 palabras, con una
+   palabra en cursiva de color; si varios planos cuentan lo mismo, se queda
+   quieto. Probado con el guion de los ángeles: «¿Los ángeles saben tu
+   *nombre*?», «Zacarías oyó su *nombre*», «Dios sí sabe tu *nombre*»… Sin
+   Claude sale el automático, que ya no copia la cita («dice en Daniel
+   capítulo diez...»). Apagar Claude aquí: `ESTUDIO_TITULARES=no` o param
+   `editorial: {"claude": false}`; a mano sigue mandando `"titular"` en
+   `plan.json`. **Más cuadros**: una ficha retirada del Met (404) tumbaba la
+   búsqueda entera; ahora se salta. Historias nuevas: Zacarías, la
+   Anunciación (María + ángel/Gabriel), Agar, y Daniel busca «Prophet Daniel»
+   (antes no encontraba nada). El pie dice «siglos XVI–XVII», no «late 16th
+   siglo». No toca firmas: basta «Regenerar Vídeo». Prueba: `probar_punto5`
+   en `pasos/prueba_editorial.py`.
 6. **El cierre no pide nada en pantalla**: «Sígueme para la parte dos» va solo
    en la voz; falta la tarjeta final («PARTE 2: ¿tienes un ángel de la
    guarda?» + «Sígueme»). Y el vídeo acaba en negro casi 1 s.
@@ -1129,7 +1146,7 @@ tarda ~15 min por look). Comparado con el análisis de las referencias (arriba).
    reales.
 **Siguiente (un chat cada uno, en este orden):** subtítulos grandes palabra a
 palabra (1) → gancho enorme (2) → citas dichas en palabras y pastilla al día
-(3, HECHO) → placas/sellos nuevos (4, HECHO) → titular editorial sin choque (5) → tarjeta
+(3, HECHO) → placas/sellos nuevos (4, HECHO) → titular editorial sin choque (5, HECHO) → tarjeta
 final (6). Luego repetir este vídeo de prueba y comparar.
 
 ## Prompts de imagen: dos fallos de fondo arreglados (11-nov-2026)

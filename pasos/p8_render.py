@@ -1573,8 +1573,11 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
     # AQUI, una vez, a trabajo/cuadros (cache: volver a montar no sale a red).
     try:
         confs_editorial = ({} if con_motion else
-                           editorial.preparar(escenas, p, ancho, alto,
-                                              os.path.join(trabajo, "cuadros")))
+                           editorial.preparar(
+                               escenas, p, ancho, alto,
+                               os.path.join(trabajo, "cuadros"), trabajo=trabajo,
+                               arriba={sid_: rotulos.ocupado_arriba(c_)
+                                       for sid_, c_ in confs_rotulos.items()}))
     except Exception as e:  # noqa: BLE001
         print(f"[render] sin modo editorial ({e})", flush=True)
         confs_editorial = {}

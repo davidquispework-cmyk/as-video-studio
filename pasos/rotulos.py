@@ -436,6 +436,27 @@ def json_conf(conf):
     return json.dumps(conf, ensure_ascii=False)
 
 
+def ocupado_arriba(conf):
+    """Hasta donde (px desde arriba) llegan los rotulos de la franja de arriba
+    de este plano: la pastilla y, debajo, DATO / cifra / rebobinando. 0 si no
+    hay ninguno. El titular editorial empieza debajo para no pisarlos."""
+    items = (conf or {}).get("items") or []
+    if not items:
+        return 0
+    W, H = conf["W"], conf["H"]
+    b = min(W, H)
+    vertical = H > W
+    tipos = {r.get("tipo") for r in items}
+    fondo = 0
+    if "pastilla" in tipos:
+        fondo = int(H * (0.05 if vertical else 0.045) + b * 0.075)
+    bajo = int(H * (0.115 if vertical else 0.15))
+    for tipo, alto in (("dato", 0.08), ("cifra", 0.14), ("rebobinar", 0.16)):
+        if tipo in tipos:
+            fondo = max(fondo, int(bajo + b * alto))
+    return fondo
+
+
 def css(conf):
     if not conf:
         return ""

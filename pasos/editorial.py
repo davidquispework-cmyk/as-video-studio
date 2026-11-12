@@ -29,7 +29,17 @@ Como se gobierna (no va en los defectos del paso: no mueve firmas):
                        "editorial": false                ese plano sin nada
 No va con motion graphics (pinta su propio mundo). En planos con clip de video
 sale el titular, no el cuadro.
+
+EL TITULAR LO ESCRIBE CLAUDE (desde el 12-nov-2026): al montar, UNA llamada por
+video (sonnet, esfuerzo bajo) le pide a cada plano una IDEA de 3-7 palabras
+(«4 veces que un ángel dijo un *nombre*»), no un trozo de la narracion; si dos
+planos seguidos cuentan lo mismo, el titular se queda quieto. Cache en
+`trabajo/titulares.json` por la huella de la narracion. Sin Claude, o con
+`ESTUDIO_TITULARES=no` o `"editorial": {"claude": false}`, sale el automatico
+(que ya no copia la cita: esa va en la pastilla). El titular empieza DEBAJO
+de los rotulos de arriba del plano (`rotulos.ocupado_arriba`).
 """
+import hashlib
 import json
 import os
 import re
@@ -61,7 +71,10 @@ HISTORIAS = (
     (("noe", "diluvio"), (("el", "arca"),), "Noah"),
     (("babel",), (), "Tower of Babel"),
     (("goliat",), (), "David and Goliath"),
-    (("daniel",), (), "Daniel"),
+    (("zacarias",), (), "Zacharias"),
+    ((), (("angel", "maria"), ("gabriel", "maria")), "Annunciation"),
+    (("agar",), (), "Hagar"),
+    (("daniel",), (), "Prophet Daniel|Daniel"),
     (("isaac",), (), "Sacrifice of Isaac"),
     (("abraham",), (), "Abraham"),
     (("cain", "abel"), (), "Cain and Abel"),
@@ -111,6 +124,8 @@ _VACIAS = rotulos._VACIAS | {"y", "pero", "porque", "como", "cuando", "se", "lo"
                             "fue", "por", "para", "con", "sin", "este", "esta",
                             "eso", "esto", "aquel", "aquella", "hay"}
 _CORTE = tuple(",.;:?!…")
+_ANTES_DE_CITA = {"en", "dice", "dijo", "segun", "leemos", "lee", "como", "el",
+                  "libro", "de", "del"}
 _LIMPIAR = "\"'«»“”‘’()[],.;:…"
 
 
@@ -134,25 +149,49 @@ def titular_auto(v, maximo=6):
     n = len(v.crudas)
     if not n:
         return None
+    # la cita («en Daniel, capitulo diez, versiculo once») ya va en la
+    # pastilla: en el titular parte la frase y no entra
+    fuera = set()
+    for c in citas.buscar(v.crudas):
+        fuera.update(range(c["inicio"], c["fin"]))
+        k = c["inicio"] - 1
+        while k >= 0 and v.pl[k] in _ANTES_DE_CITA:
+            fuera.add(k)
+            k -= 1
     trozos, actual = [], []
     for i, w in enumerate(v.crudas):
+        if i in fuera:
+            if actual:
+                trozos.append(actual)
+            actual = []
+            continue
         actual.append(i)
         if w.endswith(_CORTE):
             trozos.append(actual)
             actual = []
     if actual:
         trozos.append(actual)
-    acento = _acento(v, list(range(n)))
-    trozo = next(t for t in trozos if acento in t)
-    if len(trozo) > maximo:
-        k = trozo.index(acento)
-        ini = max(0, min(k - 2, len(trozo) - maximo))
-        trozo = trozo[ini:ini + maximo]
-    while len(trozo) > 1 and trozo[-1] != acento and v.pl[trozo[-1]] in _VACIAS:
-        trozo = trozo[:-1]
-    while len(trozo) > 1 and trozo[0] != acento and v.pl[trozo[0]] in _VACIAS:
-        trozo = trozo[1:]
-    if len(trozo) < 2:
+    if not trozos:
+        return None
+    acento = _acento(v, [i for t in trozos for i in t])
+    primero = next(t for t in trozos if acento in t)
+    # si el trozo de la palabra clave se queda en una palabra («Daniel,»),
+    # vale el trozo mas largo de los demas, con su propia palabra clave
+    for trozo in [primero] + sorted((t for t in trozos if t is not primero),
+                                    key=len, reverse=True):
+        if trozo is not primero:
+            acento = _acento(v, trozo)
+        if len(trozo) > maximo:
+            k = trozo.index(acento)
+            ini = max(0, min(k - 2, len(trozo) - maximo))
+            trozo = trozo[ini:ini + maximo]
+        while len(trozo) > 1 and trozo[-1] != acento and v.pl[trozo[-1]] in _VACIAS:
+            trozo = trozo[:-1]
+        while len(trozo) > 1 and trozo[0] != acento and v.pl[trozo[0]] in _VACIAS:
+            trozo = trozo[1:]
+        if len(trozo) >= 2:
+            break
+    else:
         return None
     salida = []
     for i in trozo:
@@ -182,6 +221,107 @@ def titular_a_mano(v, texto):
     return salida or None
 
 
+# ------------------------------------------------------------ titulares de Claude
+
+INSTRUCCION = """Eres el editor de titulares de un vídeo narrado de estilo
+editorial (titular grande con serifa arriba de la pantalla, como una revista).
+Abajo va la narración del vídeo, plano a plano, con su id.
+
+Para CADA plano escribe su titular:
+- Una IDEA o afirmación, no un trozo copiado de la narración: lo que el
+  espectador tiene que llevarse de ese momento. Ej.: «4 veces que un ángel dijo
+  un *nombre*», «La túnica de *José* no era de colores».
+- De 3 a 7 palabras, en español. Cifras con dígitos («4 veces», «400 años»).
+- UNA palabra entre asteriscos: la que va en cursiva de color (un nombre, una
+  cifra, la palabra clave). Solo una.
+- Sin citas bíblicas («Lucas 1:13», «capítulo uno»): esas ya van en otra parte
+  de la pantalla.
+- Si varios planos seguidos cuentan la MISMA idea, repite EXACTAMENTE el mismo
+  titular en todos ellos (se queda quieto en pantalla). Cambia cuando cambie la
+  idea.
+- Sin inventar nada que la narración no diga.
+
+Devuelve SOLO un JSON: {{"titulares": {{"<id>": "<titular>", ...}}}}
+
+Planos:
+{planos}
+"""
+
+
+def _llamar_claude(instruccion):
+    """Se llama así para que el medidor de coste pueda engancharla por nombre."""
+    import cli_claude                                   # noqa: PLC0415
+    texto, _ = cli_claude.ejecutar(
+        instruccion, modelo="sonnet", esfuerzo="low", tiempo_max_s=0,
+        base_tiempo_s=180, para="los titulares editoriales")
+    return texto
+
+
+def _valido(titular):
+    """El titular de Claude si se puede usar tal cual, o None."""
+    t = " ".join(str(titular or "").split())
+    palabras = t.split()
+    if not 2 <= len(palabras) <= 9 or t.count("*") > 2:
+        return None
+    if citas.buscar(palabras):
+        return None
+    if "*" not in t:                      # sin acento: va en la mas larga
+        k = max(range(len(palabras)), key=lambda i: len(palabras[i].strip(_LIMPIAR)))
+        palabras[k] = "*" + palabras[k].strip(_LIMPIAR) + "*"
+        t = " ".join(palabras)
+    return t
+
+
+def claude_apagado(modo):
+    if os.environ.get("ESTUDIO_TITULARES", "").lower() in ("no", "0", "false"):
+        return True
+    return (modo or {}).get("claude") is False
+
+
+def titulares_claude(escenas, trabajo, llamar=None):
+    """{sid: titular} en UNA llamada por video, con cache en `trabajo` por la
+    huella de la narracion. Nunca lanza: sin Claude, {} (titulares solos)."""
+    textos = {e["id"]: " ".join(str(e.get("narracion") or "").split())
+              for e in escenas
+              if e.get("id") and str(e.get("narracion") or "").strip()}
+    if not textos:
+        return {}
+    huella = hashlib.sha1(json.dumps(textos, sort_keys=True,
+                                     ensure_ascii=False).encode("utf-8")).hexdigest()
+    cache = os.path.join(trabajo, "titulares.json") if trabajo else None
+    if cache and os.path.exists(cache):
+        try:
+            with open(cache, encoding="utf-8") as f:
+                guardado = json.load(f)
+            if guardado.get("huella") == huella:
+                return guardado.get("titulares") or {}
+        except (OSError, ValueError):
+            pass
+    planos = "\n".join(f"- {sid}: «{t}»" for sid, t in textos.items())
+    try:
+        texto = str((llamar or _llamar_claude)(INSTRUCCION.format(planos=planos)) or "")
+        a, b = texto.find("{"), texto.rfind("}")
+        datos = json.loads(texto[a:b + 1]) if 0 <= a < b else {}
+    except Exception as e:  # noqa: BLE001
+        print(f"[editorial] titulares sin Claude ({str(e)[:120]})", flush=True)
+        return {}
+    crudos = datos.get("titulares") if isinstance(datos, dict) else None
+    salida = {}
+    for sid, t in (crudos or {}).items():
+        bueno = _valido(t) if sid in textos else None
+        if bueno:
+            salida[sid] = bueno
+    if cache and salida:
+        try:
+            os.makedirs(trabajo, exist_ok=True)
+            with open(cache, "w", encoding="utf-8") as f:
+                json.dump({"huella": huella, "titulares": salida}, f,
+                          ensure_ascii=False, indent=1)
+        except OSError:
+            pass
+    return salida
+
+
 # ------------------------------------------------------------ los cuadros
 
 def _leer(url, tiempo=10):
@@ -190,12 +330,21 @@ def _leer(url, tiempo=10):
         return r.read()
 
 
+_ROMANOS = {9: "IX", 10: "X", 11: "XI", 12: "XII", 13: "XIII", 14: "XIV", 15: "XV",
+            16: "XVI", 17: "XVII", 18: "XVIII", 19: "XIX", 20: "XX"}
+
+
 def _pie(ficha):
     autor = re.split(r"\s*[(,]", str(ficha.get("artistDisplayName") or ""))[0].strip()
     if autor.lower() in ("anonymous", "unknown"):
         autor = ""
     fecha = (str(ficha.get("objectDate") or "").strip()
-             .replace("ca.", "h.").replace("century", "siglo").replace(" (?)", ""))
+             .replace("ca.", "h.").replace(" (?)", ""))
+    if "century" in fecha:     # «late 16th–early 17th century» -> «siglos XVI–XVII»
+        romanos = [_ROMANOS.get(int(n), n) for n in re.findall(r"(\d+)(?:st|nd|rd|th)", fecha)]
+        romanos = list(dict.fromkeys(romanos))
+        fecha = (("siglos " + "–".join(romanos)) if len(romanos) > 1 else
+                 ("siglo " + romanos[0]) if romanos else "")
     return ", ".join(x for x in (autor or "Anónimo", fecha) if x)
 
 
@@ -213,7 +362,11 @@ def buscar_cuadro(busqueda, carpeta):
             return None
         if os.path.exists(ficha["ruta"]):
             return ficha
-    elegido = _elegir(busqueda)
+    elegido = None
+    for alternativa in busqueda.split("|"):         # «Prophet Daniel|Daniel»
+        elegido = _elegir(alternativa.strip())
+        if elegido:
+            break
     ficha = {"busqueda": busqueda}
     if elegido:
         ruta = os.path.join(carpeta, nombre + ".jpg")
@@ -227,7 +380,7 @@ def buscar_cuadro(busqueda, carpeta):
 
 
 _GENERICAS = {"raising", "of", "the", "and", "his", "sacrifice", "tower",
-              "saint", "last", "good", "baptism"}
+              "saint", "last", "good", "baptism", "prophet"}
 _CLASES = ("paintings", "drawings", "prints")   # por orden de preferencia
 
 
@@ -250,7 +403,10 @@ def _elegir(busqueda):
         ids = json.loads(_leer(f"{BUSCAR}?{q}")).get("objectIDs") or []
         mejor, rango = None, len(_CLASES)
         for oid in ids[:15]:
-            obj = json.loads(_leer(OBJETO.format(oid)))
+            try:
+                obj = json.loads(_leer(OBJETO.format(oid)))
+            except Exception:  # noqa: BLE001 — el Met da 404 en fichas
+                continue           # retiradas: una no tumba la busqueda
             if not obj.get("isPublicDomain") or not obj.get("primaryImage"):
                 continue
             if clave not in str(obj.get("title") or "").lower():
@@ -285,21 +441,33 @@ def conf_de(p):
     return v if isinstance(v, dict) else {}
 
 
-def preparar(escenas, p, ancho, alto, carpeta, buscar=buscar_cuadro):
+def preparar(escenas, p, ancho, alto, carpeta, buscar=buscar_cuadro,
+             trabajo=None, llamar=None, arriba=None):
     """La capa de TODO el video, por plano. -> {id: conf}
 
     Se recorre en orden: cada historia da cuadro una sola vez, y nunca en dos
     planos seguidos (la imagen del plano tambien tiene que verse).
+
+    Con `trabajo` (al montar), los titulares los escribe Claude (una llamada
+    por video, con cache); los que falten salen solos de la narracion.
+    `arriba` = {id: px}: hasta donde llegan los rotulos de arriba de ese plano
+    (`rotulos.ocupado_arriba`); el titular empieza debajo.
     """
     modo = conf_de(p)
     if modo is None:
         return {}
     con_cuadros = modo.get("cuadros") is not False
-    confs, usados, tapado_antes = {}, set(), False
+    ideas = {}
+    if (trabajo or llamar) and not claude_apagado(modo):
+        ideas = titulares_claude([e for e in escenas if not e.get("cartela")
+                                  and e.get("editorial") is not False
+                                  and e.get("titular") is None],
+                                 trabajo, llamar)
+    confs, usados, tapado_antes, anterior = {}, set(), False, None
     for e in escenas:
         sid = e.get("id")
         if e.get("cartela") or e.get("editorial") is False:
-            tapado_antes = False
+            tapado_antes, anterior = False, None
             continue
         v = rotulos._Voz(e)
         conf = {}
@@ -308,10 +476,20 @@ def preparar(escenas, p, ancho, alto, carpeta, buscar=buscar_cuadro):
             tit = None
         elif isinstance(propio, str) and propio.strip():
             tit = titular_a_mano(v, propio)
+        elif ideas.get(sid):
+            # una idea no sigue a la voz palabra a palabra: entra seguida al
+            # empezar el plano; la misma idea que el anterior se queda quieta
+            quieto = ideas[sid] == anterior
+            tit = [dict(w, t=-1.0 if quieto else round(0.15 + 0.12 * k, 3))
+                   for k, w in enumerate(titular_a_mano(v, ideas[sid]) or [])]
         else:
             tit = titular_auto(v)
+        anterior = ideas.get(sid) if propio is None else None
         if tit:
             conf["titular"] = tit
+        bajo = int((arriba or {}).get(sid) or 0)
+        if bajo:
+            conf["arriba"] = bajo
         cuadro = None
         manual = e.get("cuadro")
         if isinstance(manual, dict) and manual.get("ruta"):
@@ -387,10 +565,12 @@ def css(conf):
     tinta = "#2a2118" if papel else "#fff"
     acento = "#8b1e1e" if papel else "#F2C45A"
     sombra = "none" if papel else f"0 {b * .004:.0f}px {b * .02:.0f}px rgba(0,0,0,.75)"
+    # debajo de la pastilla y de lo que cuelga de ella (rotulos.ocupado_arriba)
+    tope = max(H * (.07 if vertical else .06), (conf.get("arriba") or 0) + b * .025)
     salida = [
         f"#editorial{{position:absolute;left:0;top:0;width:{W}px;height:{H}px;"
         "z-index:1;pointer-events:none;display:flex;flex-direction:column;"
-        f"align-items:center;box-sizing:border-box;padding-top:{H * (.07 if vertical else .06):.0f}px}}",
+        f"align-items:center;box-sizing:border-box;padding-top:{tope:.0f}px}}",
         f"#ed-tit{{max-width:{W * .86:.0f}px;text-align:center;font-family:'{LETRA}',serif;"
         f"font-size:{b * (.085 if vertical else .075):.0f}px;line-height:1.08;color:{tinta};"
         f"text-shadow:{sombra};letter-spacing:-.01em}}",
@@ -400,7 +580,7 @@ def css(conf):
     if not papel:
         # un velo arriba, para que la letra se lea sobre cualquier imagen
         salida.append(f"#ed-velo{{position:absolute;left:0;top:0;width:{W}px;"
-                      f"height:{H * (.34 if vertical else .4):.0f}px;z-index:-1;"
+                      f"height:{max(H * (.34 if vertical else .4), tope + b * .27):.0f}px;z-index:-1;"
                       "background:linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,0))}")
     else:
         salida += [
