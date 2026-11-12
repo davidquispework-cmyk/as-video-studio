@@ -1097,6 +1097,18 @@ tarda ~15 min por look). Comparado con el análisis de las referencias (arriba).
    placa «4 VECES»; «Primera / Segunda / Tercera / Cuarta» → marcador «1/4…4/4»;
    «La Biblia NO dice eso» → sello «NO». Los disparadores de `rotulos.py` solo
    conocen «no era/fue»; ampliar a «no dice», ordinales y «N veces».
+   **ARREGLADO (12-nov-2026)**, en `pasos/rotulos.py`: **«4 VECES»** ya salía
+   si cabía en un plano; el corte la partía («Mira cuatro» | «veces en
+   que...»): la cifra mira ahora el plano siguiente, como la cita. **Marcador
+   «1/4»…«4/4»**: un ordinal que ABRE la frase y va suelto («Primera.»,
+   «Segundo,») marca un punto de una lista; si en el vídeo salen seguidos desde
+   la primera hasta al menos la segunda, cada uno lleva su placa de rodillos
+   «N / total» (total = el último de la serie) y quita otra cifra o DATO de ese
+   plano (`_ordinal`, `_marcadores`). «por primera vez» no cuenta. **Sello
+   «NO»** también en «no dice/dijo/menciona/enseña/afirma» + «eso, esto, nada,
+   que, tal, así» («La Biblia no dice eso»); «el texto no dice quién es» solo
+   calla y no lleva sello. No toca firmas: basta «Regenerar Vídeo». Prueba:
+   `probar_placas_y_sellos` en `pasos/prueba_rotulos.py`.
 5. **Editorial (B)**: el titular CHOCA con la pastilla de la cita (se pisan
    arriba); el titular es un trozo de la narración («dice en Daniel capítulo
    diez versículo») en vez de una idea («4 VECES QUE UN ÁNGEL DIJO UN NOMBRE»);
@@ -1117,7 +1129,7 @@ tarda ~15 min por look). Comparado con el análisis de las referencias (arriba).
    reales.
 **Siguiente (un chat cada uno, en este orden):** subtítulos grandes palabra a
 palabra (1) → gancho enorme (2) → citas dichas en palabras y pastilla al día
-(3) → placas/sellos nuevos (4) → titular editorial sin choque (5) → tarjeta
+(3, HECHO) → placas/sellos nuevos (4, HECHO) → titular editorial sin choque (5) → tarjeta
 final (6). Luego repetir este vídeo de prueba y comparar.
 
 ## Prompts de imagen: dos fallos de fondo arreglados (11-nov-2026)

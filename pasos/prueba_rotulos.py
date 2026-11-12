@@ -108,6 +108,42 @@ def probar_citas_dichas():
     print("ok citas dichas")
 
 
+def probar_placas_y_sellos():
+    """Punto 4 del video de prueba: «4 VECES», «1/4...4/4» y el sello «NO»."""
+    escenas = [
+        _escena("s1", "¿Los ángeles conocen tu nombre? Mira cuatro", 0),
+        _escena("s2", "veces en que un ángel llama a alguien.", 6),   # corte
+        _escena("s3", "Primera. Zacarías está en el templo.", 12),
+        _escena("s4", "Es Gabriel, y sabe cómo se llama.", 18),
+        _escena("s5", "Segunda. María recibe la visita, por primera vez.", 24),
+        _escena("s6", "Tercera. Daniel recibe la visita de un varón.", 30),
+        _escena("s7", "Cuarta. Abraham, en el monte, día tres.", 36),
+        _escena("s8", "La Biblia no dice eso. El texto no dice quién es.", 42),
+    ]
+    c = rotulos.preparar(escenas, {}, 1080, 1920)
+
+    def de(sid, tipo):
+        return [r for r in c.get(sid, {}).get("items", []) if r["tipo"] == tipo]
+    placa = de("s1", "cifra")
+    assert placa and placa[0]["valor"] == 4 and placa[0]["despues"] == "VECES", c
+    assert not de("s2", "cifra"), c.get("s2")
+    for sid, n in (("s3", 1), ("s5", 2), ("s6", 3), ("s7", 4)):
+        m = de(sid, "cifra")
+        assert len(m) == 1 and m[0]["valor"] == n and m[0]["despues"] == "/ 4", (sid, m)
+    assert m[0]["t"] == 0.0                # entra al decir «Cuarta»
+    assert not de("s4", "cifra")
+    sellos = de("s8", "sello")
+    assert len(sellos) == 1 and sellos[0]["texto"] == "NO", c.get("s8")
+    # «el texto no dice quien es» solo calla: sin sello
+    a = rotulos.automaticos(_escena("x", "El texto no dice quién es él."))
+    assert not any(r["tipo"] == "sello" for r in a), a
+    # un ordinal suelto, sin lista, no pone marcador
+    solo = rotulos.preparar([_escena("y", "Primera. Una cosa nada más.")],
+                            {}, 1080, 1920)
+    assert not solo, solo
+    print("ok placas y sellos")
+
+
 def ver(carpeta):
     """Una pagina de render de verdad, con todos los rotulos, en Chromium."""
     import p8_render
@@ -151,5 +187,6 @@ if __name__ == "__main__":
     probar_automaticos()
     probar_video()
     probar_citas_dichas()
+    probar_placas_y_sellos()
     if "--ver" in sys.argv:
         ver(sys.argv[sys.argv.index("--ver") + 1])

@@ -136,6 +136,15 @@ _COSAS = {"ano": "AÑO", "anos": "AÑOS", "dia": "DÍA", "dias": "DÍAS",
 _SELLOS = (("nunca", "NUNCA"), ("jamas", "JAMÁS"), ("falso", "FALSO"),
            ("mentira", "MENTIRA"), ("prohibido", "PROHIBIDO"))
 _NO_ERA = ("era", "fue", "es", "hubo", "tenia", "estaba", "fueron", "eran")
+_NO_DICE = ("dice", "dijo", "dicen", "menciona", "ensena", "afirma", "cuenta")
+_LO_DICHO = ("eso", "esto", "nada", "que", "tal", "asi")
+#: «Primera.», «Segundo,»: el que abre la frase y va solo marca un punto de
+#: una lista («cuatro veces en que...»); de ahi sale el marcador 1/4...4/4
+_ORDINALES = {"primera": 1, "primero": 1, "segunda": 2, "segundo": 2,
+              "tercera": 3, "tercero": 3, "cuarta": 4, "cuarto": 4,
+              "quinta": 5, "quinto": 5, "sexta": 6, "sexto": 6,
+              "septima": 7, "septimo": 7, "octava": 8, "octavo": 8,
+              "novena": 9, "noveno": 9, "decima": 10, "decimo": 10}
 _REBOBINAR = ("retroceder", "retrocedamos", "rebobinar", "rebobinemos",
               "volvamos")
 _DATO = (("sabias", "que"), ("dato",), ("curiosamente",), ("pocos", "saben"),
@@ -145,10 +154,18 @@ _VACIAS = {"el", "la", "los", "las", "un", "una", "de", "del", "y", "o", "que",
            "su", "sus", "a", "al", "en"}
 
 
-def _cifra(v):
-    """La primera cifra que merece placa. -> rotulo|None"""
-    pl = v.pl
+def _cifra(v, siguiente=None):
+    """La primera cifra que merece placa. -> rotulo|None
+
+    Como la cita, «cuatro» | «veces» puede quedar partido por el corte: se
+    miran tambien las palabras del plano siguiente, pero la cifra tiene que
+    EMPEZAR en este.
+    """
+    mias = len(v.pl)
+    pl = v.pl + [citas.plegar(w) for w in (siguiente or [])]
     for i, w in enumerate(pl):
+        if i >= mias:
+            break
         # «el día 3», «día tres»
         if w == "dia" and i + 1 < len(pl):
             r = _numero(pl, i + 1)
@@ -188,6 +205,11 @@ def _sello(v):
                     return {"tipo": "sello", "texto": "SIN " + nombre,
                             "t": v.t(k)}
         if w == "no" and i + 1 < len(pl) and pl[i + 1] in _NO_ERA:
+            return {"tipo": "sello", "texto": "NO", "t": v.t(i)}
+        # «La Biblia no dice eso», «no dice que...», «no menciona nada»; pero
+        # «el texto no dice quien es» solo calla, no desmiente: sin sello
+        if (w == "no" and i + 2 < len(pl) and pl[i + 1] in _NO_DICE
+                and pl[i + 2] in _LO_DICHO):
             return {"tipo": "sello", "texto": "NO", "t": v.t(i)}
     return None
 
@@ -263,7 +285,7 @@ def automaticos(escena, siguiente=None):
     v = _Voz(escena)
     salida = []
     for f in (_pastilla, _rebobinar, _cifra, _dato, _sello):
-        r = f(v, siguiente) if f is _pastilla else f(v)
+        r = f(v, siguiente) if f in (_pastilla, _cifra) else f(v)
         if r:
             salida.append(r)
     # la placa de cifra y el DATO comparten esquina de arriba: uno por plano
@@ -308,6 +330,50 @@ def activos(p):
     return (p or {}).get("rotulos") is not False
 
 
+def _ordinal(v):
+    """(n, i) si el plano trae un «Primera.» / «Segundo,» que abre frase."""
+    for i, w in enumerate(v.pl):
+        if w not in _ORDINALES:
+            continue
+        abre = i == 0 or v.crudas[i - 1][-1:] in ".!?:»"
+        suelto = v.crudas[i][-1:] in ".,:;"
+        if abre and suelto:
+            return _ORDINALES[w], i
+    return None
+
+
+def _marcadores(hechos):
+    """El marcador «1/4»...«4/4» de una lista que se cuenta en voz alta.
+
+    Solo si en el video salen seguidos (por orden de aparicion) desde la
+    «Primera» hasta al menos la «Segunda»; el total es el ultimo de la serie.
+    Va en la placa de cifra (rodillos), y manda sobre otra cifra del plano.
+    """
+    vistos = []
+    for k, (e, propios, items) in enumerate(hechos):
+        if isinstance(propios, list) or propios is False:
+            continue
+        v = _Voz(e)
+        r = _ordinal(v)
+        if r:
+            vistos.append((k, r[0], v.t(r[1])))
+    serie, espera = [], 1
+    for k, n, t in vistos:
+        if n == espera:
+            serie.append((k, n, t))
+            espera += 1
+        elif n == 1:                     # empieza otra lista: vale la ultima
+            serie, espera = [(k, n, t)], 2
+    if len(serie) < 2:
+        return
+    total = serie[-1][1]
+    for k, n, t in serie:
+        items = hechos[k][2]
+        items[:] = [r for r in items if r["tipo"] not in ("cifra", "dato")]
+        items.append({"tipo": "cifra", "valor": n, "antes": "",
+                      "despues": f"/ {total}", "t": t})
+
+
 def _bloque(escena):
     """El bloque del guion del que sale el plano (B003), o '' si no se sabe."""
     return str((escena.get("origen") or {}).get("bloque") or "")
@@ -338,6 +404,7 @@ def preparar(escenas, p, ancho, alto):
                    if k + 1 < len(planos) else None)
             items = automaticos(e, sig)
         hechos.append((e, propios, items))
+    _marcadores(hechos)
     con_cita = {_bloque(e) for e, _p, items in hechos
                 if _bloque(e) and any(r["tipo"] == "pastilla" for r in items)}
     confs, fija, bloque_fija = {}, None, ""
