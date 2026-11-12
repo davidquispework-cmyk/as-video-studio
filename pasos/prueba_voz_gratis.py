@@ -273,6 +273,14 @@ def probar_personajes_y_claves():
            f"un personaje hombre: otra voz de hombre ({jotam})")
         igual(voz_gratis.voz_de_personaje("Jotam", "hombre", "es-PE-AlexNeural"), jotam,
               "y siempre la misma para el mismo nombre")
+        # narrador MULTILINGUE (prefijo «en»): el personaje habla castellano nativo
+        jesus = voz_gratis.voz_de_personaje("Jesús", "hombre",
+                                            "en-US-BrianMultilingualNeural", idioma="es")
+        ok(jesus.startswith("es-") and "Multilingual" not in jesus,
+           f"con narrador multilingue, el personaje es una voz nativa de castellano ({jesus})")
+        ok(voz_gratis.voz_de_personaje("Jesús", "hombre",
+                                       "en-US-BrianMultilingualNeural").startswith("es-"),
+           "y sin idioma dicho, tambien castellano")
         igual(voz_gratis.voz_de_personaje("Débora", "mujer", "es-PE-AlexNeural"),
               "es-PE-CamilaNeural", "una mujer: primero las del pais del narrador")
         PEDIDOS.clear()

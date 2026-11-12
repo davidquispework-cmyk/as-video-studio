@@ -93,7 +93,7 @@ PALABRAS_ICONO = (
     ("paloma", ("espiritu", "paloma", "paz ")),
     ("casa", ("casa", "hogar", "familia")),
     ("vela", ("luz ", "lampara", "vela", "brill")),
-    ("estrella", ("estrella", "magos", "cielo")),
+    ("estrella", ("estrella", "magos")),     # «cielo» no: la estrella salia sin venir a cuento
     ("pan", ("pan ", "panes", "comida", "hambre", "cena")),
     ("cadena", ("pecado", "cadena", "esclav", "carcel", "preso")),
     ("tablas", ("mandamiento", "ley ", "tablas", "moises")),
@@ -1588,9 +1588,10 @@ def ventana_de(piezas, a, b, W, H, sy):
     return {"a": round(a, 3), "b": round(b, 3), "focos": salida}
 
 
+# Sin icono que tenga que ver (contador, texto, lamina sin icono propio) NO
+# vuela nada: antes iba una estrella de relleno que David no quiere (12-nov).
 ICONO_PUENTE = {"versiculo": "biblia", "mapa": "chincheta", "linea": "arena",
-                "reloj": "reloj", "contador": "estrella", "comparacion": "balanza",
-                "lista": "pergamino", "texto": "estrella", "lamina": "estrella",
+                "reloj": "reloj", "comparacion": "balanza", "lista": "pergamino",
                 "barras": "lupa", "antes": "arena", "arbol": "arbol",
                 "personajes": "persona", "flecha": "flecha", "circulo": "lupa"}
 SUPERPUESTAS = ("flecha", "circulo")   # señalan otra cosa: no son la pieza principal
@@ -1687,19 +1688,22 @@ def preparar(escenas, p, laminas_px, ancho, alto, hoy=None, fichas=None, claude=
         t_out = float(escenas[i]["t_out"])
         sale = max(float(escenas[i]["t_in"]) + 0.3, t_out - 0.55)
         llega = viaje["t1"]
-        icono = ICONO_PUENTE.get(b["tipo"], "estrella")
+        icono = ICONO_PUENTE.get(b["tipo"])
         if b["tipo"] == "lamina":
             otros = [q for q in por_plano[i + 1] if q["tipo"] == "icono"]
             icono = otros[0]["nombre"] if otros else icono
+        if not icono or b.get("fondo") or a.get("fondo"):
+            # un escenario (o nada que tenga que ver): no vuela nada. Antes se
+            # metia el puente Y un None, la lista se desfasaba y el objeto
+            # aterrizaba encima de la cara de un muneco
+            puentes.append(None)
+            continue
         # sale por el LADO hacia el que va la camara, sin tapar la pieza
         de = [round(a["x"] + W * 0.34, 1), round(a["y"] - H * 0.1, 1)]
         puentes.append({"de": de, "a": [b["x"], b["y"]], "sale": round(sale, 3),
                         "vuela": round(float(escenas[i + 1]["t_in"]), 3),
                         "llega": round(llega, 3), "icono": icono,
                         "tam": round(W * (0.16 if H > W else 0.09), 1)})
-        if b.get("fondo") or a.get("fondo"):
-            puentes.append(None)      # un escenario solo: nada que llevar ni que estalle
-            continue
         if b["en"] < llega - 0.06:
             b["en"] = round(llega - 0.06, 3)
         b["entra"] = "pop"

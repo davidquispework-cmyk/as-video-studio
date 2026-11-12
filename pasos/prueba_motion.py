@@ -116,6 +116,10 @@ def main():
     # el objeto puente: sale al final de un plano y la pieza siguiente nace de el
     pu = confs["S002"]["puentes"]
     assert any(q["icono"] == "chincheta" for q in pu), pu
+    # nunca una estrella de relleno entre planos (David, 12-nov)
+    todos = [q for c in confs.values() for q in c["puentes"]]
+    assert todos and all(q["icono"] for q in todos), todos
+    assert not any(q["icono"] == "estrella" for q in todos), todos
     mapa_ = next(p for p in confs["S002"]["piezas"] if p["tipo"] == "mapa")
     assert mapa_["entra"] == "pop" and mapa_["desde_puente"]
     # la camara sigue lo importante: hay focos y vuelve a su sitio antes del final

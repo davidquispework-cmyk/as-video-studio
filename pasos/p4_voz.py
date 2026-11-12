@@ -1042,7 +1042,7 @@ def sintetizar_toma(texto, cfg, progreso=None, grabacion=None):
     if cfg.get("motor_voz") == "gratis":
         pcm, duracion, palabras = voz_gratis.toma(
             texto, cfg.get("voz_gratis") or voz_gratis.elegir("", cfg.get("idioma")),
-            cfg.get("velocidad"), SR, avisa)
+            cfg.get("velocidad"), SR, avisa, idioma=cfg.get("idioma"))
         pcm = _con_efecto(pcm, cfg, avisa)
         return motor.wav_desde_pcm(pcm), duracion, palabras
     return _toma_real(texto, cfg, avisa)

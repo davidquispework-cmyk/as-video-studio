@@ -1112,14 +1112,20 @@ final (6). Luego repetir este vídeo de prueba y comparar.
 ### Vídeo de Lázaro (12-nov-2026, «video (6).mp4») — lo que no le gustó a David
 Muñecos (motion), 130 s, vertical. Analizado por fotogramas (el audio no se pudo oír).
 Arreglos propuestos, uno por chat, en este orden:
-1. **Voz de Jesús rara**: `voz_gratis.voz_de_personaje` saca el idioma del id del
+1. **HECHO (12-nov)** — **Voz de Jesús rara**: `voz_gratis.voz_de_personaje` saca el idioma del id del
    narrador; con un narrador MULTILINGÜE (`en-US-BrianMultilingualNeural`) busca
    voces «en» nativas y Jesús lee castellano con acento inglés. Arreglo: idioma del
    GUION, y solo voces nativas de castellano (mismo país si hay).
-2. **La estrella de 5 puntas**: es el icono «puente» por defecto entre planos
+2. **HECHO (12-nov)** — **La estrella de 5 puntas**: es el icono «puente» por defecto entre planos
    (`motion.ICONO_PUENTE`: contador/texto/lamina → «estrella», y el `.get(…, "estrella")`);
    sale sin venir a cuento y a veces encima de una cara. Quitarla (sin icono o uno
    que tenga que ver con la frase).
+   Cómo quedó: `voz_de_personaje(…, idioma=)` usa el idioma del vídeo (p4_voz lo pasa)
+   y nunca elige una multilingüe para un personaje. En `motion.preparar` sin icono
+   que venga a cuento no vuela nada; «cielo» ya no saca estrella; y se arregló que en
+   los escenarios la lista de puentes se desfasaba (metía el puente Y un None) y el
+   objeto aterrizaba sobre la cara de un muñeco. Para verlo: «Regenerar Audio» y
+   volver a montar. Pruebas: `prueba_voz_gratis.py`, `prueba_motion.py`.
 3. **Textos que se pisan o se cortan**: subtítulo encima de iconos/personajes y del
    mapa; «¿Y si hubieras estado?», ««Lázaro ven…»» y «…ulo más corto» cortados por
    el borde; título «Jesús sabía» + caja con la misma frase tapando la cara.

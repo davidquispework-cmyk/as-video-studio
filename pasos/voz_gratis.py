@@ -258,7 +258,7 @@ PAUSA_DESPUES_CLAVE = 0.15
 PAUSA_PERSONAJE = 0.0
 
 
-def voz_de_personaje(nombre, genero, narrador):
+def voz_de_personaje(nombre, genero, narrador, idioma=None):
     """La voz gratuita de un personaje. -> ShortName
 
     ESTABLE: sale del NOMBRE (no del orden en que aparece), asi regrabar un
@@ -267,7 +267,13 @@ def voz_de_personaje(nombre, genero, narrador):
     narrador) y nativa; primero las del mismo pais si hay mas de una.
     """
     narrador = str(narrador or "").strip()
-    idioma = narrador.split("-")[0].lower() or "es"
+    # el idioma es el del GUION: un narrador multilingue («en-US-Brian
+    # Multilingual») leeria castellano, pero su prefijo dice «en» y el personaje
+    # salia con una voz inglesa leyendo castellano (la voz de Jesus, 12-nov)
+    idioma = str(idioma or "").strip().lower().split("-")[0]
+    if not idioma:
+        idioma = ("es" if "Multilingual" in narrador
+                  else narrador.split("-")[0].lower() or "es")
     try:
         catalogo = [f for f in voces(idioma) if f.get("nativa", True)]
     except Exception:                                       # noqa: BLE001
@@ -276,6 +282,7 @@ def voz_de_personaje(nombre, genero, narrador):
     quiere = {"hombre": "male", "mujer": "female"}.get(str(genero or "").lower(),
                                                       (propio or {}).get("genero"))
     candidatas = [f for f in catalogo if f["id"] != narrador
+                  and "Multilingual" not in f["id"]
                   and (not quiere or f.get("genero") == quiere)]
     if not candidatas:
         return narrador
@@ -399,7 +406,7 @@ def _mp3_a_pcm(mp3, sr):
     return proceso.stdout
 
 
-def toma(texto, voz, velocidad=None, sr=44100, avisar=None):
+def toma(texto, voz, velocidad=None, sr=44100, avisar=None, idioma=None):
     """Una toma continua del texto anotado. -> (pcm_s16le, duracion, palabras)
 
     Los tiempos de las palabras son ABSOLUTOS en la toma entera, igual que los
@@ -423,7 +430,8 @@ def toma(texto, voz, velocidad=None, sr=44100, avisar=None):
                 matiz = tuple(a + b for a, b in zip(matiz, CLAVE_PROSODIA))
             rate, pitch, volumen = intencion.prosodia(base, speed, volume, emocion,
                                                       extra=matiz)
-            quien = voz_de_personaje(*personaje, voz) if personaje else voz
+            quien = (voz_de_personaje(*personaje, voz, idioma=idioma)
+                     if personaje else voz)
             async with semaforo:
                 resultado = await _sintetizar_trozo(edge, texto_trozo, quien, rate,
                                                     pitch, volumen)
