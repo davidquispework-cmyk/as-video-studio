@@ -357,6 +357,20 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    Pendiente: oírlo David y ajustar; elegir a mano la voz de cada personaje;
    susurro y entrada fuerte (los otros dos puntos de la comparación).
    Prueba: `pasos/prueba_voz_gratis.py` (`probar_personajes_y_claves`).
+6c. Efecto de voz por vídeo — **HECHO (12-nov)** (lo pidió David para su voz
+   grabada: «más gruesa, misteriosa, y que se pueda variar»). Cómo se usa:
+   pestaña Guion → «🎚 Efecto de voz (solo este vídeo)» (dentro de «🎙 Tu voz»
+   si usas tu grabación, o de «🗣 Voz» con la gratuita): estilo (Natural, Más
+   grave, Gruesa y profunda, Misteriosa, Narrador de cine, Eco de cueva) + tono
+   (+3 … −8 semitonos), «▶ Escuchar» (15 s de la voz del vídeo con el efecto)
+   y «Usar este efecto»; luego «Regenerar Audio». Se aplica DESPUÉS de alinear
+   y sin cambiar la duración (subtítulos y cortes igual). Con Cartesia no.
+   Código: `pasos/efectos_voz.py` (estilos = cadenas de ffmpeg; tono con
+   rubberband si el ffmpeg lo trae) + `p4_voz._con_efecto` + `app._guardar_efecto_voz`
+   y `GET /api/proyectos/{pid}/voz/efecto/muestra` + `efectoVozLight` en
+   `web/app.js`. Guardado en `voz_del_video.efecto`, fuera de firma.
+   Pendiente: oírlo con la grabación de David y afinar los estilos.
+   Prueba: `pasos/prueba_voz_gratis.py` (`probar_efectos`).
 7. Fuerza de la cámara elegible — **HECHO (11-nov)** (lo eligió David entre
    cuatro opciones). Cómo se usa: al crear el vídeo o en «El encargo», debajo
    de «Cámara» (solo con 🎥 Cámara viva) sale «Fuerza del movimiento»:

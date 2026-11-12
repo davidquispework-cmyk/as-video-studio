@@ -39,6 +39,7 @@ import mimetypes
 import os
 import re
 import shutil
+import subprocess
 import sys
 import threading
 import time
@@ -86,6 +87,7 @@ sys.path.insert(0, os.path.join(RAIZ_ESTUDIO, "pasos"))
 import ajustes as AJUSTES  # noqa: E402
 import clips as CLIPS  # noqa: E402
 import voz_propia as VOZ_PROPIA  # noqa: E402
+import efectos_voz as EFECTOS_VOZ  # noqa: E402
 import cli_claude as CLI_CLAUDE  # noqa: E402
 import estadisticas as ESTADISTICAS  # noqa: E402
 
@@ -2045,7 +2047,8 @@ def _voz_del_video_pendiente(ctx):
     """Si hay una voz elegida a mano en el video que aun no se ha grabado."""
     elegida = (ctx.estado.params("voz") or {}).get("voz_del_video")
     return isinstance(elegida, dict) and bool(
-        elegida.get("voz_id") or elegida.get("velocidad") is not None) \
+        elegida.get("voz_id") or elegida.get("velocidad") is not None
+        or "efecto" in elegida) \
         and not elegida.get("grabada")
 
 
@@ -2062,6 +2065,7 @@ def _voz_del_video_grabada(ctx, params_usados):
         if (isinstance(ahora, dict) and isinstance(usada, dict)
                 and ahora.get("voz_id") == usada.get("voz_id")
                 and ahora.get("velocidad") == usada.get("velocidad")
+                and ahora.get("efecto") == usada.get("efecto")
                 and not ahora.get("grabada")):
             ctx.estado.actualizar_params(
                 "voz", {"voz_del_video": dict(ahora, grabada=True)})
@@ -2136,6 +2140,13 @@ def _voz_que_suena(ctx, params):
         "velocidad": velocidad,
         "velocidad_a_mano": bool(p4 is not None and gratis
                                  and p4.velocidad_del_video(params) is not None),
+        # EL EFECTO DE VOZ (mas grave, misteriosa...): con la gratuita o con
+        # tu voz grabada. {estilo, tono} o None
+        "efecto": EFECTOS_VOZ.normalizar(
+            (params.get("voz_del_video") or {}).get("efecto")
+            if isinstance(params.get("voz_del_video"), dict) else None),
+        "efectos": EFECTOS_VOZ.catalogo(),
+        "puede_efecto": bool(gratis or params.get("grabacion")),
     }
 
 
@@ -2166,6 +2177,88 @@ def _ficha_grabacion(ctx):
     }
 
 
+def _guardar_efecto_voz(ctx, crudo):
+    """El efecto de voz de ESTE video ({estilo, tono}; None lo quita).
+
+    Fuera de toda firma, como la voz del video: se oye al «Regenerar Audio» y
+    no deja obsoleta ninguna imagen. Con tu voz grabada o con la gratuita.
+    """
+    if ctx.estado.estado_de("voz") == "ejecutando":
+        raise ErrorApi(409, "la voz se está grabando ahora mismo: espera a que "
+                            "termine para cambiar el efecto")
+    params = ctx.estado.params("voz") or {}
+    if not (PASOS_MODULOS.p4_voz.gratis() or params.get("grabacion")):
+        raise ErrorApi(409, "el efecto de voz es para tu voz grabada o la voz "
+                            "gratuita; con Cartesia no se aplica")
+    efecto = EFECTOS_VOZ.normalizar(crudo) if crudo else None
+    if crudo and isinstance(crudo, dict) and str(crudo.get("estilo") or "") \
+            not in EFECTOS_VOZ.ESTILOS:
+        raise ErrorApi(400, f"estilo de voz desconocido: {crudo.get('estilo')!r}")
+    antes = params.get("voz_del_video") if isinstance(
+        params.get("voz_del_video"), dict) else {}
+    nueva = dict(antes)
+    if efecto:
+        nueva["efecto"] = efecto
+    else:
+        nueva.pop("efecto", None)
+    if nueva.get("efecto") != antes.get("efecto"):
+        nueva["grabada"] = False
+    if not (nueva.get("voz_id") or nueva.get("velocidad") is not None
+            or "efecto" in nueva):
+        params.pop("voz_del_video", None)
+        ctx.estado.set_params("voz", params)
+    else:
+        ctx.estado.actualizar_params("voz", {"voz_del_video": nueva})
+    ctx.bitacora.anotar("efecto_voz", "voz", {"efecto": efecto})
+    return {"voz": _voz_que_suena(ctx, ctx.estado.params("voz") or {})}
+
+
+@app.get("/api/proyectos/{pid}/voz/efecto/muestra")
+def muestra_efecto_voz(pid: str, estilo: str = Query(default="natural"),
+                       tono: str = Query(default="")):
+    """Unos segundos de la voz de ESTE video con un efecto, para oirlo antes
+    de regrabar. Sale de tu grabacion si la hay, si no del audio ya grabado del
+    video, y si no de una muestra de la voz gratuita. No guarda nada en el
+    video: es un fichero aparte que se rehace en cada peticion."""
+    ctx = contexto(pid)
+    if estilo not in EFECTOS_VOZ.ESTILOS:
+        raise ErrorApi(400, f"estilo de voz desconocido: {estilo!r}")
+    efecto = EFECTOS_VOZ.normalizar({"estilo": estilo, "tono": tono or None})
+    sr = 44100
+    origen = VOZ_PROPIA.ruta(ctx.proyecto.raiz)
+    if not os.path.isfile(origen):
+        origen = ""
+        try:
+            carpeta = PASOS_MODULOS.comun.carpeta_activa(ctx.proyecto, "voz")
+            nombre = (ctx.estado.salidas("voz") or {}).get("archivo") or "narracion.wav"
+            if carpeta and os.path.isfile(os.path.join(carpeta, nombre)):
+                origen = os.path.join(carpeta, nombre)
+        except Exception:  # noqa: BLE001
+            origen = ""
+    if not origen:
+        raise ErrorApi(409, "este vídeo aún no tiene voz: graba el audio (o sube "
+                            "tu grabación) y luego prueba los efectos")
+    destino_dir = os.path.join(ctx.proyecto.raiz, "cache")
+    os.makedirs(destino_dir, exist_ok=True)
+    destino = os.path.join(destino_dir, "muestra_efecto_voz.mp3")
+    try:
+        crudo = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-loglevel", "error", "-ss", "0", "-t", "15",
+             "-i", origen, "-ac", "1", "-ar", str(sr), "-f", "s16le", "pipe:1"],
+            capture_output=True, timeout=120).stdout
+        pcm = EFECTOS_VOZ.aplicar(crudo, sr, efecto) if efecto else crudo
+        proceso = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "s16le",
+             "-ar", str(sr), "-ac", "1", "-i", "pipe:0", "-b:a", "96k", destino],
+            input=pcm, capture_output=True, timeout=120)
+        if proceso.returncode != 0:
+            raise RuntimeError(proceso.stderr.decode("utf-8", "replace")[:300])
+    except Exception as fallo:  # noqa: BLE001
+        raise ErrorApi(502, f"no se ha podido preparar la muestra: {fallo}")
+    return FileResponse(destino, media_type="audio/mpeg",
+                        headers={"Cache-Control": "no-store"})
+
+
 @app.put("/api/proyectos/{pid}/voz/del-video")
 def elegir_voz_del_video(pid: str, cuerpo: dict = Body(default=None)):
     """Elige la voz gratuita de ESTE video, a mano (pantalla del guion).
@@ -2181,6 +2274,8 @@ def elegir_voz_del_video(pid: str, cuerpo: dict = Body(default=None)):
         raise ErrorApi(503, f"los pasos no se han podido cargar: {ERROR_PASOS}")
     datos = _cuerpo(cuerpo)
     voz = str(datos.get("voz") or "").strip()
+    if "efecto" in datos:
+        return _guardar_efecto_voz(ctx, datos.get("efecto"))
     if not PASOS_MODULOS.p4_voz.gratis():
         raise ErrorApi(409, "esto es para la voz gratuita: en Configuración → Voz "
                             "está puesta Cartesia")

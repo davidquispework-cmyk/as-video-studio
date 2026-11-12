@@ -80,6 +80,7 @@ try:
     from . import ajustes as ajustes_estudio
     from . import voz_gratis
     from . import voz_propia
+    from . import efectos_voz
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
     import cli_claude
     import comun
@@ -91,6 +92,7 @@ except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
     import ajustes as ajustes_estudio
     import voz_gratis
     import voz_propia  # type: ignore
+    import efectos_voz  # type: ignore
 
 PASO = "voz"
 RAIZ_ESTUDIO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -411,6 +413,12 @@ def resolver_params(params):
     }
     if grabacion:
         cfg["grabacion"] = grabacion
+    # EL EFECTO DE VOZ del video (mas grave, misteriosa...): con tu voz
+    # grabada o con la gratuita, nunca con Cartesia. Fuera de toda firma, como
+    # la voz del video (ver `efecto_del_video`).
+    efecto = efecto_del_video(crudos)
+    if efecto and motor_voz in ("propia", "gratis"):
+        cfg["efecto_voz"] = efecto
     return cfg
 
 
@@ -427,6 +435,18 @@ def voz_del_video(params):
     voz = str((elegida or {}).get("voz_id") or "").strip() if isinstance(
         elegida, dict) else ""
     return voz if voz_gratis.es_voz_gratis(voz) else ""
+
+
+def efecto_del_video(params):
+    """El efecto de voz elegido para este video ({estilo, tono}) o None.
+
+    Va en `params["voz_del_video"]["efecto"]`, fuera de toda firma: cambiarlo
+    solo pide «Regenerar Audio». Se aplica a la toma ya alineada y sin cambiar
+    su duracion (`efectos_voz.aplicar`)."""
+    elegida = (params or {}).get("voz_del_video")
+    if not isinstance(elegida, dict):
+        return None
+    return efectos_voz.normalizar(elegida.get("efecto"))
 
 
 def velocidad_del_video(params):
@@ -1012,6 +1032,9 @@ def sintetizar_toma(texto, cfg, progreso=None, grabacion=None):
                                "encuentro la grabacion: vuelve a subirla")
         pcm, duracion, palabras = voz_propia.toma(
             grabacion, marcas_tts.limpiar(texto), SR, avisa)
+        # el efecto va DESPUES de alinear: se busca cada palabra en tu voz
+        # limpia, y el efecto no cambia la duracion
+        pcm = _con_efecto(pcm, cfg, avisa)
         return motor.wav_desde_pcm(pcm), duracion, palabras
     if simulado():
         avisa(0.5, "simulando toma")
@@ -1020,8 +1043,19 @@ def sintetizar_toma(texto, cfg, progreso=None, grabacion=None):
         pcm, duracion, palabras = voz_gratis.toma(
             texto, cfg.get("voz_gratis") or voz_gratis.elegir("", cfg.get("idioma")),
             cfg.get("velocidad"), SR, avisa)
+        pcm = _con_efecto(pcm, cfg, avisa)
         return motor.wav_desde_pcm(pcm), duracion, palabras
     return _toma_real(texto, cfg, avisa)
+
+
+def _con_efecto(pcm, cfg, avisa):
+    """La toma con el efecto de voz del video, si lo hay (misma longitud)."""
+    efecto = (cfg or {}).get("efecto_voz")
+    if not efecto:
+        return pcm
+    avisa(0.96, f"poniendo el efecto de voz ({efecto['estilo']}, "
+                f"{efecto['tono']:+d} semitonos)")
+    return efectos_voz.aplicar(pcm, SR, efecto)
 
 
 def _reparto(bloques, palabras):

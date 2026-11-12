@@ -289,6 +289,42 @@ def probar_personajes_y_claves():
         voz_gratis.voces = antes
 
 
+def probar_efectos():
+    """El efecto de voz del video (pasos/efectos_voz.py)."""
+    import numpy as np  # noqa: PLC0415
+    import efectos_voz  # noqa: PLC0415
+    print("\n  EL EFECTO DE VOZ (mas grave, misteriosa...)")
+    igual(efectos_voz.normalizar({"estilo": "natural"}), None, "natural sin tono: sin efecto")
+    igual(efectos_voz.normalizar({"estilo": "misteriosa"}),
+          {"estilo": "misteriosa", "tono": -4}, "cada estilo trae su tono")
+    igual(efectos_voz.normalizar({"estilo": "grave", "tono": -30})["tono"], -8,
+          "el tono se acota")
+    igual(efectos_voz.normalizar({"estilo": "inventado"}), None, "un estilo que no existe, nada")
+    sr = 44100
+    t = np.arange(int(sr * 3)) / sr
+    tono = (0.3 * np.sin(2 * np.pi * 220 * t) * 32767).astype(np.int16).tobytes()
+    for estilo in efectos_voz.ESTILOS:
+        if estilo == "natural":
+            continue
+        salida = efectos_voz.aplicar(tono, sr, {"estilo": estilo})
+        igual(len(salida), len(tono), f"«{estilo}» no cambia la duracion ni una muestra")
+    grave = np.frombuffer(efectos_voz.aplicar(tono, sr, {"estilo": "grave", "tono": -8}),
+                          dtype=np.int16).astype(np.float32)
+    pico = np.argmax(np.abs(np.fft.rfft(grave[sr // 2: sr * 2]))) * sr / (sr * 1.5)
+    ok(132 < pico < 146, f"8 semitonos mas grave: 220 Hz -> {pico:.0f} Hz (139)")
+
+    ajustes.guardar({"modo_voz": "gratis"})
+    con = {"voz_id": "es-PE-AlexNeural", "idioma": "es",
+           "voz_del_video": {"efecto": {"estilo": "cine", "tono": -4}}}
+    igual(p4_voz.resolver_params(con).get("efecto_voz"), {"estilo": "cine", "tono": -4},
+          "con la voz gratuita el efecto va en la configuracion")
+    igual(p4_voz.resolver_params(dict(con, grabacion="abc")).get("efecto_voz"),
+          {"estilo": "cine", "tono": -4}, "y con tu voz grabada")
+    ajustes.guardar({"modo_voz": "cartesia"})
+    igual(p4_voz.resolver_params(con).get("efecto_voz"), None, "con Cartesia, no")
+    ajustes.guardar({"modo_voz": "gratis"})
+
+
 def probar_paso():
     print("\n  EL PASO DE VOZ ENTERO")
     ajustes.guardar({"modo_voz": "gratis", "voz_gratis": "es-PE-CamilaNeural"})
@@ -470,6 +506,18 @@ def probar_voz_del_video():
     app._voz_del_video_grabada(ctx, ctx.estado.params("voz"))
     ok(not app._voz_del_video_pendiente(ctx), "grabada, deja de estar pendiente")
 
+    print("\n  EL EFECTO DE VOZ DEL VIDEO, POR LA API")
+    app._guardar_efecto_voz(ctx, {"estilo": "misteriosa", "tono": -5})
+    igual({p: ctx.estado.firma(p) for p in firmas}, firmas,
+          "poner un efecto no mueve ninguna firma")
+    ok(app._voz_del_video_pendiente(ctx), "y deja la voz pendiente de grabar")
+    ficha = app._voz_que_suena(ctx, ctx.estado.params("voz"))
+    igual((ficha["efecto"], ficha["puede_efecto"]),
+          ({"estilo": "misteriosa", "tono": -5}, True), "la pantalla lo ve")
+    app._guardar_efecto_voz(ctx, None)
+    igual(app._voz_que_suena(ctx, ctx.estado.params("voz"))["efecto"], None,
+          "quitarlo lo quita")
+
 
 def main():
     print("=" * 70)
@@ -485,6 +533,7 @@ def main():
     probar_voz_del_video()
     probar_toma()
     probar_personajes_y_claves()
+    probar_efectos()
     probar_paso()
     print()
     print("=" * 70)

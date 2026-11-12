@@ -2636,3 +2636,6 @@ button.avisa:hover:not(:disabled) { border-color: var(--aviso); }
 
 /* Voz de personaje y frase clave en la cabecera de un bloque del guion */
 .pastilla.marca-voz { margin-left: 6px; }
+
+/* El efecto de voz de un vídeo (más grave, misteriosa…) */
+.efecto-voz { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--linea); }

@@ -8432,7 +8432,10 @@ async function elegirVozDelVideoLight(voz, cambios) {
     const r = await pedir(`${API.proyecto(v.pid)}/voz/del-video`,
       { method: 'PUT', cuerpo: cambios || { voz } });
     if (GRABACION.datos && GRABACION.pid === v.pid) GRABACION.datos.voz = r.voz;
-    toast(cambios ? `Velocidad: ${textoVelocidad(r.voz.velocidad)}. Pulsa «Regenerar Audio» `
+    toast(cambios && 'efecto' in cambios
+      ? (r.voz.efecto ? 'Efecto de voz puesto. ' : 'Efecto de voz quitado. ')
+        + 'Pulsa «Regenerar Audio» para oírlo: no toca las imágenes.'
+      : cambios ? `Velocidad: ${textoVelocidad(r.voz.velocidad)}. Pulsa «Regenerar Audio» `
       + 'para oírla: no toca las imágenes.'
       : voz ? `Voz cambiada a ${r.voz.nombre} en este vídeo. Pulsa «Regenerar Audio» `
       + 'para oírla: no toca las imágenes.'
@@ -8452,6 +8455,71 @@ function textoVelocidad(pct) {
   const n = Number(pct) || 0;
   return n === 0 ? 'normal' : `${n > 0 ? '+' : '−'}${Math.abs(n)} %`
     + (n > 0 ? ' más rápida' : ' más lenta');
+}
+
+/* EL EFECTO DE VOZ del vídeo (`pasos/efectos_voz.py`): más grave, gruesa,
+   misteriosa, de cine… con tu voz grabada o con la gratuita. Se elige estilo y
+   tono, se ESCUCHA antes (15 s de la voz de este vídeo con el efecto) y se
+   aplica con «Regenerar Audio»: no cambia la duración ni toca las imágenes. */
+const EFECTO_VOZ = { estilo: null, tono: null, sonando: false };
+let REPRODUCTOR_EFECTO = null;
+
+function escucharEfectoLight(estilo, tono) {
+  const v = APP.light.video;
+  if (REPRODUCTOR_EFECTO) { REPRODUCTOR_EFECTO.pause(); REPRODUCTOR_EFECTO = null; }
+  if (EFECTO_VOZ.sonando) { EFECTO_VOZ.sonando = false; pintarLight(); return; }
+  EFECTO_VOZ.sonando = true;
+  REPRODUCTOR_EFECTO = new Audio(`${API.proyecto(v.pid)}/voz/efecto/muestra`
+    + `?estilo=${encodeURIComponent(estilo)}&tono=${encodeURIComponent(tono)}&t=${Date.now()}`);
+  const parar = () => { EFECTO_VOZ.sonando = false; pintarLight(); };
+  REPRODUCTOR_EFECTO.addEventListener('ended', parar);
+  REPRODUCTOR_EFECTO.addEventListener('error', () => {
+    toast('No se ha podido preparar la muestra (¿el vídeo ya tiene voz?)', true); parar();
+  });
+  REPRODUCTOR_EFECTO.play().catch(() => {});
+  pintarLight();
+}
+
+function efectoVozLight(voz) {
+  if (!voz || !voz.puede_efecto) return null;
+  const lista = voz.efectos || [];
+  const puesto = voz.efecto || { estilo: 'natural', tono: 0 };
+  // lo que se está mirando: lo elegido en la lista, o lo guardado
+  const estilo = EFECTO_VOZ.estilo || puesto.estilo;
+  const ficha = lista.find(e => e.id === estilo) || lista[0] || { tono: 0 };
+  const tono = EFECTO_VOZ.tono !== null ? EFECTO_VOZ.tono
+    : (estilo === puesto.estilo ? puesto.tono : ficha.tono);
+  const cambiado = estilo !== puesto.estilo || tono !== puesto.tono;
+  const caja = h('div', { clase: 'efecto-voz' },
+    h('div', { clase: 'meta voz-cambiar-titulo' }, '🎚 Efecto de voz (solo este vídeo):'));
+  const selEstilo = h('select', {
+    onchange: ev => {
+      EFECTO_VOZ.estilo = ev.target.value;
+      EFECTO_VOZ.tono = (lista.find(e => e.id === ev.target.value) || {}).tono || 0;
+      pintarLight();
+    },
+  }, ...lista.map(e => h('option', { value: e.id, selected: e.id === estilo }, e.nombre)));
+  const tonos = [];
+  for (let n = 3; n >= -8; n--) tonos.push(n);
+  const selTono = h('select', {
+    onchange: ev => { EFECTO_VOZ.estilo = estilo; EFECTO_VOZ.tono = Number(ev.target.value); pintarLight(); },
+  }, ...tonos.map(n => h('option', { value: String(n), selected: n === tono },
+    n === 0 ? 'Tono normal' : `${n > 0 ? '+' : '−'}${Math.abs(n)} ${n < 0 ? '(más grave)' : '(más agudo)'}`)));
+  caja.appendChild(h('div', { clase: 'fila-clave' }, selEstilo, selTono,
+    h('button', { clase: 'mini', onclick: () => escucharEfectoLight(estilo, tono) },
+      EFECTO_VOZ.sonando ? '❚❚ Parar' : '▶ Escuchar'),
+    h('button', {
+      clase: 'mini primario', disabled: !cambiado || VOCES_VIDEO.guardando || !!trabajoVideoLight(),
+      onclick: async () => {
+        await elegirVozDelVideoLight(null, {
+          efecto: estilo === 'natural' && tono === 0 ? null : { estilo, tono } });
+        EFECTO_VOZ.estilo = null; EFECTO_VOZ.tono = null;
+      },
+    }, 'Usar este efecto')));
+  caja.appendChild(h('div', { clase: 'meta' }, (ficha.descripcion || '')
+    + '. «▶ Escuchar» pone 15 s de la voz de este vídeo con el efecto; '
+    + 'no cambia nada hasta que pulses «Usar este efecto».'));
+  return caja;
 }
 
 const ORIGEN_VOZ = {
@@ -8530,6 +8598,8 @@ function vozElegidaLight() {
   caja.appendChild(h('div', { clase: 'meta' },
     'Más rápida = la voz dura menos, y el vídeo también. «▶ Escuchar» la '
     + 'pone a esta velocidad.'));
+  const efecto = efectoVozLight(voz);
+  if (efecto) caja.appendChild(efecto);
   return caja;
 }
 
@@ -8564,6 +8634,16 @@ function vozPropiaLight() {
   if (d.hay) {
     caja.appendChild(h('audio', { controls: true, preload: 'none',
       src: `${API.proyecto(v.pid)}/voz/grabacion/audio?h=${Math.round(d.duracion * 10)}` }));
+  }
+  /* El efecto de voz (más grave, misteriosa…), aquí cuando el vídeo usa TU
+     voz: el recuadro «🗣 Voz» no sale en ese caso. */
+  if (d.en_uso && d.voz) {
+    if (d.voz.pendiente) {
+      caja.appendChild(h('div', { clase: 'pista' },
+        'El efecto nuevo aún no suena: pulsa «Regenerar Audio». Solo se rehace la voz.'));
+    }
+    const efecto = efectoVozLight(d.voz);
+    if (efecto) caja.appendChild(efecto);
   }
   return caja;
 }
