@@ -100,6 +100,17 @@ Leer antes NOTAS-DAVID.md (punto G y etapa 1 «Muñecos que gesticulan») y segu
   reloj > lista > barras > contador > lámina (+ muñecos delante) o muñecos grandes.
 - Opciones del param: `storyboard: "claude"`, `munecos: false`, `sonidos: false`.
 
+## Escenarios (P3, 12-nov-2026) — `pasos/escenarios.py`
+- Pieza `escenario` (va PRIMERA: detrás de todo; `fondo: true` = no aterriza, no
+  reacciona, no recibe el objeto puente). SVG hecho en Python (determinista por
+  semilla), animado por clases en `ESCENARIO_JS` (`esc-nube`, `esc-ola`,
+  `esc-barca`, `esc-mece`, `esc-estrella`, `esc-halo`, `esc-rayos`).
+- Bordes fundidos con dos máscaras lineales (no radial: se comía las esquinas);
+  ocupa 1,3 W × 1,5 H porque la cámara se acerca y sube a las caras.
+- Efectos Lottie generados en `lottie_de` (fuego, humo, luz) dentro de un
+  `foreignObject`; `motion.js_de(conf)` mete lottie-web solo si hacen falta.
+  Siempre `goToAndStop(fotograma)`: nunca reloj.
+
 ## Lo siguiente
 Ver/corregir el storyboard de Claude desde la pantalla; estilo PALITOS; que un
 muñeco camine de una parada a otra; más metáforas animadas (cadena que se rompe).

@@ -532,7 +532,7 @@ def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
             .replace("__RT__", rt_json or "null")
             .replace("__MGCSS__", mg_css)
             .replace("__MGHTML__", mg_html)
-            .replace("__MGJS__", motion.MOTION_JS if mg else "")
+            .replace("__MGJS__", motion.js_de(mg))
             .replace("__MG__", mg_json or "null")
             .replace("__CAMJS__", camara.CAMARA_JS if cam else "")
             .replace("__CAM__", json.dumps(cam) if cam else "null")

@@ -415,7 +415,7 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    Pendiente: elegir la palabra tachada/resaltada a mano desde la pantalla
    (hoy se puede forzando `~~palabra~~` y `*palabra*` en el texto).
 10. **SIGUIENTE: el plan «NIVEL PROFESIONAL» (12-nov)** — ver la sección del
-   mismo nombre más abajo; P1 y P2 HECHOS (12-nov); siguiente, P3. (Siguen sobre la mesa, para
+   mismo nombre más abajo; P1, P2 y P3 HECHOS (12-nov); siguiente, P4. (Siguen sobre la mesa, para
    después: grabar tu voz desde la propia página; afinar la tabla de voces.)
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
@@ -736,7 +736,7 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Pendiente: ~~más formas de «lo falso → lo verdadero»~~ (HECHO 11-nov, punto 9
    del orden nuevo); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1 y P2 HECHOS; ahora P3).
+Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1, P2 y P3 HECHOS; ahora P4).
 
 ## NIVEL PROFESIONAL (decidido 12-nov-2026) — manda sobre el punto 10 del ORDEN NUEVO
 David quiere que sus vídeos queden AL MISMO NIVEL que los de referencia, no «parecidos
@@ -838,6 +838,32 @@ del VPS no debe depender de internet; anotar licencia de cada cosa en un LICENCI
 - P3. Calidad de dibujo: biblioteca de escenarios y objetos vectoriales con luz,
   sombras y capas (mar, desierto, ciudad amurallada, torre, templo, barca, trono…)
   y muñecos mejores; fuego/humo/luz con Lottie.
+  **HECHO (12-nov-2026)**: `pasos/escenarios.py`, pieza nueva `escenario` del motion
+  graphics (va DETRÁS de todo). Ocho sitios dibujados por código: **mar** (olas por
+  capas, reflejo del sol, barca que se mece, orilla), **desierto** (dunas con cara
+  al sol y cara en sombra, palmeras, tienda), **ciudad** amurallada (almenas, torres,
+  puerta en arco, casas detrás), **torre** (zigurat de Babel), **templo** (fachada
+  con columnas y remate de oro, escalinata, altar), **trono** (sala del palacio:
+  columnas con volumen, cortinas, alfombra, haz de luz de la ventana), **monte**
+  (camino en zigzag, luz y nube en la cumbre) y **campo** (colinas, olivo, pozo,
+  ovejas). Tres horas: día, atardecer y noche (cielo, sol/luna con halo, estrellas,
+  ventanas encendidas, color de toda la escena). Cada objeto con su sombra hacia el
+  lado contrario al sol y borde de luz. Se mueve: nubes, olas, barca, palmeras,
+  estrellas, halos. **Fuego, humo y luz** con Lottie (lottie-web MIT dentro del repo,
+  `motores/js/lottie_light.min.js`; las animaciones las genera el módulo, sin
+  licencias de nadie). **Muñecos**: túnica y cara con volumen (sombra y brillo).
+  Cómo sale SOLO: plano con motion, SIN imagen y sin otra cosa que explicar (mapa,
+  versículo...), si la narración nombra el sitio («barca», «mar» → mar; «muralla»
+  → ciudad; «rey», «trono» → trono; «altar», «templo» → templo; «noche» → de noche;
+  «fuego», «zarza» → fuego; «humo», «incienso» → humo; «gloria», «ángel» → luz).
+  Con imagen del plano NO sale (manda la imagen pagada), salvo a mano.
+  A mano: en `plan.json`, escena `"escenario": "mar"` o `{"nombre": "templo",
+  "hora": "noche", "efectos": ["fuego", "humo"]}`, o `"escenario": false`; en un
+  storyboard `{"tipo": "escenario", ...}` (Claude ya lo conoce). Apagar en todo el
+  vídeo: param `motion: {"escenarios": false}`. No toca firmas: basta «Regenerar
+  Vídeo». Prueba: `pasos/prueba_escenarios.py` (`--ver CARPETA` pinta los ocho).
+  Falta: verlo en un vídeo real con la referencia al lado; más objetos (camello,
+  cruz, mesa) y que el muñeco camine por el escenario; aún sin botón en pantalla.
 - P4. Siluetas a contraluz con borde luminoso (estilo Lázaro) sobre imágenes de
   Gemini: rembg ya recorta; añadir el brillo y los haces.
 - P5. Modo «editorial» (estilo Resumario): texto grande centrado a lo largo del

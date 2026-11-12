@@ -468,6 +468,9 @@ function hazFigura(f, padre, k){
   mk('path', {d: 'M-12,-55 C-6,-58 6,-58 12,-55 L21,-7 C8,-3 -8,-3 -21,-7Z', fill: f.tunica, stroke: T0, 'stroke-width': sw, 'stroke-linejoin': 'round'}, tronco);
   mk('path', {d: 'M-12,-55 L-4,-56.5 L19,-17 L20.5,-8 L14,-7.5Z', fill: f.manto, stroke: T0, 'stroke-width': 1.6, 'stroke-linejoin': 'round'}, tronco);
   mk('path', {d: 'M-15.5,-31 Q0,-28 15.5,-31', fill: 'none', stroke: T0, 'stroke-width': 2, opacity: .45}, tronco);
+  // VOLUMEN (P3): la tunica con su lado en sombra y un brillo del lado de la luz
+  mk('path', {d: 'M5,-56.6 C9,-56.8 11,-56 12,-55 L21,-7 C17,-5.6 13,-5 9,-4.6 C12,-20 10,-40 5,-56.6Z', fill: '#000', opacity: .14}, tronco);
+  mk('path', {d: 'M-9,-53 C-12,-40 -15,-22 -17,-9', fill: 'none', stroke: '#fff', 'stroke-width': 2.4, 'stroke-linecap': 'round', opacity: .22}, tronco);
   const brazo = s => {
     const e = mk('g', {}, tronco);
     const fondo = mk('path', {fill: 'none', stroke: T0, 'stroke-width': 8.6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round'}, e);
@@ -480,6 +483,9 @@ function hazFigura(f, padre, k){
   const cabeza = mk('g', {}, cuerpo);
   if (f.mujer) mk('path', {d: 'M-25,22 C-31,-31 31,-31 25,22 L19,22 C22,-9 -22,-9 -19,22Z', fill: f.manto, stroke: T0, 'stroke-width': sw}, cabeza);
   mk('circle', {r: 21, fill: f.piel, stroke: T0, 'stroke-width': sw}, cabeza);
+  // la cara con volumen: media luna de sombra y un brillo en la frente
+  mk('path', {d: 'M6,-20 A21,21 0 0 1 6,20 A26,26 0 0 0 6,-20Z', fill: '#000', opacity: .12}, cabeza);
+  mk('ellipse', {cx: -9, cy: -11, rx: 5, ry: 3.2, fill: '#fff', opacity: .28, transform: 'rotate(-30,-9,-11)'}, cabeza);
   if (!f.mujer) mk('path', {d: 'M-21,-3 C-23,-27 23,-27 21,-3 C15,-13 -15,-13 -21,-3Z', fill: f.pelo, stroke: T0, 'stroke-width': 1.6}, cabeza);
   else mk('path', {d: 'M-20,-6 C-18,-24 18,-24 20,-6 C12,-15 -12,-15 -20,-6Z', fill: f.manto, stroke: T0, 'stroke-width': 1.6}, cabeza);
   if (f.barba) mk('path', {d: 'M-17,3 C-16,27 16,27 17,3 C10,11 -10,11 -17,3Z', fill: f.pelo, stroke: T0, 'stroke-width': 1.5}, cabeza);

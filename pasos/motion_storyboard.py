@@ -87,6 +87,9 @@ CATALOGO = """PIEZAS (coordenadas en FRACCIONES del cuadro: x 0=izquierda 1=dere
 - {"tipo":"lista","items":["Orar","Leer","Servir"],"en":"orar"}
 - {"tipo":"contador","n":5000,"cosa":"hombres","en":"cinco"}
 - {"tipo":"lamina","x":.5,"y":.37}   la imagen del plano enmarcada (solo si el plano tiene imagen).
+- {"tipo":"escenario","nombre":"mar","hora":"noche","efectos":["fuego"]}   el SITIO, de fondo, detrás de todo
+  (ponlo PRIMERO). nombre: mar, desierto, ciudad, torre, templo, trono, monte, campo; hora: dia, atardecer,
+  noche; efectos (opcional): fuego, humo, luz. Úsalo con personajes cuando el plano no tiene imagen.
 ICONOS: {iconos}"""
 
 

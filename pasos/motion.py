@@ -50,8 +50,9 @@ try:
     import citas
     import fidelidad
     import motion_mas
+    import escenarios
 except ImportError:  # importado como paquete (pasos.motion)
-    from . import citas, fidelidad, motion_mas
+    from . import citas, fidelidad, motion_mas, escenarios
 
 TEMAS = {
     # DISEÑO PROPIO: papel claro con tinta índigo (no negra) y acentos vivos
@@ -69,7 +70,7 @@ FUENTES = {"titulo": "Shaddai Montserrat", "verso": "Shaddai Playfair"}
 TIPOS = ("versiculo", "reloj", "mapa", "linea", "lamina", "texto", "icono",
          "contador", "comparacion", "lista",
          # segunda parte (pasos/motion_mas.py)
-         "barras", "antes", "arbol", "flecha", "circulo", "personajes")
+         "barras", "antes", "arbol", "flecha", "circulo", "personajes", "escenario")
 ENTRADAS = ("abajo", "arriba", "izquierda", "derecha", "pop", "nada")
 ICONOS = ("cruz", "corazon", "biblia", "moneda", "celular", "corona", "paloma",
           "casa", "vela", "estrella", "pan", "cadena", "pergamino", "reloj",
@@ -975,7 +976,7 @@ def _lamina(escena, voz, lamina, W, H, cx, cy):
 
 
 def storyboard(escena, ancho, alto, lamina=None, laminas=True, hoy=None,
-               mapeados=None, fichas=None, munecos=True, claude=None):
+               mapeados=None, fichas=None, munecos=True, claude=None, fondos=True):
     """Las piezas de UN plano en coordenadas del cuadro (px, origen arriba a la
     izquierda) y tiempos del video. -> [pieza]
 
@@ -998,7 +999,7 @@ def storyboard(escena, ancho, alto, lamina=None, laminas=True, hoy=None,
         for x in claude:
             if isinstance(x, dict) and x.get("tipo") == "auto":
                 piezas += _automatico(escena, voz, W, H, lamina, laminas, hoy,
-                                      mapeados, fichas, munecos)
+                                      mapeados, fichas, munecos, fondos)
             else:
                 q = _normalizar(x, voz, W, H, ctx)
                 if q:
@@ -1006,10 +1007,11 @@ def storyboard(escena, ancho, alto, lamina=None, laminas=True, hoy=None,
         if piezas:
             return piezas
     return _automatico(escena, voz, W, H, lamina, laminas, hoy, mapeados, fichas,
-                       munecos)
+                       munecos, fondos)
 
 
-def _automatico(escena, voz, W, H, lamina, laminas, hoy, mapeados, fichas, munecos):
+def _automatico(escena, voz, W, H, lamina, laminas, hoy, mapeados, fichas, munecos,
+                fondos=True):
     """Lo que el estudio pone solo (gratis, sin Claude) en un plano."""
     vertical = H > W
     cx = W / 2
@@ -1119,6 +1121,15 @@ def _automatico(escena, voz, W, H, lamina, laminas, hoy, mapeados, fichas, munec
                            "entra": "arriba" if n % 2 == 0 else "abajo"})
         if figs:
             piezas.append(figs)
+        # EL ESCENARIO (pasos/escenarios.py, P3): el sitio donde pasa, detras
+        # de todo. Solo sin lamina (la imagen pagada manda), salvo que el
+        # plano lo pida a mano en plan.json
+        esc = escenarios.de_la_escena(escena) if fondos else None
+        a_mano = escena.get("escenario") not in (None, False)
+        if esc and (a_mano or not (lamina and laminas)):
+            pies = figs["y"] if figs and not (lamina and laminas) else None
+            piezas.insert(0, escenarios.pieza(esc["nombre"], esc["hora"], esc["efectos"],
+                                              W, H, voz.t_in, suelo_px=pies))
     return piezas
 
 
@@ -1206,6 +1217,14 @@ def _normalizar_de_verdad(pieza, voz, W, H, ctx):
         if pieza.get("entra") in ENTRADAS:
             q["entra"] = pieza["entra"]
         return q
+    if t == "escenario":
+        auto = escenarios.escenario_de((ctx.get("escena") or {}).get("narracion") or "") or {}
+        efectos = p.get("efectos") if "efectos" in p else auto.get("efectos", [])
+        if isinstance(efectos, str):
+            efectos = [efectos]
+        return escenarios.pieza(p.get("nombre") or auto.get("nombre") or "campo",
+                                p.get("hora") or auto.get("hora") or "dia", efectos,
+                                W, H, p["en"] if pieza.get("en") is not None else voz.t_in)
     if t == "personajes":
         nombres = p.get("nombres") or ctx.get("personajes") or []
         if isinstance(nombres, str):
@@ -1543,6 +1562,8 @@ def impactos_de(pz):
     """Cuando una pieza «aterriza»: la camara da un golpecito y las vecinas
     reaccionan (movimientos encadenados)."""
     t = pz["tipo"]
+    if pz.get("fondo"):
+        return []          # el escenario no «aterriza»: esta ahi
     sale = {"abajo": 0.2, "arriba": 0.2, "izquierda": 0.2, "derecha": 0.2}.get(
         pz.get("entra"), 0.12)
     fuerza = {"icono": 0.5, "lamina": 0.8, "texto": 0.7, "personajes": 0.6,
@@ -1585,6 +1606,7 @@ def preparar(escenas, p, laminas_px, ancho, alto, hoy=None, fichas=None, claude=
     opciones = _opciones(p)
     laminas = opciones.get("laminas", True) is not False
     munecos = opciones.get("munecos", True) is not False
+    fondos = opciones.get("escenarios", True) is not False
     W, H = float(ancho), float(alto)
     puntos = paradas(len(escenas), W, H)
     tramos = camara(escenas, puntos)
@@ -1593,7 +1615,7 @@ def preparar(escenas, p, laminas_px, ancho, alto, hoy=None, fichas=None, claude=
         ox, oy = puntos[i][0] - W / 2, puntos[i][1] - H / 2
         piezas = storyboard(e, W, H, (laminas_px or {}).get(e.get("id")),
                             laminas=laminas, hoy=hoy, mapeados=mapeados,
-                            fichas=fichas, munecos=munecos,
+                            fichas=fichas, munecos=munecos, fondos=fondos,
                             claude=(claude or {}).get(e.get("id")))
         for pz in piezas:
             pz["x"] = round(float(pz.get("x", W / 2)) + ox, 1)
@@ -1614,7 +1636,8 @@ def preparar(escenas, p, laminas_px, ancho, alto, hoy=None, fichas=None, claude=
         if not por_plano[i] or not por_plano[i + 1]:
             puentes.append(None)
             continue
-        principal = (lambda ps: next((q for q in ps if q["tipo"] not in SUPERPUESTAS), ps[0]))
+        principal = (lambda ps: next((q for q in ps if q["tipo"] not in SUPERPUESTAS
+                                      and not q.get("fondo")), ps[0]))
         a, b = principal(por_plano[i]), principal(por_plano[i + 1])
         viaje = tramos[2 * (i + 1)]
         t_out = float(escenas[i]["t_out"])
@@ -1630,6 +1653,9 @@ def preparar(escenas, p, laminas_px, ancho, alto, hoy=None, fichas=None, claude=
                         "vuela": round(float(escenas[i + 1]["t_in"]), 3),
                         "llega": round(llega, 3), "icono": icono,
                         "tam": round(W * (0.16 if H > W else 0.09), 1)})
+        if b.get("fondo") or a.get("fondo"):
+            puentes.append(None)      # un escenario solo: nada que llevar ni que estalle
+            continue
         if b["en"] < llega - 0.06:
             b["en"] = round(llega - 0.06, 3)
         b["entra"] = "pop"
@@ -2572,7 +2598,7 @@ function mgPieza(q, T){
   // ENCADENADO: cuando otra pieza aterriza cerca, esta reacciona (se mece)
   let reac = 0;
   (MG.impactos || []).forEach(im => {
-    if (im.id === p.id || T < p.en + 0.45) return;
+    if (im.id === p.id || p.fondo || T < p.en + 0.45) return;
     const si = T - im.t;
     if (si > 0 && si < 1.2 && Math.abs(im.x - p.x) < MG.W*0.9) reac += im.f*Math.exp(-si*6)*Math.sin(si*17);
   });
@@ -2676,6 +2702,16 @@ function motionPintar(t){
 # la segunda parte (muñecos planos, barras, antes/despues, arbol, flecha,
 # circulo e iconos de metafora) se suma al final: CONSTRUCTORES ya existe
 MOTION_JS += motion_mas.MOTION_MAS_JS
+# P3: los escenarios con luz, sombras y capas (y sus efectos Lottie)
+MOTION_JS += escenarios.ESCENARIO_JS
+
+
+def js_de(conf):
+    """El JS de motion para una pagina: con lottie-web delante solo si algun
+    escenario de la pagina lleva fuego, humo o luz."""
+    if not conf:
+        return ""
+    return (escenarios.lottie_js() + "\n" if escenarios.con_efectos(conf) else "") + MOTION_JS
 
 
 def tipos_auto(escenas, ancho, alto, laminas_px=None, hoy=None):
@@ -2695,4 +2731,5 @@ def resumen_opciones(p):
     return (f"tema {tema_de(p)}, storyboard "
             f"{'de Claude' if o.get('storyboard') == 'claude' else 'automatico'}, "
             f"muñecos {'no' if o.get('munecos') is False else 'si'}, "
-            f"sonidos {'no' if o.get('sonidos') is False else 'si'}")
+            f"sonidos {'no' if o.get('sonidos') is False else 'si'}, "
+            f"escenarios {'no' if o.get('escenarios') is False else 'si'}")
