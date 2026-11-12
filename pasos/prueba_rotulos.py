@@ -1,0 +1,114 @@
+"""Prueba de los rotulos (pasos/rotulos.py, P1). Sin red y sin gastar nada.
+
+    python pasos/prueba_rotulos.py            lo automatico y lo heredado
+    python pasos/prueba_rotulos.py --ver DIR  ademas pinta una pagina de render
+                                              en Chromium y guarda fotogramas
+"""
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import rotulos  # noqa: E402
+
+
+def _escena(sid, texto, t_in=0.0, dur=6.0):
+    palabras = texto.split()
+    paso = dur / len(palabras)
+    return {"id": sid, "t_in": t_in, "t_out": t_in + dur, "narracion": texto,
+            "marcas": [[t_in + paso * i, t_in + paso * (i + 1)]
+                       for i in range(len(palabras))]}
+
+
+def _tipos(items):
+    return [r["tipo"] for r in items]
+
+
+def probar_automaticos():
+    a = rotulos.automaticos(_escena("a", "Israel vivía sin rey y cada uno hacía lo que quería"))
+    assert any(r["tipo"] == "sello" and r["texto"] == "SIN REY" for r in a), a
+    a = rotulos.automaticos(_escena("b", "La túnica de José no era de colores"))
+    assert any(r["tipo"] == "sello" and r["texto"] == "NO" for r in a), a
+    a = rotulos.automaticos(_escena("c", "Pasaron más de cuatrocientos años de silencio"))
+    c = next(r for r in a if r["tipo"] == "cifra")
+    assert c["valor"] == 400 and c["despues"] == "AÑOS" and c["antes"] == "+", c
+    a = rotulos.automaticos(_escena("d", "Y al día tres Jonás seguía dentro del pez"))
+    c = next(r for r in a if r["tipo"] == "cifra")
+    assert c["valor"] == 3 and c["antes"] == "DÍA", c
+    a = rotulos.automaticos(_escena("e", "Para entenderlo hay que retroceder veinticinco años antes"))
+    r = next(r for r in a if r["tipo"] == "rebobinar")
+    assert r["menos"] == "−25 AÑOS", r
+    a = rotulos.automaticos(_escena("f", "En hebreo jesed significa amor que no se rinde"))
+    d = next(r for r in a if r["tipo"] == "dato")
+    assert d["palabra"] == "JESED", d
+    a = rotulos.automaticos(_escena("g", "Como dice Jueces 9:5 mató a sus hermanos"))
+    p = next(r for r in a if r["tipo"] == "pastilla")
+    assert p["texto"] == "JUECES 9:5", p
+    a = rotulos.automaticos(_escena("h", "Dios habló con Moisés en el monte"))
+    assert a == [], a
+    print("ok automaticos")
+
+
+def probar_video():
+    escenas = [_escena("s1", "Como dice Jueces 9:5 Abimelec mató a sus hermanos", 0),
+               _escena("s2", "Y fueron setenta hermanos sobre una piedra", 6),
+               {"id": "s3", "cartela": True, "t_in": 12, "t_out": 14},
+               dict(_escena("s4", "Nadie lo sabía", 14), rotulos=False),
+               dict(_escena("s5", "Pero el pueblo calló", 20),
+                    rotulos=[{"tipo": "sello", "texto": "sin rey", "en": "calló"}])]
+    c = rotulos.preparar(escenas, {}, 1080, 1920)
+    assert _tipos(c["s1"]["items"])[0] == "pastilla"
+    s2 = c["s2"]["items"]
+    assert s2[0]["fija"] and s2[0]["texto"] == "JUECES 9:5", s2
+    assert any(r["tipo"] == "cifra" and r["valor"] == 70 for r in s2), s2
+    assert "s3" not in c and "s4" not in c, c
+    s5 = c["s5"]["items"]
+    assert _tipos(s5) == ["pastilla", "sello"] and s5[1]["texto"] == "SIN REY", s5
+    assert s5[1]["t"] > 0
+    assert rotulos.preparar(escenas, {"rotulos": False}, 1080, 1920) == {}
+    print("ok video")
+
+
+def ver(carpeta):
+    """Una pagina de render de verdad, con todos los rotulos, en Chromium."""
+    import p8_render
+    os.makedirs(carpeta, exist_ok=True)
+    fondo = os.path.join(carpeta, "fondo.png")
+    from PIL import Image
+    Image.new("RGB", (1536, 2304), (196, 170, 132)).save(fondo)
+    rt = {"W": 1080, "H": 1920, "items": [
+        {"tipo": "pastilla", "texto": "JUECES 9:5", "t": 0.2},
+        {"tipo": "sello", "texto": "SIN REY", "t": 0.6},
+        {"tipo": "cifra", "valor": 400, "antes": "+", "despues": "AÑOS", "t": 0.4},
+        {"tipo": "rebobinar", "texto": "REBOBINANDO", "menos": "−25 AÑOS", "t": 2.6}]}
+    pagina = os.path.join(carpeta, "escena.html")
+    p8_render._pagina_de({"t_in": 0, "t_out": 5}, {
+        "ventana_ini": [0, 0, 1, 1], "ventana_fin": [0, 0, 1, 1],
+        "hyperframe_px": [1536, 2304]}, "", fondo, {"resolucion": [1080, 1920]},
+        pagina, rt=rt)
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        print("pagina escrita (sin playwright de Python no se abre):", pagina)
+        return
+    errores = []
+    with sync_playwright() as pw:
+        nav = pw.chromium.launch()
+        pg = nav.new_page(viewport={"width": 1080, "height": 1920})
+        pg.on("pageerror", lambda e: errores.append(str(e)))
+        pg.goto("file://" + os.path.abspath(pagina))
+        pg.wait_for_function("window.LETRAS_OK")
+        for t in (0.0, 2.2, 3.4):
+            pg.evaluate(f"pintar({t})")
+            pg.screenshot(path=os.path.join(carpeta, f"t{t:.1f}.png"))
+        assert pg.evaluate("RT_LINEAS.length") == 4
+        assert pg.evaluate("getComputedStyle(document.querySelector('.rt-sello')).opacity") == "1"
+        nav.close()
+    assert not errores, errores
+    print("ok pagina:", carpeta)
+
+
+if __name__ == "__main__":
+    probar_automaticos()
+    probar_video()
+    if "--ver" in sys.argv:
+        ver(sys.argv[sys.argv.index("--ver") + 1])

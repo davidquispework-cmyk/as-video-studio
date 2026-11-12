@@ -415,7 +415,7 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    Pendiente: elegir la palabra tachada/resaltada a mano desde la pantalla
    (hoy se puede forzando `~~palabra~~` y `*palabra*` en el texto).
 10. **SIGUIENTE: el plan «NIVEL PROFESIONAL» (12-nov)** — ver la sección del
-   mismo nombre más abajo; empezar por su punto P1. (Siguen sobre la mesa, para
+   mismo nombre más abajo; P1 HECHO (12-nov); siguiente, P2. (Siguen sobre la mesa, para
    después: grabar tu voz desde la propia página; afinar la tabla de voces.)
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
@@ -736,7 +736,7 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Pendiente: ~~más formas de «lo falso → lo verdadero»~~ (HECHO 11-nov, punto 9
    del orden nuevo); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1).
+Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1 HECHO; ahora P2).
 
 ## NIVEL PROFESIONAL (decidido 12-nov-2026) — manda sobre el punto 10 del ORDEN NUEVO
 David quiere que sus vídeos queden AL MISMO NIVEL que los de referencia, no «parecidos
@@ -794,6 +794,25 @@ del VPS no debe depender de internet; anotar licencia de cada cosa en un LICENCI
 **Etapas (una por chat, en orden; cada una con prueba y vista en un vídeo real):**
 - P1. Sellos rojos, pastilla fija de la cita, etiqueta «DATO», placa de cifra
   («Día 3», «+400 AÑOS» de rodillos) y «◀◀ rebobinando». Con anime.js.
+  **HECHO (12-nov-2026)**: `pasos/rotulos.py`, capa nueva del render encima de la
+  imagen (no hace zoom con ella, debajo del subtítulo). Salen SOLOS leyendo la
+  narración de cada plano: sello («sin rey» → SIN REY, «no era/fue» → NO, nunca,
+  jamás, falso, mentira, prohibido; tiembla el cuadro al caer), pastilla con la
+  cita (Jueces 9:5 → «✝ JUECES 9:5» arriba; se queda en los planos siguientes
+  hasta que se nombra otra), «DATO» (sabías que, dato, pocos saben, en
+  hebreo/griego + la palabra), placa de cifra con rodillos («día tres» → DÍA 3,
+  «más de cuatrocientos años» → +400 AÑOS; cosas contadas: años, días, monedas,
+  hermanos…) y «◀◀ REBOBINANDO −25 AÑOS» (retroceder, rebobinar, volvamos, «N
+  años antes») con rayas de cinta. Las cartelas no llevan. anime.js 3.2.2 va
+  dentro del repo (`motores/js/`), licencias en `LICENCIAS.md`.
+  Cómo se apaga o se fuerza: param `rotulos: false` del render (todo el vídeo);
+  en `plan.json`, escena `"rotulos": false` (ese plano) o a mano
+  `[{"tipo":"sello","texto":"SIN REY","en":"rey"}]` (tipos: sello, pastilla,
+  dato con `palabra`, cifra con `valor`/`antes`/`despues`, rebobinar con
+  `menos`). No toca firmas: basta «Regenerar Vídeo» (no redibuja imágenes).
+  Prueba: `pasos/prueba_rotulos.py` (`--ver CARPETA` escribe una página de
+  render para mirarla). Falta: verlo en un vídeo real con la referencia al
+  lado y apuntar aquí lo que se note distinto; aún no hay botón en pantalla.
 - P2. Pantalla partida para paralelos (A | B con raya) y mezclar papel/noche por
   plano (el tema puede cambiar en una escena).
 - P3. Calidad de dibujo: biblioteca de escenarios y objetos vectoriales con luz,

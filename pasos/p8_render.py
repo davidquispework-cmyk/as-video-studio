@@ -56,6 +56,7 @@ import marioneta  # noqa: E402
 import motion  # noqa: E402
 import motion_mas  # noqa: E402
 import motion_storyboard  # noqa: E402
+import rotulos  # noqa: E402
 import medios  # noqa: E402
 import plantilla_tiktok  # noqa: E402
 import sonido  # noqa: E402
@@ -349,6 +350,7 @@ html,body{margin:0;padding:0;background:#0b0c09;overflow:hidden}
 __AMBCSS__
 __MARCSS__
 __MGCSS__
+__RTCSS__
 </style></head><body>
 <!-- DOS CAPAS, Y LA DIFERENCIA ES EN QUE LADO DEL TRANSFORM ESTAN.
      #capa va DENTRO de #camara, asi que la escala el zoom: ahi vive lo que
@@ -366,6 +368,7 @@ __MGCSS__
   __AMBFUERA__
   __MARHTML__
   __MGHTML__
+  __RTHTML__
   <div id="capafija">__CAPAFIJA__</div>
 </div>
 <script>
@@ -446,6 +449,11 @@ __MGJS__
 // LA CAMARA VIVA (pasos/camara.py, punto F): null = la camara de siempre.
 const CAM = __CAM__;
 __CAMJS__
+
+// LOS ROTULOS (pasos/rotulos.py, P1): sellos, pastilla de la cita, DATO,
+// placa de cifra y rebobinando, quietos sobre el cuadro. null = sin rotulos.
+const RT = __RT__;
+__RTJS__
 const QUIETO = JSON.stringify(MOV.ventana_ini) === JSON.stringify(MOV.ventana_fin);
 
 function pintar(t){
@@ -468,6 +476,7 @@ function pintar(t){
   if (MG) motionPintar(t);
   if (svg && svg.setCurrentTime) svg.setCurrentTime(t);
   if (svgFijo && svgFijo.setCurrentTime) svgFijo.setCurrentTime(t);
+  if (RT) rotulosPintar(t);
   if (CLIP && CLIP.length){
     // se ESPERA a que el fotograma este decodificado: si no, la captura
     // pillaria el anterior y el clip saldria a tirones
@@ -490,7 +499,7 @@ def _url_local(ruta):
 
 
 def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
-               amb=None, fotos_clip=None, mar=None, mg=None, cam=None):
+               amb=None, fotos_clip=None, mar=None, mg=None, cam=None, rt=None):
     ancho, alto = [int(v) for v in p["resolucion"]]
     hw, hh = mov.get("hyperframe_px") or [3072, 2048]
     duracion = float(escena["t_out"]) - float(escena["t_in"])
@@ -502,7 +511,12 @@ def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
     mar_html, mar_css = marioneta.html_capa(mar, ancho, alto)
     mg_html, mg_css = motion.html_capa(mg, ancho, alto)
     mg_json = motion.json_conf(mg) if mg else ""
+    rt_json = rotulos.json_conf(rt) if rt else ""
     html = (PAGINA
+            .replace("__RTCSS__", rotulos.css(rt))
+            .replace("__RTHTML__", rotulos.html(rt))
+            .replace("__RTJS__", rotulos.js(rt))
+            .replace("__RT__", rt_json or "null")
             .replace("__MGCSS__", mg_css)
             .replace("__MGHTML__", mg_html)
             .replace("__MGJS__", motion.MOTION_JS if mg else "")
@@ -525,7 +539,8 @@ def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
             .replace("__FONDO__", _url_local(hyper))
             .replace("__CAPA__", capa_svg)
             .replace("__CAPAFIJA__", capa_fija or "")
-            .replace("__LETRASCSS__", letras.css_para((capa_fija or "") + mg_json))
+            .replace("__LETRASCSS__", letras.css_para((capa_fija or "") + mg_json
+                                                     + rotulos.css(rt)))
             .replace("__MOV__", json.dumps({"ventana_ini": mov["ventana_ini"],
                                             "ventana_fin": mov["ventana_fin"]}))
             .replace("__FPS__", str(int(fps)))
@@ -1098,6 +1113,7 @@ def renderizar_plano(tarea, navegador=None):
                         capa_fija=tarea.get("capa_fija") or "", fps=fps,
                         amb=tarea.get("ambiente"), fotos_clip=fotos_clip,
                         mar=tarea.get("marioneta"), mg=tarea.get("motion"),
+                        rt=tarea.get("rotulos"),
                         cam=tarea.get("camara"))
 
     navegador.abrir(pagina)
@@ -1482,6 +1498,13 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
         excluir={e.get("id") for e in escenas
                  if e.get("cartela") or (movimientos.get(e.get("id")) or {})
                  .get("origen_centro") == "cartela"})
+    # LOS ROTULOS (pasos/rotulos.py, P1): sellos, pastilla de la cita, DATO,
+    # cifra con rodillos y rebobinando. Un fallo aqui no tumba el render.
+    try:
+        confs_rotulos = rotulos.preparar(escenas, p, ancho, alto)
+    except Exception as e:  # noqa: BLE001
+        print(f"[render] sin rotulos ({e})", flush=True)
+        confs_rotulos = {}
     for indice, escena in enumerate(escenas):
         sid = escena["id"]
         uid = f"escena:{sid}"
@@ -1584,7 +1607,11 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
             cam = dict(cam, respira=False)   # el clip ya trae su movimiento
         if cam:
             print(f"[render] {sid}: {camara.resumen(cam)}", flush=True)
+        rt = confs_rotulos.get(sid)
+        if rt:
+            print(f"[render] {sid}: {rotulos.resumen(rt)}", flush=True)
         tareas.append({
+            "rotulos": rt,
             "camara": cam,
             "motion": mg,
             "marioneta": mar,
