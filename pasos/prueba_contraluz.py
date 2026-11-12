@@ -30,16 +30,37 @@ def probar_eleccion():
     assert "contraluz" in ambiente.elegir("El rico en el hades, en tormento")
     assert "contraluz" in ambiente.elegir("Su silueta al atardecer")
     assert "contraluz" not in ambiente.elegir("Jesús enseñaba en la sinagoga")
-    assert ambiente.color_contraluz("el infierno y el abismo") == "fuego"
-    assert ambiente.color_contraluz("de noche, bajo la luna") == "luna"
-    assert ambiente.color_contraluz("al atardecer") == "oro"
-    assert ambiente.color_contraluz("al atardecer", "luna") == "luna"
+    cc = lambda *a: ambiente.color_contraluz(*a)[0]  # noqa: E731
+    # el color sigue lo que se cuenta
+    assert cc("el infierno y el abismo") == "fuego"
+    assert cc("de noche, bajo la luna") == "luna"
+    assert cc("al atardecer") == "oro"
+    assert cc("Caín mató a su hermano y la sangre clamaba") == "sangre"
+    assert cc("La gloria del ángel llenó el cielo") == "gloria"
+    assert cc("La tormenta y los relámpagos sobre la barca") == "tormenta"
+    assert cc("La serpiente y el pecado") == "tinieblas"
+    assert cc("Al amanecer volvió con esperanza") == "amanecer"
+    assert cc("María caminaba sin miedo") != "mar"         # «mar» no es «María»
+    # gana el que mas sale
+    assert cc("noche de sangre, sangre y muerte") == "sangre"
+    # a mano manda: un nombre o un color cualquiera
+    assert cc("al atardecer", "luna") == "luna"
+    assert ambiente.color_contraluz("x", "#ff8800") == ("propio", (255, 136, 0))
+    # sin pistas en el texto, el color sale de la imagen
+    with tempfile.TemporaryDirectory() as d:
+        r = os.path.join(d, "i.png")
+        img = Image.new("RGB", (300, 200), (20, 20, 30))
+        ImageDraw.Draw(img).ellipse((120, 60, 180, 120), fill=(80, 220, 120))
+        img.save(r)
+        nombre, rgb = ambiente.color_contraluz("Pedro habló a la gente", None, r)
+        assert nombre == "imagen" and rgb[1] > rgb[0] and rgb[1] > rgb[2], rgb
+    assert all(k in ambiente.PALETA_LISTA[0] for k in ("nombre", "etiqueta", "hex"))
 
 
 def probar_silueta(carpeta):
     fig = _figura(carpeta)
-    sil = ambiente.silueta(fig, carpeta, "fuego")
-    assert os.path.exists(sil["figura"]) and sil["color"] == "fuego"
+    sil = ambiente.silueta(fig, carpeta, (255, 120, 40))
+    assert os.path.exists(sil["figura"]) and sil["rgb"] == [255, 120, 40]
     a = np.asarray(Image.open(sil["figura"]).convert("RGBA"), dtype=np.int32)
     # el centro del cuerpo queda casi negro, opaco
     cuerpo = a[300, 385]
@@ -54,7 +75,7 @@ def probar_silueta(carpeta):
     assert a[20, 20][3] == 0
     assert 0.4 < sil["centro"][0] < 0.6 and 0.3 < sil["alto"] < 0.7
     # cache: la segunda vez no rehace
-    assert ambiente.silueta(fig, carpeta, "fuego") == sil
+    assert ambiente.silueta(fig, carpeta, (255, 120, 40)) == sil
     return fig
 
 
@@ -74,6 +95,10 @@ def probar_configurar(carpeta, fig):
         esc2 = {"id": "s2", "narracion": "Pedro habló a la gente", "contraluz": "luna"}
         c = ambiente.configurar(esc2, fig, carpeta, {})
         assert c["contraluz"]["color"] == "luna"
+        assert c["contraluz"]["rgb"] == [170, 200, 255]
+        # color propio
+        c = ambiente.configurar(dict(esc2, contraluz="#00ff00"), fig, carpeta, {})
+        assert c["contraluz"]["rgb"] == [0, 255, 0]
         # sin figura recortada se quita
         ambiente.preparar = lambda *a, **k: {"foco": [0.5, 0.4]}
         c = ambiente.configurar(esc, fig, carpeta, {})

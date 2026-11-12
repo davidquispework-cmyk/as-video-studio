@@ -914,13 +914,26 @@ del VPS no debe depender de internet; anotar licencia de cada cosa en un LICENCI
   La figura que rembg ya recortaba pasa a SILUETA casi negra con un BORDE de luz
   (más fuerte arriba) y un halo por fuera, todo en un png (`ambiente.silueta`, con
   caché); detrás, en la capa de atrás, un resplandor que respira y 14 haces que
-  salen de la figura y giran despacio. Tres colores: **fuego** (infierno, hades,
-  tormento, abismo, fuego), **luna** (noche, luna) y **oro** (el resto). Sale SOLO
+  salen de la figura y giran despacio. **El color SIGUE LO QUE SE CUENTA** en
+  cada plano (`ambiente.PALETA_CONTRALUZ`, 10 tonos, cada uno con sus palabras;
+  gana el que más sale): 🔥 fuego (infierno, hades, zarza), 🩸 sangre (matar,
+  muerte, guerra, cruz), 🤍 gloria (ángel, cielo, resurrección), ✨ oro (rey,
+  templo, atardecer), 🌄 amanecer (esperanza, perdón, volvió), 🌙 luna (noche,
+  sueño), 🌊 mar (agua, Jordán, barca), ⚡ tormenta (relámpago, terremoto),
+  🐍 tinieblas (pecado, serpiente, demonio), 🏜 desierto (arena, exilio). Si el
+  texto no dice nada de eso, el color se saca de la PROPIA IMAGEN (su zona más
+  clara, avivada), para que case con lo que pintó Gemini.
+  **Apartado en la pantalla**: en la tarjeta del plano, «🎇 Efectos», al encender
+  «🌅 Silueta a contraluz» sale «Color del contraluz» con el que eligió solo, el
+  botón «↺ Según lo que cuenta», los 10 tonos y «🎨 Otro» (cualquier color). Se
+  guarda en ese plano (`unidades["escena:S..."]["contraluz"]` del render).
+  Sale SOLO
   si la narración dice contraluz, silueta, abismo, hades, infierno, tormento, seno
   de Abraham, atardecer, ocaso, amanecer, puesta de sol, anochecer; y SOLO si rembg
   separó una figura (paisajes, planos con muñecos, clips o motion: no sale).
-  A mano: en `plan.json`, escena `"contraluz": "fuego"|"oro"|"luna"` (lo fuerza) o
-  `false`; en todo el vídeo, param del render `contraluz: false` o un color.
+  A mano: en `plan.json`, escena `"contraluz": "sangre"` (un tono) o `"#ff8800"`
+  (lo fuerza) o `false`; en todo el vídeo, param del render `contraluz: false` o
+  un color.
   No toca firmas: basta «Regenerar Vídeo». Prueba: `pasos/prueba_contraluz.py`
   (`--ver CARPETA` guarda la silueta). Falta: verlo en un vídeo real con la
   referencia (Lázaro) al lado. En la pantalla del plano ya sale entre sus efectos

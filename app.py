@@ -5693,10 +5693,23 @@ def _ficha_subidas(ctx):
             f["ambiente_auto"] = []
         f["ambiente"] = ((unidades_render.get(f"escena:{f['id']}") or {})
                          .get("ambiente"))
+        # P4: el color del contraluz, el que saldria solo (sigue lo que se
+        # cuenta) y el elegido a mano (None = automatico).
+        f["contraluz"] = ((unidades_render.get(f"escena:{f['id']}") or {})
+                          .get("contraluz"))
+        try:
+            texto = " ".join(str(escena.get(k) or "") for k in
+                             ("narracion", "texto", "prompt", "descripcion", "titulo"))
+            nombre, rgb = _ambiente().color_contraluz(texto, escena.get("contraluz")
+                                                      if escena.get("contraluz") is not True
+                                                      else None)
+            f["contraluz_auto"] = {"nombre": nombre, "hex": _ambiente()._hex(rgb)}
+        except Exception:                                   # noqa: BLE001
+            f["contraluz_auto"] = None
     auto, motivo = CLIPS.automatico_disponible()
     return {"modo": AJUSTES.modo_imagen(), "planos": planos, "para": para,
-            "efectos": ["luz", "particulas", "agua", "nubes", "lluvia",
-                        "rayos", "gloria"],   # = ambiente.EFECTOS
+            "efectos": list(_ambiente().EFECTOS),
+            "paleta_contraluz": _ambiente().PALETA_LISTA,
             "modo_clip": AJUSTES.leer().get("modo_clip", "manual"),
             "clips": len(con_clip), "clip_auto": auto, "clip_auto_motivo": motivo,
             "total": len(planos), "subidas": hechas,
@@ -6111,6 +6124,23 @@ async def elegir_ambiente(pid: str, sid: str, peticion: Request):
         raise ErrorApi(400, "manda un JSON con «efectos»")
     efectos = (cuerpo or {}).get("efectos") if isinstance(cuerpo, dict) else None
     AMBIENTE = _ambiente()
+    # P4: {"contraluz": "sangre" | "#ff8800" | null} cambia SOLO el color del
+    # contraluz de ese plano (null = el que sigue lo que se cuenta).
+    if isinstance(cuerpo, dict) and "contraluz" in cuerpo:
+        color = cuerpo.get("contraluz")
+        if color is not None and color not in AMBIENTE.PALETA_CONTRALUZ \
+                and not AMBIENTE._de_hex(color):
+            raise ErrorApi(400, "color: un nombre de la paleta o #rrggbb")
+        uid = f"escena:{sid}"
+        previos = ((ctx.estado.params("render") or {}).get("unidades") or {})
+        ficha = dict(previos.get(uid) or {})
+        if ficha.get("contraluz") != color:
+            if color is None:
+                ficha.pop("contraluz", None)
+            else:
+                ficha["contraluz"] = color
+            ctx.estado.actualizar_params("render", {"unidades": {uid: ficha}})
+        return _ficha_subidas(ctx)
     if efectos is not None:
         if not isinstance(efectos, list) or any(
                 e not in AMBIENTE.EFECTOS for e in efectos):

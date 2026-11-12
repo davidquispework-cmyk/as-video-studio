@@ -65,11 +65,56 @@ PALABRAS = {
                   "silhouette", "sunset", "sunrise"),
 }
 
-# El color del borde y de los haces: fuego si el texto arde, oro si no.
-_CONTRALUZ_FUEGO = ("infierno", "hades", "tormento", "fuego", "llama",
-                    "abismo", "fire", "hell", "flame")
-COLORES_CONTRALUZ = {"oro": (255, 214, 140), "fuego": (255, 120, 40),
-                     "luna": (170, 200, 255)}
+# EL COLOR DEL CONTRALUZ SIGUE LO QUE SE CUENTA. Cada tono tiene sus palabras;
+# gana el que mas aparece en la narracion del plano (a igualdad, el primero de
+# la lista). Si el texto no dice nada de luz ni de animo, el color se saca de
+# la PROPIA IMAGEN (su zona mas clara, avivada): asi casa con lo que pinto
+# Gemini. A mano manda: un nombre de aqui o un "#rrggbb" cualquiera.
+#   nombre: (rgb, etiqueta para la pantalla, palabras)
+PALETA_CONTRALUZ = {
+    "fuego": ((255, 120, 40), "🔥 Fuego", (
+        "infierno", "hades", "tormento", "fuego", "llama", "abismo", "hoguera",
+        "zarza", "horno", "brasa", "fire", "hell", "flame")),
+    "sangre": ((220, 40, 50), "🩸 Sangre", (
+        "sangre", "matar", "mato", "muerte", "murio", "guerra", "batalla",
+        "espada", "furia", "venganza", "traicion", "cruz", "crucific",
+        "blood", "war", "death")),
+    "gloria": ((255, 244, 210), "🤍 Gloria", (
+        "gloria", "angel", "cielo", "resucit", "resurreccion", "santo",
+        "transfigur", "espiritu", "trono", "milagro", "glory", "heaven")),
+    "oro": ((255, 200, 110), "✨ Oro", (
+        r"oro\b", "rey", "corona", "templo", "tesoro", "promesa", "bendicion",
+        "atardecer", "ocaso", "puesta de sol", "sunset", "gold", "king")),
+    "amanecer": ((255, 150, 170), "🌄 Amanecer", (
+        "amanecer", r"alba\b", "aurora", "esperanza", "perdon", "volvio",
+        "regreso", "sunrise", "dawn", "hope")),
+    "luna": ((170, 200, 255), "🌙 Luna", (
+        "noche", "luna", "estrella", "sueno", "sonaba", "vigilia", "anochecer",
+        "night", "moon", "dream")),
+    "mar": ((70, 210, 220), "🌊 Mar", (
+        r"mar\b", "agua", r"rios?\b", "jordan", "galilea", "barca", "bautiz", "diluvio",
+        "olas", "sea", "water", "river")),
+    "tormenta": ((160, 120, 255), "⚡ Tormenta", (
+        "tormenta", "tempestad", "rayo", "trueno", "relampago", "terremoto",
+        "temblo", "storm", "lightning", "thunder")),
+    "tinieblas": ((120, 220, 110), "🐍 Tinieblas", (
+        "pecado", "serpiente", "demonio", "tinieblas", "idolo", "maldad",
+        "oscuridad", "tentacion", "satanas", "diablo", "darkness")),
+    "desierto": ((240, 170, 70), "🏜 Desierto", (
+        "desierto", "arena", r"sed\b", "peregrin", "exilio", "huyo",
+        "desert", "sand")),
+}
+PALETA_LISTA = [{"nombre": k, "etiqueta": v[1],
+                 "hex": "#%02x%02x%02x" % v[0]} for k, v in PALETA_CONTRALUZ.items()]
+
+
+def _hex(rgb):
+    return "#%02x%02x%02x" % tuple(int(c) for c in rgb)
+
+
+def _de_hex(txt):
+    m = re.fullmatch(r"#?([0-9a-fA-F]{6})", str(txt or "").strip())
+    return tuple(int(m.group(1)[i:i + 2], 16) for i in (0, 2, 4)) if m else None
 
 
 def _plano(texto):
@@ -230,19 +275,49 @@ def _recortar(img, sesion, carpeta, huella):
     return {"fondo": r_fondo, "figura": r_figura, "ancla": ancla}
 
 
-def color_contraluz(texto, pedido=None):
-    """"oro" | "fuego" | "luna". `pedido` (param o plan) manda si es valido."""
-    if pedido in COLORES_CONTRALUZ:
-        return pedido
+def color_contraluz(texto, pedido=None, imagen=None):
+    """El color del contraluz de un plano. -> (nombre, (r, g, b))
+
+    `pedido` manda: un nombre de PALETA_CONTRALUZ o un "#rrggbb" ("propio").
+    Si no, el tono cuyas palabras mas salen en `texto`. Si ninguna sale, el
+    de la `imagen` (ruta) -> "imagen"; sin imagen, "oro".
+    """
+    if pedido in PALETA_CONTRALUZ:
+        return pedido, PALETA_CONTRALUZ[pedido][0]
+    propio = _de_hex(pedido)
+    if propio:
+        return "propio", propio
     t = _plano(texto)
-    if any(re.search(r"\b" + p, t) for p in _CONTRALUZ_FUEGO):
-        return "fuego"
-    if re.search(r"\b(noche|luna|moon|night)", t):
-        return "luna"
-    return "oro"
+    mejor, cuenta = None, 0
+    for nombre, (_rgb, _e, palabras) in PALETA_CONTRALUZ.items():
+        n = sum(len(re.findall(r"\b" + p, t)) for p in palabras)
+        if n > cuenta:
+            mejor, cuenta = nombre, n
+    if mejor:
+        return mejor, PALETA_CONTRALUZ[mejor][0]
+    if imagen:
+        try:
+            return "imagen", color_de_imagen(imagen)
+        except Exception:                                   # noqa: BLE001
+            pass
+    return "oro", PALETA_CONTRALUZ["oro"][0]
 
 
-def silueta(figura, carpeta, color="oro"):
+def color_de_imagen(ruta):
+    """El color de la luz de la imagen: la media de su 4 % mas claro, avivado
+    (mas saturado y claro) para que brille como borde. -> (r, g, b)"""
+    import colorsys
+    img = Image.open(ruta).convert("RGB").resize((96, 64))
+    a = np.asarray(img, dtype=np.float32).reshape(-1, 3)
+    brillo = a.sum(axis=1)
+    claros = a[brillo >= np.percentile(brillo, 96)]
+    r, g, b = (claros.mean(axis=0) / 255.0).tolist()
+    h, l, sat = colorsys.rgb_to_hls(r, g, b)
+    r, g, b = colorsys.hls_to_rgb(h, min(0.72, max(0.6, l)), min(1.0, sat * 1.4 + 0.25))
+    return tuple(int(round(c * 255)) for c in (r, g, b))
+
+
+def silueta(figura, carpeta, rgb=(255, 200, 110)):
     """La figura recortada vuelta SILUETA a contraluz. -> dict
 
     Tres cosas en UN png (se mueve con la figura sin capas de mas): el cuerpo
@@ -251,7 +326,8 @@ def silueta(figura, carpeta, color="oro"):
     que se funde con el fondo. Devuelve la ruta y el centro/alto de la figura
     en [0..1] para poner detras el resplandor y los haces. Cache por huella.
     """
-    huella = _huella(figura, "contraluz-" + color)
+    rgb = tuple(int(c) for c in rgb)
+    huella = _huella(figura, "contraluz-" + _hex(rgb))
     ruta = os.path.join(carpeta, f"{huella}_silueta.png")
     ficha = ruta[:-4] + ".json"
     if os.path.exists(ruta) and os.path.exists(ficha):
@@ -268,7 +344,7 @@ def silueta(figura, carpeta, color="oro"):
     if not len(xs):
         return {}
     alto_fig = float(ys.max() - ys.min()) / alto
-    col = np.array(COLORES_CONTRALUZ[color], dtype=np.float32)
+    col = np.array(rgb, dtype=np.float32)
     # radio del borde y del halo, proporcional a la figura (no al cuadro)
     r = max(2, int(alto_fig * alto * 0.012))
     dentro = np.asarray(alfa.filter(ImageFilter.MinFilter((r * 2) | 1)),
@@ -285,8 +361,8 @@ def silueta(figura, carpeta, color="oro"):
     halo = np.asarray(alfa.filter(ImageFilter.GaussianBlur(r * 4)),
                       dtype=np.float32) / 255.0
     halo = np.clip(halo * 1.3 - a, 0, 1) * 0.75
-    rgb = np.asarray(img.convert("RGB"), dtype=np.float32)
-    cuerpo = rgb * 0.10 + np.array([8, 6, 10], dtype=np.float32)
+    pix = np.asarray(img.convert("RGB"), dtype=np.float32)
+    cuerpo = pix * 0.10 + np.array([8, 6, 10], dtype=np.float32)
     mezcla = cuerpo * (1 - borde[..., None]) + col * borde[..., None]
     # fuera del cuerpo solo hay halo: color puro, con su transparencia
     luz = np.clip(col * 1.0 + 30, 0, 255)
@@ -294,7 +370,7 @@ def silueta(figura, carpeta, color="oro"):
     alfa_out = np.clip(np.maximum(a, halo), 0, 1)
     out = np.dstack([np.clip(salida, 0, 255), alfa_out * 255]).astype(np.uint8)
     Image.fromarray(out, "RGBA").save(ruta, optimize=False, compress_level=1)
-    datos = {"figura": ruta, "color": color,
+    datos = {"figura": ruta, "rgb": list(rgb),
              "centro": [round(float(xs.mean()) / ancho, 4),
                         round(float(ys.mean()) / alto, 4)],
              "alto": round(alto_fig, 4)}
@@ -318,19 +394,22 @@ def configurar(escena_plan, hyper, carpeta, p, sesion=None):
     efectos = elegir(texto, forzados)
     datos = preparar(hyper, carpeta, sesion,
                      profundidad=bool(p.get("profundidad", True)))
-    # P4. Param `contraluz`: False lo apaga en todo el video; "oro" | "fuego" |
-    # "luna" fija el color. En plan.json, `"contraluz": "fuego"` o False.
+    # P4. Param `contraluz`: False lo apaga en todo el video; un nombre de
+    # PALETA_CONTRALUZ o "#rrggbb" fija el color. En plan.json (o elegido en
+    # la tarjeta del plano), `"contraluz": "sangre"`, "#ff8800" o False.
     pedido = escena_plan.get("contraluz", p.get("contraluz"))
     if pedido is False:
         efectos = [e for e in efectos if e != "contraluz"]
     elif pedido and "contraluz" not in efectos:
         efectos = [e for e in EFECTOS if e in set(efectos) | {"contraluz"}]
     if "contraluz" in efectos:
-        sil = silueta(datos["figura"], carpeta,
-                      color_contraluz(texto, pedido)) if datos.get("figura") else {}
+        nombre, rgb = color_contraluz(texto, pedido if pedido is not True else None,
+                                      hyper)
+        sil = silueta(datos["figura"], carpeta, rgb) if datos.get("figura") else {}
         if sil:
             datos = dict(datos, figura=sil["figura"],
-                         contraluz={k: sil[k] for k in ("color", "centro", "alto")})
+                         contraluz={"color": nombre, "rgb": sil["rgb"],
+                                    "centro": sil["centro"], "alto": sil["alto"]})
         else:   # sin figura recortada no hay silueta que hacer
             efectos = [e for e in efectos if e != "contraluz"]
     return {"efectos": efectos, **datos,
@@ -410,8 +489,7 @@ function nubes(t){
 function contraluz(t){
   if (!xA || !EF.has('contraluz') || !AMB.contraluz) return;
   const C = AMB.contraluz, w = cAtras.width, h = cAtras.height;
-  const col = C.color === 'fuego' ? '255,120,40' :
-              (C.color === 'luna' ? '170,200,255' : '255,214,140');
+  const col = (C.rgb || [255, 200, 110]).join(',');
   const X = C.centro[0]*w, Y = (C.centro[1] - C.alto*0.12)*h;
   const R = Math.max(w, h)*(0.25 + C.alto*0.35);
   const resp = 0.85 + 0.15*ruido(t*1.4, 7);

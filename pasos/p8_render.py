@@ -1588,6 +1588,10 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
         elegidos = ((p.get("unidades") or {}).get(uid) or {}).get("ambiente")
         if isinstance(elegidos, list):
             escena = dict(escena, ambiente=elegidos)
+        # P4: el color del contraluz elegido en la tarjeta del plano.
+        color_cl = ((p.get("unidades") or {}).get(uid) or {}).get("contraluz")
+        if color_cl:
+            escena = dict(escena, contraluz=color_cl)
         ruta_clip = clips_video.ruta_de(proyecto.raiz, sid)
         con_clip = os.path.isfile(ruta_clip) and p.get("clips", True)
         amb = None

@@ -9900,6 +9900,45 @@ async function elegirEfectos(sid, efectos) {
   repintarVideo();
 }
 
+/* P4: EL COLOR DEL CONTRALUZ de un plano. null = el que sigue lo que se
+   cuenta (lo elige el estudio leyendo la narración, o de la propia imagen). */
+async function elegirColorContraluz(sid, color) {
+  const v = videoAbierto();
+  try {
+    SUBIDAS.datos = await pedir(`${API.proyecto(v.pid)}/ambiente/${encodeURIComponent(sid)}`,
+      { method: 'PUT', cuerpo: { contraluz: color } });
+    toast(`Color del contraluz de ${sid} guardado. Vuelve a montar el vídeo para verlo.`);
+  } catch (e) { toast(e.message, true); }
+  repintarVideo();
+}
+
+function bloqueColorContraluz(plano) {
+  const paleta = (SUBIDAS.datos && SUBIDAS.datos.paleta_contraluz) || [];
+  const auto = plano.contraluz_auto;
+  const elegido = plano.contraluz || null;
+  const nombreDe = (n) => {
+    const c = paleta.find(x => x.nombre === n);
+    if (c) return c.etiqueta;
+    if (n === 'imagen') return '🖼 El de la imagen';
+    return n;
+  };
+  const actual = elegido ? (paleta.find(x => x.nombre === elegido) ? nombreDe(elegido)
+                                                                   : `🎨 ${elegido}`)
+                         : `${auto ? nombreDe(auto.nombre) : '…'} (según lo que cuenta)`;
+  const libre = h('input', { type: 'color', value: (elegido && elegido[0] === '#') ? elegido
+                                                   : ((auto && auto.hex) || '#ffc86e') });
+  libre.addEventListener('change', () => elegirColorContraluz(plano.id, libre.value));
+  return h('div', { clase: 'subida-contraluz' },
+    h('div', { clase: 'meta' }, `🌅 Color del contraluz: ${actual}`),
+    h('div', { clase: 'subida-mandos' },
+      h('button', { clase: 'mini' + (elegido ? '' : ' primario'),
+        onclick: () => elegirColorContraluz(plano.id, null) }, '↺ Según lo que cuenta'),
+      ...paleta.map(c => h('button', {
+        clase: 'mini' + (elegido === c.nombre ? ' primario' : ''),
+        onclick: () => elegirColorContraluz(plano.id, c.nombre) }, c.etiqueta)),
+      h('label', { clase: 'mini' }, '🎨 Otro: ', libre)));
+}
+
 function bloqueEfectos(plano) {
   const todos = (SUBIDAS.datos && SUBIDAS.datos.efectos) || Object.keys(NOMBRE_EFECTO);
   const elegidos = Array.isArray(plano.ambiente) ? plano.ambiente : null;
@@ -9921,7 +9960,8 @@ function bloqueEfectos(plano) {
       h('button', { clase: 'mini fantasma' + (elegidos && !elegidos.length ? ' primario' : ''),
         onclick: () => elegirEfectos(plano.id, []) }, '🚫 Ninguno'),
       elegidos ? h('button', { clase: 'mini fantasma',
-        onclick: () => elegirEfectos(plano.id, null) }, '↺ Automático') : null));
+        onclick: () => elegirEfectos(plano.id, null) }, '↺ Automático') : null),
+    activos.includes('contraluz') ? bloqueColorContraluz(plano) : null);
 }
 
 async function quitarSubida(sid) {
