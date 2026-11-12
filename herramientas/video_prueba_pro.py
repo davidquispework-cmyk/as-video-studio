@@ -300,7 +300,7 @@ def preparar(carpeta, ancho):
 def render(proyecto, estado, look, carpeta, fps, ancho):
     import p8_render
     nombre, extra = LOOKS[look]
-    alto = ancho * 16 // 9
+    alto = ancho * 16 // 9      # (el plan vertical manda: sale a 1080x1920)
     params = dict({"fps": fps, "resolucion": [ancho, alto], "calidad_video": "baja",
                    "sonido": False, "lotes": 0}, **extra)
     print(f"· render {look} ({nombre})", flush=True)
@@ -311,7 +311,12 @@ def render(proyecto, estado, look, carpeta, fps, ancho):
 
     res = p8_render.ejecutar(proyecto, params, avisar)
     mp4 = os.path.join(carpeta, f"prueba_{look}_{nombre}.mp4")
-    shutil.copy2(res["mp4"], mp4)
+    sal = res.get("salidas") or {}
+    origen = sal.get("mp4") or sal.get("video") or os.path.join(
+        proyecto.ruta_trabajo("render"), "video.mp4")
+    if not os.path.isabs(origen):
+        origen = os.path.join(proyecto.ruta_trabajo("render"), origen)
+    shutil.copy2(origen, mp4)
     _contactos(mp4, os.path.join(carpeta, f"contactos_{look}_{nombre}.png"))
     print(f"  -> {mp4}", flush=True)
     return mp4

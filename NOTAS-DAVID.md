@@ -415,7 +415,7 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    Pendiente: elegir la palabra tachada/resaltada a mano desde la pantalla
    (hoy se puede forzando `~~palabra~~` y `*palabra*` en el texto).
 10. **SIGUIENTE: el plan «NIVEL PROFESIONAL» (12-nov)** — ver la sección del
-   mismo nombre más abajo; P1 a P8, P6b y P6c HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río; P6b = objetos de plastilina en la mesa; P6c = Claude construye cualquier otro objeto y lo guarda en una biblioteca; P8 = el guion sigue la fórmula de las referencias); siguiente: hacer UN vídeo de prueba con todo (P1-P8) al lado de su referencia y apuntar lo que aún se nota distinto. (Siguen sobre la mesa, para
+   mismo nombre más abajo; P1 a P8, P6b y P6c HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río; P6b = objetos de plastilina en la mesa; P6c = Claude construye cualquier otro objeto y lo guarda en una biblioteca; P8 = el guion sigue la fórmula de las referencias); vídeo de prueba con todo HECHO (12-nov, ver «Vídeo de prueba con todo» en NIVEL PROFESIONAL); siguiente: el punto 1 de su lista (subtítulos grandes palabra a palabra) y seguir esa lista. (Siguen sobre la mesa, para
    después: grabar tu voz desde la propia página; afinar la tabla de voces.)
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
@@ -736,7 +736,7 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Pendiente: ~~más formas de «lo falso → lo verdadero»~~ (HECHO 11-nov, punto 9
    del orden nuevo); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1 a P8, P6b y P6c HECHOS; ahora, el vídeo de prueba con todo).
+Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1 a P8, P6b y P6c HECHOS; vídeo de prueba HECHO; ahora, la lista «Siguiente» de «Vídeo de prueba con todo»).
 
 ## NIVEL PROFESIONAL (decidido 12-nov-2026) — manda sobre el punto 10 del ORDEN NUEVO
 David quiere que sus vídeos queden AL MISMO NIVEL que los de referencia, no «parecidos
@@ -1059,6 +1059,55 @@ del VPS no debe depender de internet; anotar licencia de cada cosa en un LICENCI
   pantalla para «serie» y «reto» (hoy se escriben en el encargo).
 Al acabar cada etapa: hacer UN vídeo de prueba con su referencia al lado y apuntar
 aquí lo que aún se nota distinto.
+
+### Vídeo de prueba con todo (12-nov-2026) — lo que aún se nota distinto
+Hecho con TU guion «¿Los ángeles conocen tu nombre?» (9 bloques, 258 palabras),
+voz gratis Brian Multilingual +5 %, 118 s, 25 planos, vertical 1080×1920, en
+tres looks: A vectorial (rótulos + partida + contraluz + muñecos con boca),
+B editorial, C Biblia 3D. 0 € (láminas dibujadas por código, no imágenes reales:
+lo que depende del DIBUJO no se juzgó). Herramienta para repetirlo:
+`python herramientas/video_prueba_pro.py <carpeta> [--looks A,B,C]` (en el VPS
+tarda ~15 min por look). Comparado con el análisis de las referencias (arriba).
+**Lo que falla o falta, por orden de cuánto se nota (cada uno, un arreglo):**
+1. **Subtítulos**: salen pequeños, en caja oscura, a media altura ENCIMA del
+   personaje, de 2-3 palabras y sin la palabra clave resaltada en color. Las
+   referencias: grandes, palabra a palabra, clave en amarillo/rojo, en el tercio
+   de abajo o arriba sin tapar la figura. Además se come la puntuación
+   («nombre La Biblia», «dice en»): cortes a media frase.
+2. **El gancho no se ve**: el 1.er segundo es la imagen con «Los ángeles» en el
+   subtítulo; la pregunta «¿Los ángeles conocen tu nombre?» debería salir
+   ENORME 2-3 s (como «La túnica de José no era de colores»).
+3. **La cita escrita en palabras no se reconoce**: «El Salmo ciento cuarenta y
+   siete, versículo cuatro» no pone «SALMO 147:4» en la pastilla (se queda
+   «LUCAS 1:19» del plano anterior). La Biblia 3D SÍ lo detecta («SALMO 147»):
+   unificar con ese detector. Y la pastilla va un plano retrasada a veces
+   («DANIEL 10:11» cuando ya habla de Abraham).
+4. **Sin placas ni sellos** en un guion que los pide: «cuatro veces» →
+   placa «4 VECES»; «Primera / Segunda / Tercera / Cuarta» → marcador «1/4…4/4»;
+   «La Biblia NO dice eso» → sello «NO». Los disparadores de `rotulos.py` solo
+   conocen «no era/fue»; ampliar a «no dice», ordinales y «N veces».
+5. **Editorial (B)**: el titular CHOCA con la pastilla de la cita (se pisan
+   arriba); el titular es un trozo de la narración («dice en Daniel capítulo
+   diez versículo») en vez de una idea («4 VECES QUE UN ÁNGEL DIJO UN NOMBRE»);
+   y en 118 s solo salió UN cuadro (Lorenzo Monaco): pocas.
+6. **El cierre no pide nada en pantalla**: «Sígueme para la parte dos» va solo
+   en la voz; falta la tarjeta final («PARTE 2: ¿tienes un ángel de la
+   guarda?» + «Sígueme»). Y el vídeo acaba en negro casi 1 s.
+7. **Nubes del ambiente**: en el plano 1 salen como manchas blancas recortadas
+   (feas); revisar el efecto «nubes» en vertical.
+8. **Biblia 3D (C)**: el decorado queda bien (mesa, Biblia, tomas), pero en la
+   página izquierda sale un trozo de narración («dice en Lucas capítulo uno
+   versículo») en vez del VERSÍCULO citado («Zacarías, no temas»); no se vio
+   ningún objeto de plastilina en los fotogramas (solo «estrella» en un plano)
+   ni muñecos de plastilina sobre la mesa, que es lo que da el look de «El
+   origen de las cosas». Lento: ~30 min el vídeo de 2 min con 4 procesos.
+9. **Pantalla partida (P2)** no salió: este guion no contrasta dos libros, es
+   correcto. El contraluz se nota poco con láminas planas: juzgarlo con imágenes
+   reales.
+**Siguiente (un chat cada uno, en este orden):** subtítulos grandes palabra a
+palabra (1) → gancho enorme (2) → citas dichas en palabras y pastilla al día
+(3) → placas/sellos nuevos (4) → titular editorial sin choque (5) → tarjeta
+final (6). Luego repetir este vídeo de prueba y comparar.
 
 ## Prompts de imagen: dos fallos de fondo arreglados (11-nov-2026)
 Visto en el vídeo del rey David (borrado después; no se arregló ese vídeo).
