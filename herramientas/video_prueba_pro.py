@@ -289,8 +289,11 @@ def preparar(carpeta, ancho):
         _lamina(os.path.join(arte, "reparto", f"{nombre}.png"), nombre, 50 + k, lw, lh)
     estado.set_params("assets", params)
     estado.completar("assets", p6_assets.ejecutar(proyecto, params, avisar))
-    estado.set_params("callouts", {})
-    estado.completar("callouts", p7_callouts.ejecutar(proyecto, {}, avisar))
+    # sin las miniaturas de vista previa: no salen en el vídeo y, con el
+    # Chromium de algunos contenedores, la captura suelta no termina nunca
+    callouts = {"previsualizar": False}
+    estado.set_params("callouts", callouts)
+    estado.completar("callouts", p7_callouts.ejecutar(proyecto, callouts, avisar))
     return proyecto, estado
 
 
