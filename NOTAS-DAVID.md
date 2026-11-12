@@ -1109,6 +1109,31 @@ palabra (1) → gancho enorme (2) → citas dichas en palabras y pastilla al dí
 (3) → placas/sellos nuevos (4) → titular editorial sin choque (5) → tarjeta
 final (6). Luego repetir este vídeo de prueba y comparar.
 
+### Vídeo de Lázaro (12-nov-2026, «video (6).mp4») — lo que no le gustó a David
+Muñecos (motion), 130 s, vertical. Analizado por fotogramas (el audio no se pudo oír).
+Arreglos propuestos, uno por chat, en este orden:
+1. **Voz de Jesús rara**: `voz_gratis.voz_de_personaje` saca el idioma del id del
+   narrador; con un narrador MULTILINGÜE (`en-US-BrianMultilingualNeural`) busca
+   voces «en» nativas y Jesús lee castellano con acento inglés. Arreglo: idioma del
+   GUION, y solo voces nativas de castellano (mismo país si hay).
+2. **La estrella de 5 puntas**: es el icono «puente» por defecto entre planos
+   (`motion.ICONO_PUENTE`: contador/texto/lamina → «estrella», y el `.get(…, "estrella")`);
+   sale sin venir a cuento y a veces encima de una cara. Quitarla (sin icono o uno
+   que tenga que ver con la frase).
+3. **Textos que se pisan o se cortan**: subtítulo encima de iconos/personajes y del
+   mapa; «¿Y si hubieras estado?», ««Lázaro ven…»» y «…ulo más corto» cortados por
+   el borde; título «Jesús sabía» + caja con la misma frase tapando la cara.
+4. **Placas con números mal sacados**: contador «6532/5540 VECES» a medio rodar,
+   «999 veces» / «Mil veces» / «1000 veces» seguidos; «11 VERSÍCULO», «11 TREINTA»
+   (de «Juan 11:35»), «6 MIRAD» (de «seis. Mirad»), con puntitos que no cuentan nada.
+5. **Cita**: «ESCRITO ESTÁ» enseña narración («Los presentes comentan en») en vez del
+   versículo; la pastilla se queda en «JUAN 11:30» hasta el final (ya en la lista de arriba, 3 y 8).
+6. **Fondos**: desde el s. 40 casi todo es la tumba (también en casa de Marta y
+   María); la ventana con cielo y un sol dentro de la tumba.
+7. **Muñecos más realistas**: hoy son chibi (cabeza enorme, ojos saltones, todos la
+   misma cara). Opción: un estilo «adulto» en `marioneta.py` (más alto, ojos
+   pequeños, sombreado, barba/pelo distintos por personaje) o imágenes reales sin muñecos.
+
 ## Prompts de imagen: dos fallos de fondo arreglados (11-nov-2026)
 Visto en el vídeo del rey David (borrado después; no se arregló ese vídeo).
 - **Desfase plano ↔ audio**: los planos se numeran por POSICIÓN (S001, S002…) y
