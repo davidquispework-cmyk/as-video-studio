@@ -415,7 +415,7 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    Pendiente: elegir la palabra tachada/resaltada a mano desde la pantalla
    (hoy se puede forzando `~~palabra~~` y `*palabra*` en el texto).
 10. **SIGUIENTE: el plan «NIVEL PROFESIONAL» (12-nov)** — ver la sección del
-   mismo nombre más abajo; P1 HECHO (12-nov); siguiente, P2. (Siguen sobre la mesa, para
+   mismo nombre más abajo; P1 y P2 HECHOS (12-nov); siguiente, P3. (Siguen sobre la mesa, para
    después: grabar tu voz desde la propia página; afinar la tabla de voces.)
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
@@ -736,7 +736,7 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Pendiente: ~~más formas de «lo falso → lo verdadero»~~ (HECHO 11-nov, punto 9
    del orden nuevo); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1 HECHO; ahora P2).
+Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1 y P2 HECHOS; ahora P3).
 
 ## NIVEL PROFESIONAL (decidido 12-nov-2026) — manda sobre el punto 10 del ORDEN NUEVO
 David quiere que sus vídeos queden AL MISMO NIVEL que los de referencia, no «parecidos
@@ -815,6 +815,26 @@ del VPS no debe depender de internet; anotar licencia de cada cosa en un LICENCI
   lado y apuntar aquí lo que se note distinto; aún no hay botón en pantalla.
 - P2. Pantalla partida para paralelos (A | B con raya) y mezclar papel/noche por
   plano (el tema puede cambiar en una escena).
+  **HECHO (12-nov-2026)**: `pasos/partida.py`, capa del render encima de la imagen
+  y debajo de rótulos y subtítulo. **Pantalla partida**: A = imagen del plano
+  anterior (la cartela no cuenta), B = la de este, raya roja que brilla y una
+  etiqueta en cada mitad (los libros: «ÉXODO | MATEO»). En vertical, una encima
+  de otra; en horizontal, lado a lado. Entra deslizándose en la palabra que
+  compara. Sale SOLA si la frase compara («igual que», «así como», «en cambio»,
+  «a diferencia de», «mientras que», «frente a», «espejo», «paralelo») o nombra
+  dos libros. **Tono por plano**: «noche» (oscuro, azul, viñeta roja) si habla de
+  noche, tinieblas, sangre, matar, traición, muerte…; «papel» (sepia, grano de
+  papel, viñeta cálida) si rebobina («años antes», «retroceder») o habla de lo
+  escrito (pergamino, papiro, profecía, «está escrito»). El resto, normal.
+  Cómo se apaga o se fuerza: params del render `partida: false`, `tono:
+  "normal"` (sin tono automático) o `tono: "papel"|"noche"` (todo el vídeo); en
+  `plan.json`, escena `"partida": false`, `"partida": {"a": "S004", "eti_a":
+  "ÉXODO", "eti_b": "MATEO", "en": "igual"}` y `"tono": "papel"|"noche"|"normal"`
+  (manda sobre todo). No va con motion graphics ni en planos con clip de vídeo
+  (el tono sí). No toca firmas: basta «Regenerar Vídeo». Prueba:
+  `pasos/prueba_partida.py` (`--ver CARPETA` escribe páginas vertical/horizontal).
+  Falta: verlo en un vídeo real con la referencia al lado; aún no hay botón en
+  pantalla (igual que P1).
 - P3. Calidad de dibujo: biblioteca de escenarios y objetos vectoriales con luz,
   sombras y capas (mar, desierto, ciudad amurallada, torre, templo, barca, trono…)
   y muñecos mejores; fuego/humo/luz con Lottie.

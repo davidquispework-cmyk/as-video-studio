@@ -57,6 +57,7 @@ import motion  # noqa: E402
 import motion_mas  # noqa: E402
 import motion_storyboard  # noqa: E402
 import rotulos  # noqa: E402
+import partida  # noqa: E402
 import medios  # noqa: E402
 import plantilla_tiktok  # noqa: E402
 import sonido  # noqa: E402
@@ -351,6 +352,7 @@ __AMBCSS__
 __MARCSS__
 __MGCSS__
 __RTCSS__
+__PTCSS__
 </style></head><body>
 <!-- DOS CAPAS, Y LA DIFERENCIA ES EN QUE LADO DEL TRANSFORM ESTAN.
      #capa va DENTRO de #camara, asi que la escala el zoom: ahi vive lo que
@@ -366,6 +368,7 @@ __RTCSS__
     <div id="capa">__CAPA__</div>
   </div>
   __AMBFUERA__
+  __PTHTML__
   __MARHTML__
   __MGHTML__
   __RTHTML__
@@ -454,6 +457,10 @@ __CAMJS__
 // placa de cifra y rebobinando, quietos sobre el cuadro. null = sin rotulos.
 const RT = __RT__;
 __RTJS__
+
+// LA PANTALLA PARTIDA Y EL TONO (pasos/partida.py, P2). null = sin ellos.
+const PT = __PT__;
+__PTJS__
 const QUIETO = JSON.stringify(MOV.ventana_ini) === JSON.stringify(MOV.ventana_fin);
 
 function pintar(t){
@@ -477,6 +484,7 @@ function pintar(t){
   if (svg && svg.setCurrentTime) svg.setCurrentTime(t);
   if (svgFijo && svgFijo.setCurrentTime) svgFijo.setCurrentTime(t);
   if (RT) rotulosPintar(t);
+  if (PT && PT.partida) partidaPintar(t);
   if (CLIP && CLIP.length){
     // se ESPERA a que el fotograma este decodificado: si no, la captura
     // pillaria el anterior y el clip saldria a tirones
@@ -499,7 +507,8 @@ def _url_local(ruta):
 
 
 def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
-               amb=None, fotos_clip=None, mar=None, mg=None, cam=None, rt=None):
+               amb=None, fotos_clip=None, mar=None, mg=None, cam=None, rt=None,
+               pt=None):
     ancho, alto = [int(v) for v in p["resolucion"]]
     hw, hh = mov.get("hyperframe_px") or [3072, 2048]
     duracion = float(escena["t_out"]) - float(escena["t_in"])
@@ -513,6 +522,10 @@ def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
     mg_json = motion.json_conf(mg) if mg else ""
     rt_json = rotulos.json_conf(rt) if rt else ""
     html = (PAGINA
+            .replace("__PTCSS__", partida.css(pt))
+            .replace("__PTHTML__", partida.html(pt))
+            .replace("__PTJS__", partida.js(pt))
+            .replace("__PT__", partida.json_conf(pt) or "null")
             .replace("__RTCSS__", rotulos.css(rt))
             .replace("__RTHTML__", rotulos.html(rt))
             .replace("__RTJS__", rotulos.js(rt))
@@ -540,7 +553,8 @@ def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
             .replace("__CAPA__", capa_svg)
             .replace("__CAPAFIJA__", capa_fija or "")
             .replace("__LETRASCSS__", letras.css_para((capa_fija or "") + mg_json
-                                                     + rotulos.css(rt)))
+                                                     + rotulos.css(rt)
+                                                     + partida.css(pt)))
             .replace("__MOV__", json.dumps({"ventana_ini": mov["ventana_ini"],
                                             "ventana_fin": mov["ventana_fin"]}))
             .replace("__FPS__", str(int(fps)))
@@ -1113,7 +1127,7 @@ def renderizar_plano(tarea, navegador=None):
                         capa_fija=tarea.get("capa_fija") or "", fps=fps,
                         amb=tarea.get("ambiente"), fotos_clip=fotos_clip,
                         mar=tarea.get("marioneta"), mg=tarea.get("motion"),
-                        rt=tarea.get("rotulos"),
+                        rt=tarea.get("rotulos"), pt=tarea.get("partida"),
                         cam=tarea.get("camara"))
 
     navegador.abrir(pagina)
@@ -1505,6 +1519,19 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
     except Exception as e:  # noqa: BLE001
         print(f"[render] sin rotulos ({e})", flush=True)
         confs_rotulos = {}
+    # LA PANTALLA PARTIDA Y EL TONO PAPEL/NOCHE (pasos/partida.py, P2). El
+    # motion graphics pinta su propio mundo y no la lleva.
+    def _imagen_de(sid_):
+        hy_ = (movimientos.get(sid_) or {}).get("hyperframe")
+        if not hy_:
+            return None
+        return hy_ if os.path.isabs(hy_) else os.path.join(base_callouts, hy_)
+    try:
+        confs_partida = ({} if con_motion else
+                         partida.preparar(escenas, p, ancho, alto, _imagen_de))
+    except Exception as e:  # noqa: BLE001
+        print(f"[render] sin pantalla partida ni tono ({e})", flush=True)
+        confs_partida = {}
     for indice, escena in enumerate(escenas):
         sid = escena["id"]
         uid = f"escena:{sid}"
@@ -1610,7 +1637,13 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
         rt = confs_rotulos.get(sid)
         if rt:
             print(f"[render] {sid}: {rotulos.resumen(rt)}", flush=True)
+        pt = confs_partida.get(sid)
+        if pt and con_clip:
+            pt = {k: v for k, v in pt.items() if k != "partida"} or None
+        if pt:
+            print(f"[render] {sid}: {partida.resumen(pt)}", flush=True)
         tareas.append({
+            "partida": pt,
             "rotulos": rt,
             "camara": cam,
             "motion": mg,
