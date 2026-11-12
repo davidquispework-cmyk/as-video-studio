@@ -7003,6 +7003,7 @@ function vistaElegidoLight() {
     selectorMotion(e.motion, v => { e.motion = v; }),
     selectorCamara(e, () => {}),
     selectorEditorial(e.editorial, v => { e.editorial = v; }),
+    selectorBiblia3d(e.biblia3d, v => { e.biblia3d = v; }),
     selectorGancho(e.gancho, v => { e.gancho = v; pintarLight(); }),
     selectorLetras(e, () => {}),
     selectorSubtitulo(e, () => {}),
@@ -7235,6 +7236,28 @@ function selectorEditorial(valor, alCambiar) {
   });
   return h('div', { clase: 'campo' }, h('label', {}, 'Modo editorial'), tira,
     h('div', { clase: 'pista' }, 'Gratis: los cuadros salen de museos (dominio público) y se bajan una vez. No va con motion graphics. Cambiarlo solo pide volver a montar.'));
+}
+
+/* EL DECORADO 3D (pasos/biblia3d.py, P6): una Biblia abierta en 3D sobre la
+   mesa, con la imagen del plano en su página derecha, en los planos que hablan
+   de la Escritura (y siempre el primero). Param `biblia3d` del render. */
+function selectorBiblia3d(valor, alCambiar) {
+  const tira = h('div', { clase: 'tira-modos formatos' });
+  [
+    { id: false, nombre: 'Normal', pista: 'Como siempre' },
+    { id: true, nombre: '📖 Biblia 3D', pista: 'Una Biblia abierta en 3D, como de plastilina, sobre una mesa con una lámpara de aceite. La imagen del plano sale en su página derecha y el libro citado («MATEO 26») en la izquierda. Sale en el primer plano y en los que hablan de la Biblia, lo escrito, un versículo o un libro.' },
+  ].forEach(op => {
+    tira.appendChild(h('button', {
+      clase: 'mini' + (!!valor === op.id ? ' activo' : ''), title: op.pista,
+      'data-id': String(op.id),
+      onclick: () => {
+        tira.querySelectorAll('button').forEach(b => b.classList.toggle('activo', b.dataset.id === String(op.id)));
+        alCambiar(op.id);
+      },
+    }, op.nombre));
+  });
+  return h('div', { clase: 'campo' }, h('label', {}, 'Escenario 3D'), tira,
+    h('div', { clase: 'pista' }, 'Gratis: se dibuja en tu servidor, no pide imágenes. Cambiarlo solo pide volver a montar.'));
 }
 
 function selectorGancho(valor, alCambiar) {
@@ -7578,6 +7601,7 @@ async function crearYGenerarLight(estilo) {
         resalte: e.resalte || '',
         subtitulo_pos: e.subtitulo_pos || '',
         editorial: !!e.editorial,
+        biblia3d: !!e.biblia3d,
         tiktok: e.tiktok || false,
       },
     });
@@ -7645,6 +7669,7 @@ const CAMPOS_ENCARGO = [
   { clave: 'camara', paso: 'render', param: 'camara' },
   { clave: 'camara_fuerza', paso: 'render', param: 'camara_fuerza' },
   { clave: 'editorial', paso: 'render', param: 'editorial' },
+  { clave: 'biblia3d', paso: 'render', param: 'biblia3d' },
   { clave: 'gancho', paso: 'callouts', param: 'gancho' },
   { clave: 'letra', paso: 'callouts', param: 'letra' },
   { clave: 'resalte', paso: 'callouts', param: 'resalte' },
@@ -7688,6 +7713,7 @@ function pedidoDelVideoLight() {
     camara: String(params('render').camara || ''),
     camara_fuerza: String(params('render').camara_fuerza || ''),
     editorial: !!params('render').editorial,
+    biblia3d: !!params('render').biblia3d,
     gancho: !!params('callouts').gancho,
     letra: String(params('callouts').letra || ''),
     resalte: String(params('callouts').resalte || ''),
@@ -7748,6 +7774,7 @@ function vistaEncargoVideoLight() {
     selectorMotion(e.motion, valor => { e.motion = valor; programarGuardadoEncargo(); }),
     selectorCamara(e, programarGuardadoEncargo),
     selectorEditorial(e.editorial, valor => { e.editorial = valor; programarGuardadoEncargo(); }),
+    selectorBiblia3d(e.biblia3d, valor => { e.biblia3d = valor; programarGuardadoEncargo(); }),
     selectorGancho(e.gancho, valor => { e.gancho = valor; programarGuardadoEncargo(); pintarLight(); }),
     selectorLetras(e, programarGuardadoEncargo),
     selectorSubtitulo(e, programarGuardadoEncargo),

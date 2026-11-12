@@ -59,6 +59,7 @@ import motion_storyboard  # noqa: E402
 import rotulos  # noqa: E402
 import partida  # noqa: E402
 import editorial  # noqa: E402
+import biblia3d  # noqa: E402
 import medios  # noqa: E402
 import plantilla_tiktok  # noqa: E402
 import sonido  # noqa: E402
@@ -179,6 +180,10 @@ class Navegador:
              # de escribir nosotros. El perfil es temporal, headless y solo abre
              # las paginas que genera este paso.
              "--allow-file-access-from-files",
+             # WebGL SIN GPU (pasos/biblia3d.py): desde la version 130 el
+             # navegador ya no cae solo a SwiftShader y el decorado 3D no
+             # tendria contexto. Solo afecta a las paginas que piden WebGL.
+             "--enable-unsafe-swiftshader",
              f"--remote-debugging-port={self.puerto}",
              f"--window-size={int(ancho)},{int(alto)}", "about:blank"],
             stdout=subprocess.DEVNULL, stderr=self._registro,
@@ -355,6 +360,7 @@ __MGCSS__
 __RTCSS__
 __PTCSS__
 __EDCSS__
+__E3CSS__
 </style></head><body>
 <!-- DOS CAPAS, Y LA DIFERENCIA ES EN QUE LADO DEL TRANSFORM ESTAN.
      #capa va DENTRO de #camara, asi que la escala el zoom: ahi vive lo que
@@ -370,6 +376,7 @@ __EDCSS__
     <div id="capa">__CAPA__</div>
   </div>
   __AMBFUERA__
+  __E3HTML__
   __PTHTML__
   __EDHTML__
   __MARHTML__
@@ -468,6 +475,9 @@ __PTJS__
 // EL MODO EDITORIAL (pasos/editorial.py, P5): titular y cuadro. null = sin el.
 const ED = __ED__;
 __EDJS__
+// EL DECORADO 3D (pasos/biblia3d.py, P6): la Biblia abierta. null = sin el.
+const E3 = __E3__;
+__E3JS__
 const QUIETO = JSON.stringify(MOV.ventana_ini) === JSON.stringify(MOV.ventana_fin);
 
 function pintar(t){
@@ -493,6 +503,7 @@ function pintar(t){
   if (RT) rotulosPintar(t);
   if (PT && PT.partida) partidaPintar(t);
   if (ED) editorialPintar(t);
+  if (E3) return biblia3dPintar(t);
   if (CLIP && CLIP.length){
     // se ESPERA a que el fotograma este decodificado: si no, la captura
     // pillaria el anterior y el clip saldria a tirones
@@ -516,7 +527,7 @@ def _url_local(ruta):
 
 def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
                amb=None, fotos_clip=None, mar=None, mg=None, cam=None, rt=None,
-               pt=None, ed=None):
+               pt=None, ed=None, e3=None):
     ancho, alto = [int(v) for v in p["resolucion"]]
     hw, hh = mov.get("hyperframe_px") or [3072, 2048]
     duracion = float(escena["t_out"]) - float(escena["t_in"])
@@ -530,6 +541,10 @@ def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
     mg_json = motion.json_conf(mg) if mg else ""
     rt_json = rotulos.json_conf(rt) if rt else ""
     html = (PAGINA
+            .replace("__E3CSS__", biblia3d.css(e3))
+            .replace("__E3HTML__", biblia3d.html(e3))
+            .replace("__E3JS__", biblia3d.js(e3))
+            .replace("__E3__", biblia3d.json_conf(e3) or "null")
             .replace("__EDCSS__", editorial.css(ed))
             .replace("__EDHTML__", editorial.html(ed))
             .replace("__EDJS__", editorial.js(ed))
@@ -567,7 +582,8 @@ def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
             .replace("__LETRASCSS__", letras.css_para((capa_fija or "") + mg_json
                                                      + rotulos.css(rt)
                                                      + partida.css(pt)
-                                                     + editorial.css(ed)))
+                                                     + editorial.css(ed)
+                                                     + biblia3d.css(e3)))
             .replace("__MOV__", json.dumps({"ventana_ini": mov["ventana_ini"],
                                             "ventana_fin": mov["ventana_fin"]}))
             .replace("__FPS__", str(int(fps)))
@@ -1141,7 +1157,7 @@ def renderizar_plano(tarea, navegador=None):
                         amb=tarea.get("ambiente"), fotos_clip=fotos_clip,
                         mar=tarea.get("marioneta"), mg=tarea.get("motion"),
                         rt=tarea.get("rotulos"), pt=tarea.get("partida"),
-                        ed=tarea.get("editorial"),
+                        ed=tarea.get("editorial"), e3=tarea.get("biblia3d"),
                         cam=tarea.get("camara"))
 
     navegador.abrir(pagina)
@@ -1556,6 +1572,14 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
     except Exception as e:  # noqa: BLE001
         print(f"[render] sin modo editorial ({e})", flush=True)
         confs_editorial = {}
+    # EL DECORADO 3D (pasos/biblia3d.py, P6): la Biblia abierta sobre la mesa,
+    # con la imagen del plano en su pagina derecha.
+    try:
+        confs_biblia = ({} if con_motion else
+                        biblia3d.preparar(escenas, p, ancho, alto, _imagen_de))
+    except Exception as e:  # noqa: BLE001
+        print(f"[render] sin decorado 3D ({e})", flush=True)
+        confs_biblia = {}
     for indice, escena in enumerate(escenas):
         sid = escena["id"]
         uid = f"escena:{sid}"
@@ -1673,9 +1697,17 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
         ed = confs_editorial.get(sid)
         if ed and con_clip:
             ed = editorial.sin_cuadro(ed)
+        e3 = None if con_clip else confs_biblia.get(sid)
+        if e3:
+            # el decorado tapa el cuadro entero: ni cuadro editorial ni partida
+            ed = None
+            if pt:
+                pt = {k: v for k, v in pt.items() if k != "partida"} or None
+            print(f"[render] {sid}: {biblia3d.resumen(e3)}", flush=True)
         if ed:
             print(f"[render] {sid}: {editorial.resumen(ed)}", flush=True)
         tareas.append({
+            "biblia3d": e3,
             "editorial": ed,
             "partida": pt,
             "rotulos": rt,

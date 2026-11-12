@@ -7,6 +7,7 @@ con su licencia al lado. Al añadir una pieza nueva, apúntala en esta tabla.
 |---|---|---|---|
 | anime.js 3.2.2 (Julian Garnier) | `motores/js/anime.min.js` | MIT (`motores/js/LICENSE-animejs.md`) | curvas y líneas de tiempo de los rótulos (`pasos/rotulos.py`) |
 | lottie-web 5.12.2 (Airbnb/Bodymovin), versión «light» (solo SVG) | `motores/js/lottie_light.min.js` | MIT (`motores/js/LICENSE-lottie.md`) | fuego, humo y luz de los escenarios (`pasos/escenarios.py`); las animaciones las genera el propio módulo |
+| three.js r159 (three.js authors) | `motores/js/three.min.js` | MIT (`motores/js/LICENSE-three.md`) | el decorado 3D de la Biblia abierta (`pasos/biblia3d.py`), con WebGL por software |
 | Montserrat, Bebas Neue, Lilita One, Playfair Display | `motores/fuentes/` | SIL OFL 1.1 (`OFL-*.txt`) | letras de subtítulos y rótulos |
 
 GSAP NO: su licencia gratuita no es libre.

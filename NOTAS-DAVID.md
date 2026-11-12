@@ -415,7 +415,7 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    Pendiente: elegir la palabra tachada/resaltada a mano desde la pantalla
    (hoy se puede forzando `~~palabra~~` y `*palabra*` en el texto).
 10. **SIGUIENTE: el plan «NIVEL PROFESIONAL» (12-nov)** — ver la sección del
-   mismo nombre más abajo; P1, P2, P3, P4 y P5 HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río); siguiente, P6. (Siguen sobre la mesa, para
+   mismo nombre más abajo; P1, P2, P3, P4, P5 y P6 HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río); siguiente, P7. (Siguen sobre la mesa, para
    después: grabar tu voz desde la propia página; afinar la tabla de voces.)
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
@@ -736,7 +736,7 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Pendiente: ~~más formas de «lo falso → lo verdadero»~~ (HECHO 11-nov, punto 9
    del orden nuevo); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1, P2, P3 y P4 HECHOS; ahora P5).
+Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1 a P6 HECHOS; ahora P7).
 
 ## NIVEL PROFESIONAL (decidido 12-nov-2026) — manda sobre el punto 10 del ORDEN NUEVO
 David quiere que sus vídeos queden AL MISMO NIVEL que los de referencia, no «parecidos
@@ -969,6 +969,27 @@ del VPS no debe depender de internet; anotar licencia de cada cosa en un LICENCI
   Falta: verlo en un vídeo real con Resumario al lado; elegir el cuadro desde
   la pantalla (hoy solo en `plan.json`); Wikimedia Commons como segunda fuente.
 - P6. Escenario 3D fijo con Three.js (Biblia abierta, plastilina) y cámara.
+  **HECHO (12-nov-2026)**: `pasos/biblia3d.py` + Three.js r159 dentro del repo
+  (`motores/js/three.min.js`, MIT). Se enciende en el encargo: **«Escenario 3D»
+  → 📖 Biblia 3D** (param `biblia3d: true` del render; apagado no se escribe).
+  Decorado fijo, igual en todos sus planos: mesa de madera, Biblia abierta de
+  tapas granates, cinta roja y la lámpara de aceite de barro con su llama (la
+  del logo); todo mate y redondeado, como plastilina. Página DERECHA = la imagen
+  del plano como lámina; IZQUIERDA = el libro citado («MATEO 26») y 3-6 palabras
+  de lo que se dice. Cámara distinta en cada plano (general, página, rasante,
+  cenital), moviéndose despacio. Sale en el PRIMER plano y en los que dicen
+  Biblia, escrito, versículo, capítulo, profecía, salmo, evangelio… o nombran un
+  libro. A mano en `plan.json`, escena: `"biblia3d": true/false`; todo el vídeo:
+  param `biblia3d: {"todos": true}`. Tapa el cuadro editorial y la pantalla
+  partida de ese plano; no va con motion graphics ni con clip. WebGL sin GPU:
+  el navegador del render arranca con `--enable-unsafe-swiftshader`; si WebGL
+  no arranca, el plano sale normal. Medido aquí: 0,05-0,5 s por fotograma (un
+  plano de 4 s ≈ 20-60 s más de montaje). No toca firmas: basta «Regenerar
+  Vídeo». Prueba: `pasos/prueba_biblia3d.py` (`--ver CARPETA` guarda PNG de
+  las 4 tomas en vertical y horizontal; con `ESTUDIO_EDGE` = el navegador).
+  Falta: verlo en un vídeo real con «El origen de las cosas» al lado; los
+  muñecos de plastilina DENTRO del decorado; que la página pase al cambiar de
+  plano.
 - P7. Boca con Rhubarb y la voz grabada de David.
 - P8. Guion con la fórmula de arriba (plantilla en el encargo: gancho, dato,
   espejo con Jesús, final que pide algo, «reto de la semana», serie numerada).

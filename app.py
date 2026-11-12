@@ -11233,6 +11233,10 @@ def _sembrar_video_light(ctx, datos):
     # cuadros clasicos. Solo si lo piden: apagado no se escribe nada.
     if datos.get("editorial"):
         ctx.estado.actualizar_params("render", {"editorial": True})
+    # EL DECORADO 3D (pasos/biblia3d.py, P6): la Biblia abierta. Solo si lo
+    # piden: apagado no se escribe nada.
+    if datos.get("biblia3d"):
+        ctx.estado.actualizar_params("render", {"biblia3d": True})
     # MAS IMAGENES EN LOS VIDEOS CORTOS (8-nov-2026, David): con las imagenes
     # GRATIS (modo manual) un video de 70 s con ritmo «Medio» salia con ~24
     # planos, una imagen cada 3 s, y lo que se contaba iba por delante de lo
