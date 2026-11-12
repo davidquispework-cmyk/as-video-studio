@@ -38,6 +38,7 @@ Las ANOTACIONES de voz del guion (`marcas_tts`) se traducen asi:
     muestra(voz, texto, destino)    -> ruta de un mp3 corto para escucharla
 """
 import asyncio
+import hashlib
 import json
 import os
 import re
@@ -240,6 +241,52 @@ def porcentaje_velocidad(velocidad):
 
 # --------------------------------------------------------------------- toma
 
+#: LA FRASE CLAVE (`<clave>`): la que pesa se dice MAS DESPACIO, un poco mas
+#: baja y con un silencio delante. Medido en un video de referencia que
+#: retiene muy bien (11-2026): narra a ~3,5 palabras/s y sus frases clave van
+#: a 1,7-2,2 (un 40 % mas lentas), con 1-2 s de silencio antes del giro.
+#: Medido con la voz de Microsoft de verdad: 25 puntos menos solo la frenaban
+#: un 19 %; con 40 queda cerca de lo de la referencia. Y CADA TROZO YA TRAE
+#: ~0,5 s de silencio al principio y al final (partir el texto lo mete solo),
+#: asi que lo que se suma aqui es poco: con 0,9 s antes el hueco real era 2 s.
+CLAVE_MENOS_VELOCIDAD = 40
+CLAVE_PROSODIA = (-CLAVE_MENOS_VELOCIDAD, -2, -6)
+PAUSA_ANTES_CLAVE = 0.5
+PAUSA_DESPUES_CLAVE = 0.15
+#: Lo que dice un personaje: el corte de trozo ya deja ~1 s de aire a cada
+#: lado (medido), que es justo lo que hace notar que entra otra voz.
+PAUSA_PERSONAJE = 0.0
+
+
+def voz_de_personaje(nombre, genero, narrador):
+    """La voz gratuita de un personaje. -> ShortName
+
+    ESTABLE: sale del NOMBRE (no del orden en que aparece), asi regrabar un
+    trozo suelto le da la misma voz que en la toma entera. Del mismo idioma que
+    el narrador, distinta de la suya, del genero pedido (si no se dice, el del
+    narrador) y nativa; primero las del mismo pais si hay mas de una.
+    """
+    narrador = str(narrador or "").strip()
+    idioma = narrador.split("-")[0].lower() or "es"
+    try:
+        catalogo = [f for f in voces(idioma) if f.get("nativa", True)]
+    except Exception:                                       # noqa: BLE001
+        catalogo = []
+    propio = next((f for f in catalogo if f["id"] == narrador), None)
+    quiere = {"hombre": "male", "mujer": "female"}.get(str(genero or "").lower(),
+                                                      (propio or {}).get("genero"))
+    candidatas = [f for f in catalogo if f["id"] != narrador
+                  and (not quiere or f.get("genero") == quiere)]
+    if not candidatas:
+        return narrador
+    pais = narrador.split("-")[1] if narrador.count("-") >= 2 else ""
+    mismas = [f for f in candidatas if f["id"].split("-")[1] == pais]
+    lista = sorted(mismas if mismas else candidatas, key=lambda f: f["id"])
+    clave = str(nombre or "").strip().lower()
+    indice = int(hashlib.sha1(clave.encode("utf-8")).hexdigest(), 16) % len(lista)
+    return lista[indice]["id"]
+
+
 def _trozos(texto):
     """El texto anotado -> [[lo que se dice, silencio despues en s, prosodia]].
 
@@ -250,7 +297,8 @@ def _trozos(texto):
     frase. Y dentro de cada trozo, tras una pregunta o unos puntos suspensivos
     que siguen, un respiro (`intencion.respiros`).
     """
-    estado = {"speed": 1.0, "volume": 1.0, "emotion": "neutral"}
+    estado = {"speed": 1.0, "volume": 1.0, "emotion": "neutral",
+              "personaje": None, "clave": False}
     crudos = []                      # [texto crudo, silencio, prosodia]
     actual = []
 
@@ -258,7 +306,15 @@ def _trozos(texto):
         crudo = "".join(actual)
         actual.clear()
         crudos.append([crudo, silencio,
-                       (estado["speed"], estado["volume"], estado["emotion"])])
+                       (estado["speed"], estado["volume"], estado["emotion"],
+                        estado["personaje"], estado["clave"])])
+
+    def silencio_antes(segundos):
+        """Un silencio delante de lo que viene: se suma al trozo anterior."""
+        cerrar(0.0)
+        hecho = [c for c in crudos if marcas_tts.limpiar(c[0])]
+        if hecho:
+            hecho[-1][1] = max(hecho[-1][1], segundos)
 
     for clase, pieza in marcas_tts.trocear(str(texto or "")):
         if clase == "texto":
@@ -276,6 +332,12 @@ def _trozos(texto):
                 continue
             cerrar(0.0)
             estado[clase] = pieza if clase == "emotion" else float(pieza)
+        elif clase == "personaje":
+            silencio_antes(PAUSA_PERSONAJE)
+            estado["personaje"] = pieza          # (nombre, genero) o None
+        elif clase == "clave":
+            silencio_antes(PAUSA_ANTES_CLAVE if pieza else PAUSA_DESPUES_CLAVE)
+            estado["clave"] = bool(pieza)
         # 'basura': fuera, se leeria en voz alta
     cerrar(0.0)
 
@@ -356,9 +418,14 @@ def toma(texto, voz, velocidad=None, sr=44100, avisar=None):
         hechas = [0]
 
         async def uno(texto_trozo, tono):
-            rate, pitch, volumen = intencion.prosodia(base, *tono[:3], extra=tono[3])
+            speed, volume, emocion, personaje, clave, matiz = tono
+            if clave:
+                matiz = tuple(a + b for a, b in zip(matiz, CLAVE_PROSODIA))
+            rate, pitch, volumen = intencion.prosodia(base, speed, volume, emocion,
+                                                      extra=matiz)
+            quien = voz_de_personaje(*personaje, voz) if personaje else voz
             async with semaforo:
-                resultado = await _sintetizar_trozo(edge, texto_trozo, voz, rate,
+                resultado = await _sintetizar_trozo(edge, texto_trozo, quien, rate,
                                                     pitch, volumen)
                 hechas[0] += len(texto_trozo.split())
                 avisa(min(0.95, hechas[0] / previstas),

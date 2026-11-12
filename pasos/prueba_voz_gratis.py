@@ -229,6 +229,66 @@ def probar_toma():
     ok(palabras[-1]["e"] <= duracion, "ninguna palabra acaba despues del audio")
 
 
+def probar_personajes_y_claves():
+    """Voz de personaje y frase clave (`<personaje>`, `<clave>`)."""
+    print("\n  VOZ DE PERSONAJE Y FRASE CLAVE")
+    texto = ('Jotam les gritó: <personaje nombre="Jotam" genero="hombre">'
+             '¡Escúchenme, hombres de Siquem!</personaje> Nadie respondió. '
+             '<clave>Y sobre una sola piedra mató a sus hermanos.</clave> Fin.')
+    igual(marcas_tts.limpiar(marcas_tts.sanear(texto)),
+          "Jotam les gritó: ¡Escúchenme, hombres de Siquem! Nadie respondió. "
+          "Y sobre una sola piedra mató a sus hermanos. Fin.",
+          "las etiquetas no se oyen ni cuentan como palabras")
+    igual(marcas_tts.sanear(marcas_tts.sanear(texto)), marcas_tts.sanear(texto),
+          "sanear las conserva y es idempotente")
+    igual(marcas_tts.sanear("<clave>Abierta sin cerrar"), "<clave>Abierta sin cerrar</clave>",
+          "un par sin cerrar se cierra al final del bloque")
+    igual(marcas_tts.sin_voces(texto).count("<"), 0, "a Cartesia le llegan sin ellas")
+    igual(marcas_tts.sanear("Uno dos tres."), "Uno dos tres.",
+          "un texto sin estas etiquetas sale igual que antes")
+
+    trozos = voz_gratis._trozos(marcas_tts.sanear(texto))            # noqa: SLF001
+    igual([t[0] for t in trozos],
+          ["Jotam les gritó:", "¡Escúchenme, hombres de Siquem!", "Nadie respondió.",
+           "Y sobre una sola piedra mató a sus hermanos.", "Fin."],
+          "se parte donde entra y sale cada voz")
+    igual([t[2][3] for t in trozos],
+          [None, ("Jotam", "hombre"), None, None, None], "el personaje va en su trozo")
+    igual([t[2][4] for t in trozos], [False, False, False, True, False],
+          "la frase clave va en el suyo")
+    ok(trozos[2][1] >= voz_gratis.PAUSA_ANTES_CLAVE, "silencio antes de la frase clave")
+    ok(trozos[3][1] >= voz_gratis.PAUSA_DESPUES_CLAVE, "y un poco despues")
+
+    catalogo = [
+        {"id": "es-PE-AlexNeural", "genero": "male", "nativa": True},
+        {"id": "es-PE-CamilaNeural", "genero": "female", "nativa": True},
+        {"id": "es-MX-JorgeNeural", "genero": "male", "nativa": True},
+        {"id": "es-CO-GonzaloNeural", "genero": "male", "nativa": True},
+        {"id": "es-AR-ElenaNeural", "genero": "female", "nativa": True}]
+    antes = voz_gratis.voces
+    voz_gratis.voces = lambda idioma=None, refrescar=False: catalogo
+    try:
+        jotam = voz_gratis.voz_de_personaje("Jotam", "hombre", "es-PE-AlexNeural")
+        ok(jotam in ("es-MX-JorgeNeural", "es-CO-GonzaloNeural"),
+           f"un personaje hombre: otra voz de hombre ({jotam})")
+        igual(voz_gratis.voz_de_personaje("Jotam", "hombre", "es-PE-AlexNeural"), jotam,
+              "y siempre la misma para el mismo nombre")
+        igual(voz_gratis.voz_de_personaje("Débora", "mujer", "es-PE-AlexNeural"),
+              "es-PE-CamilaNeural", "una mujer: primero las del pais del narrador")
+        PEDIDOS.clear()
+        voz_gratis.toma(marcas_tts.sanear(texto), "es-PE-AlexNeural", 10 / 35, sr=44100)
+        por_texto = {t: (v, r) for t, v, r in PEDIDOS}
+        igual(por_texto["¡Escúchenme, hombres de Siquem!"][0], jotam,
+              "en la toma, Jotam habla con su voz")
+        igual(por_texto["Nadie respondió."][0], "es-PE-AlexNeural",
+              "y el narrador sigue con la suya")
+        clave = int(por_texto["Y sobre una sola piedra mató a sus hermanos."][1].rstrip("%"))
+        ok(clave <= 10 - voz_gratis.CLAVE_MENOS_VELOCIDAD,
+           f"la frase clave va mucho mas despacio ({clave:+d}% con la voz a +10%)")
+    finally:
+        voz_gratis.voces = antes
+
+
 def probar_paso():
     print("\n  EL PASO DE VOZ ENTERO")
     ajustes.guardar({"modo_voz": "gratis", "voz_gratis": "es-PE-CamilaNeural"})
@@ -424,6 +484,7 @@ def main():
     probar_voz_por_tema()
     probar_voz_del_video()
     probar_toma()
+    probar_personajes_y_claves()
     probar_paso()
     print()
     print("=" * 70)

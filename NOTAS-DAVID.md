@@ -341,6 +341,22 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    firma igual que la voz; «▶ Escuchar» la pone a esa velocidad. Más rápida =
    el audio y el vídeo duran menos.
    Prueba: `pasos/prueba_voz_gratis.py` (`probar_voz_del_video`).
+6b. Voz de personaje y frase clave — **HECHO (12-nov)** (pedido por David tras
+   medir un vídeo de referencia de @sinfiltroperocontexto: narra a ~3,5 pal/s,
+   frena las frases clave a 1,7-2,2 con 1-2 s de silencio antes, y los
+   personajes hablan con otra voz). Cómo se usa: nada; con la voz gratuita, el
+   guion NUEVO sale con dos etiquetas que no se oyen: `<personaje nombre="Jotam"
+   genero="hombre">…</personaje>` (lo dice OTRA voz gratuita, estable por
+   nombre: `voz_gratis.voz_de_personaje`) y `<clave>…</clave>` (40 puntos más
+   lenta, un poco más baja y con silencio antes: `voz_gratis.CLAVE_*`). En la
+   pestaña Guion cada bloque lo marca con «🎭 Nombre» / «🔑 frase clave». Con
+   Cartesia se quitan antes de mandarle el texto (`marcas_tts.sin_voces`). Los
+   guiones ya escritos no cambian; editar un bloque a mano quita sus marcas
+   (como las pausas). No mueve firmas. Medido con la voz real (Alex +10 %):
+   narrador 3,5 pal/s, frase clave 2,3, Jotam con Roberto (Panamá).
+   Pendiente: oírlo David y ajustar; elegir a mano la voz de cada personaje;
+   susurro y entrada fuerte (los otros dos puntos de la comparación).
+   Prueba: `pasos/prueba_voz_gratis.py` (`probar_personajes_y_claves`).
 7. Fuerza de la cámara elegible — **HECHO (11-nov)** (lo eligió David entre
    cuatro opciones). Cómo se usa: al crear el vídeo o en «El encargo», debajo
    de «Cámara» (solo con 🎥 Cámara viva) sale «Fuerza del movimiento»:

@@ -129,6 +129,16 @@ _BREAK = re.compile(r'<break\s+time="(\d+(?:\.\d+)?)\s*(ms|s)"\s*/>', re.I)
 _RATIO = re.compile(r'<(speed|volume)\s+ratio="(-?\d+(?:\.\d+)?)"\s*/>', re.I)
 _EMOCION = re.compile(r'<emotion\s+value="([A-Za-z]+)"\s*/>', re.I)
 _SPELL = re.compile(r'<spell>\s*([^<>]+?)\s*</spell>', re.I)
+#: VOZ DE PERSONAJE y FRASE CLAVE (11-2026, con la voz gratuita). Son PARES:
+#: envuelven lo que dice un personaje en estilo directo, o la frase que pesa.
+#: `voz_gratis` graba lo de dentro con otra voz, o mas despacio y con un
+#: silencio delante. Cartesia no las conoce y las LOCUTARIA: se le quitan
+#: antes de mandarle el texto (`sin_voces`).
+_PERSONAJE = re.compile(
+    r'<personaje\s+nombre="([^"<>]{1,40})"(?:\s+genero="(hombre|mujer)")?\s*>', re.I)
+_FIN_PERSONAJE = re.compile(r'</personaje\s*>', re.I)
+_CLAVE = re.compile(r'<clave\s*>', re.I)
+_FIN_CLAVE = re.compile(r'</clave\s*>', re.I)
 
 #: QUE SE DELETREA DE VERDAD, y por que no se le puede dejar al redactor.
 #:
@@ -404,6 +414,27 @@ def hay_marcas(texto):
     return bool(_ALGO_ASI.search(str(texto or "")))
 
 
+def sin_voces(texto):
+    """El texto sin <personaje> ni <clave> (lo de dentro se queda).
+
+    Para Cartesia: no las conoce y una etiqueta desconocida la LOCUTA.
+    """
+    plano = str(texto or "")
+    for patron in (_PERSONAJE, _FIN_PERSONAJE, _CLAVE, _FIN_CLAVE):
+        plano = patron.sub(" ", plano)
+    return re.sub(r"  +", " ", plano).strip()
+
+
+def personajes(texto):
+    """Los personajes con voz propia que aparecen, en orden. -> [nombre]"""
+    vistos = []
+    for m in _PERSONAJE.finditer(str(texto or "")):
+        nombre = " ".join(m.group(1).split())
+        if nombre not in vistos:
+            vistos.append(nombre)
+    return vistos
+
+
 def contar_palabras(texto):
     """Palabras que se locutan, sin contar las etiquetas."""
     return len(limpiar(texto).split())
@@ -414,7 +445,9 @@ def contar_palabras(texto):
 def trocear(texto):
     """[(clase, pieza)] recorriendo el texto una vez.
 
-    clase es 'texto', 'break', 'speed', 'volume', 'emotion', 'spell' o 'basura'.
+    clase es 'texto', 'break', 'speed', 'volume', 'emotion', 'spell',
+    'personaje' ((nombre, genero) al abrir, None al cerrar), 'clave' (True al
+    abrir, False al cerrar) o 'basura'.
     """
     piezas = []
     posicion = 0
@@ -444,6 +477,22 @@ def trocear(texto):
         emocion = _EMOCION.fullmatch(cruda)
         if emocion:
             piezas.append(("emotion", emocion.group(1).lower()))
+            continue
+
+        personaje = _PERSONAJE.fullmatch(cruda)
+        if personaje:
+            nombre = " ".join(personaje.group(1).split())
+            genero = (personaje.group(2) or "").lower()
+            piezas.append(("personaje", (nombre, genero)))
+            continue
+        if _FIN_PERSONAJE.fullmatch(cruda):
+            piezas.append(("personaje", None))
+            continue
+        if _CLAVE.fullmatch(cruda):
+            piezas.append(("clave", True))
+            continue
+        if _FIN_CLAVE.fullmatch(cruda):
+            piezas.append(("clave", False))
             continue
 
         # <spell> es el unico par de apertura y cierre: se busca completo desde
@@ -480,6 +529,7 @@ def sanear(texto, avisos=None):
     dicho = ""           # texto locutado acumulado, para saber si toca frontera
     ultimo_break = None  # indice en 'salida' del ultimo silencio, si va seguido
     abiertos = {}        # 'speed'/'volume' -> valor distinto de neutro
+    pares = {"personaje": False, "clave": False}   # pares abiertos
 
     def en_frontera():
         """True si aqui cabe un cambio de voz sin partir una frase."""
@@ -568,6 +618,31 @@ def sanear(texto, avisos=None):
             salida.append(f'<emotion value="{pieza}"/>')
             ultimo_break = None
 
+        elif clase == "personaje":
+            if pieza is None:
+                if pares["personaje"]:
+                    salida.append("</personaje>")
+                    pares["personaje"] = False
+                continue
+            if pares["personaje"]:
+                # otro personaje sin cerrar el anterior: se cierra aqui
+                salida.append("</personaje>")
+                apunta("un personaje empezaba sin cerrar el anterior: cerrado")
+            nombre, genero = pieza
+            salida.append(f'<personaje nombre="{nombre}"'
+                          + (f' genero="{genero}"' if genero else "") + ">")
+            pares["personaje"] = True
+            ultimo_break = None
+
+        elif clase == "clave":
+            if pieza and not pares["clave"]:
+                salida.append("<clave>")
+                pares["clave"] = True
+            elif not pieza and pares["clave"]:
+                salida.append("</clave>")
+                pares["clave"] = False
+            ultimo_break = None
+
         else:  # basura
             # No se avisa y ya: se BORRA. Una etiqueta que Cartesia no reconoce
             # la LOCUTA, y un video que dice "menor que pausa larga" es mucho
@@ -593,6 +668,16 @@ def sanear(texto, avisos=None):
         return ""
 
     # lo que este bloque abrio, este bloque lo cierra
+    if pares["clave"]:
+        final += "</clave>"
+    if pares["personaje"]:
+        final += "</personaje>"
+    # un par que no envuelve nada se quita (solo si los hay: un guion sin
+    # estas etiquetas sale exactamente como antes)
+    if "<clave>" in final or "<personaje" in final:
+        final = re.sub(r'<clave>\s*</clave>', ' ', final)
+        final = re.sub(r'<personaje[^<>]*>\s*</personaje>', ' ', final)
+        final = re.sub(r'  +', ' ', final).strip()
     for clase in ("speed", "volume"):
         if clase in abiertos:
             apunta(f"el bloque dejaba {clase} en {abiertos[clase]} al terminar y "
@@ -665,6 +750,14 @@ def _rearmar(piezas):
             trozos.append(f'<break time="{int(pieza)}ms"/>')
         elif clase == "emotion":
             trozos.append(f'<emotion value="{pieza}"/>')
+        elif clase == "personaje":
+            if pieza is None:
+                trozos.append("</personaje>")
+            else:
+                trozos.append(f'<personaje nombre="{pieza[0]}"'
+                              + (f' genero="{pieza[1]}"' if pieza[1] else "") + ">")
+        elif clase == "clave":
+            trozos.append("<clave>" if pieza else "</clave>")
         else:
             trozos.append(f'<{clase} ratio="{_formatear(pieza)}"/>')
     return "".join(trozos)
@@ -750,12 +843,37 @@ PAUSAS = (
 )
 
 
-def instrucciones(con_emocion=True, motor="Cartesia", pauta_tono=None):
+#: Lo que se le dice al redactor de las dos etiquetas de voz gratuita.
+PAUTA_VOCES = (
+    "VOZ DE PERSONAJE. Cuando un personaje HABLA en estilo directo (sus "
+    "palabras exactas: un dialogo, una orden, una cita de lo que dijo), "
+    "envuelve SOLO sus palabras con `<personaje nombre=\"Jotam\" "
+    "genero=\"hombre\">…</personaje>` (genero: hombre o mujer). Esas palabras "
+    "las dice OTRA voz, como en un radioteatro; el narrador cuenta el resto. "
+    "Mismo personaje, mismo nombre escrito igual en todo el guion. Va despues "
+    "de los dos puntos o de la presentacion («Jotam les grito: <personaje "
+    "…>¡Escuchenme!</personaje>»), nunca envolviendo la narracion ni el estilo "
+    "indirecto («dijo que no»). Dios, Jesus, un profeta o un rey tambien, si se "
+    "les cita en directo. Usala donde el dialogo sea un momento de la historia: "
+    "de dos a seis veces en un video largo, una o dos en uno corto.",
+    "",
+    "FRASE CLAVE. Envuelve con `<clave>…</clave>` la frase que MAS pesa: la "
+    "revelacion, el giro, la cifra que duele, el remate que se recuerda. Se "
+    "dice mas despacio, un poco mas baja y con un silencio delante, asi que "
+    "no le pongas un `<break>` antes. Una frase ENTERA y corta (menos de 15 "
+    "palabras), nunca media. Pocas: tres o cuatro en un video largo, una o dos "
+    "en uno corto. Si todo es clave, nada lo es.",
+)
+
+
+def instrucciones(con_emocion=True, motor="Cartesia", pauta_tono=None,
+                  voces=False):
     """Bloque de reglas de anotacion para el prompt del guion.
 
     pauta_tono, si llega, sustituye al parrafo de EMOCION: con la voz gratuita
     cada bloque se graba con su tono y se puede usar mucho mas (punto E,
-    `intencion.pauta_tono`).
+    `intencion.pauta_tono`). `voces` (solo voz gratuita) anade <personaje> y
+    <clave> (ver PAUTA_VOCES).
     """
     con_emocion = bool(con_emocion or pauta_tono)
     lineas = [
@@ -785,6 +903,8 @@ def instrucciones(con_emocion=True, motor="Cartesia", pauta_tono=None):
         f"VOLUMEN. `<volume ratio=\"0.9\"/>` baja la voz, para un inciso o una "
         f"confidencia. Entre {VOLUMEN_SUAVE_MIN} y {VOLUMEN_SUAVE_MAX}.",
     ])
+    if voces:
+        lineas.extend(["", *PAUTA_VOCES])
     if pauta_tono:
         lineas.extend(["", pauta_tono])
     elif con_emocion:

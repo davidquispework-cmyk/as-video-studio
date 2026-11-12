@@ -835,7 +835,9 @@ def _instruccion(transcript, metadatos, brief, anterior, opciones, correcciones,
             con_emocion=opciones["emocion_en_voz"],
             motor="un sintetizador de voz" if gratis else "Cartesia",
             pauta_tono=(intencion.pauta_tono()
-                        if gratis and opciones["emocion_en_voz"] else None)))
+                        if gratis and opciones["emocion_en_voz"] else None),
+            # voz de personaje y frase clave: solo la voz gratuita las graba
+            voces=gratis))
 
     if correcciones:
         # EL TEXTO QUE SE CORRIGE VA DELANTE DE LA CORRECCION. Sin esto, las

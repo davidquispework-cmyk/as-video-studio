@@ -8640,6 +8640,7 @@ function bloquesLight() {
     ficha.appendChild(h('div', { clase: 'cabecera' },
       h('span', { clase: 'id' }, bloque.id),
       bloqueEditadoLight(bloque) ? h('span', { clase: 'pastilla tocado' }, 'editado') : null,
+      ...marcasVozLight(texto),
       h('span', { clase: 'crece' }),
       selectorTonoLight(bloque),
       hayAudio ? h('button', {
@@ -8696,6 +8697,24 @@ function bloquesLight() {
     lista.appendChild(ficha);
   }
   return lista;
+}
+
+/* VOZ DE PERSONAJE Y FRASE CLAVE (voz gratuita, `pasos/marcas_tts.py`):
+   `<personaje nombre="…">…</personaje>` lo dice otra voz y `<clave>…</clave>`
+   se dice despacio y con un silencio delante. El texto no las enseña (se lee
+   lo que se oye), así que la cabecera del bloque dice que están. */
+function marcasVozLight(texto) {
+  const crudo = String(texto || '');
+  const nombres = [...new Set([...crudo.matchAll(/<personaje\s+nombre="([^"<>]+)"/gi)]
+    .map(m => m[1].trim()))];
+  const claves = (crudo.match(/<clave\s*>/gi) || []).length;
+  return [
+    ...nombres.map(n => h('span', { clase: 'pastilla marca-voz',
+      title: `Las palabras de ${n} las dice otra voz` }, `🎭 ${n}`)),
+    claves ? h('span', { clase: 'pastilla marca-voz',
+      title: 'Frase clave: se dice más despacio y con un silencio antes' },
+    '🔑 frase clave') : null,
+  ];
 }
 
 /* Lo que se LEE de un bloque: su texto sin las anotaciones del TTS.

@@ -836,6 +836,9 @@ def _toma_por_contexto(trozos, cfg, progreso):
     """
     import websocket  # websocket-client; solo hace falta por este camino
 
+    # Cartesia no conoce <personaje> ni <clave> y los LOCUTARIA: fuera
+    trozos = [marcas_tts.sin_voces(t) for t in trozos]
+
     api_key = comun.llamar_motor(motor.cargar_api_key)
     url = (f"wss://api.cartesia.ai/tts/websocket?api_key={api_key}"
            f"&cartesia_version={motor.API_VERSION}")
@@ -899,6 +902,7 @@ def _toma_por_contexto(trozos, cfg, progreso):
 
 def _toma_real(texto, cfg, progreso):
     """Llamada SSE a Cartesia con __experimental_controls."""
+    texto = marcas_tts.sin_voces(texto)
     # cargar_api_key aborta con SystemExit, que dentro de un hilo del gestor de
     # trabajos no lo recoge nadie
     api_key = comun.llamar_motor(motor.cargar_api_key)
@@ -992,7 +996,8 @@ def unir_bloques(bloques, cfg):
     if cfg.get("motor_voz") == "gratis":
         return " ".join(intencion.con_tono_neutro_al_empezar(b["texto"])
                         for b in bloques if str(b.get("texto") or "").strip())
-    return " ".join(b["texto"].strip() for b in bloques)
+    # Cartesia no conoce <personaje> ni <clave> y los LOCUTARIA: fuera
+    return " ".join(marcas_tts.sin_voces(b["texto"]) for b in bloques)
 
 
 def sintetizar_toma(texto, cfg, progreso=None, grabacion=None):
