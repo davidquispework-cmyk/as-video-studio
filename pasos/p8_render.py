@@ -58,6 +58,7 @@ import motion_mas  # noqa: E402
 import motion_storyboard  # noqa: E402
 import rotulos  # noqa: E402
 import partida  # noqa: E402
+import editorial  # noqa: E402
 import medios  # noqa: E402
 import plantilla_tiktok  # noqa: E402
 import sonido  # noqa: E402
@@ -353,6 +354,7 @@ __MARCSS__
 __MGCSS__
 __RTCSS__
 __PTCSS__
+__EDCSS__
 </style></head><body>
 <!-- DOS CAPAS, Y LA DIFERENCIA ES EN QUE LADO DEL TRANSFORM ESTAN.
      #capa va DENTRO de #camara, asi que la escala el zoom: ahi vive lo que
@@ -369,6 +371,7 @@ __PTCSS__
   </div>
   __AMBFUERA__
   __PTHTML__
+  __EDHTML__
   __MARHTML__
   __MGHTML__
   __RTHTML__
@@ -461,6 +464,10 @@ __RTJS__
 // LA PANTALLA PARTIDA Y EL TONO (pasos/partida.py, P2). null = sin ellos.
 const PT = __PT__;
 __PTJS__
+
+// EL MODO EDITORIAL (pasos/editorial.py, P5): titular y cuadro. null = sin el.
+const ED = __ED__;
+__EDJS__
 const QUIETO = JSON.stringify(MOV.ventana_ini) === JSON.stringify(MOV.ventana_fin);
 
 function pintar(t){
@@ -485,6 +492,7 @@ function pintar(t){
   if (svgFijo && svgFijo.setCurrentTime) svgFijo.setCurrentTime(t);
   if (RT) rotulosPintar(t);
   if (PT && PT.partida) partidaPintar(t);
+  if (ED) editorialPintar(t);
   if (CLIP && CLIP.length){
     // se ESPERA a que el fotograma este decodificado: si no, la captura
     // pillaria el anterior y el clip saldria a tirones
@@ -508,7 +516,7 @@ def _url_local(ruta):
 
 def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
                amb=None, fotos_clip=None, mar=None, mg=None, cam=None, rt=None,
-               pt=None):
+               pt=None, ed=None):
     ancho, alto = [int(v) for v in p["resolucion"]]
     hw, hh = mov.get("hyperframe_px") or [3072, 2048]
     duracion = float(escena["t_out"]) - float(escena["t_in"])
@@ -522,6 +530,10 @@ def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
     mg_json = motion.json_conf(mg) if mg else ""
     rt_json = rotulos.json_conf(rt) if rt else ""
     html = (PAGINA
+            .replace("__EDCSS__", editorial.css(ed))
+            .replace("__EDHTML__", editorial.html(ed))
+            .replace("__EDJS__", editorial.js(ed))
+            .replace("__ED__", editorial.json_conf(ed) or "null")
             .replace("__PTCSS__", partida.css(pt))
             .replace("__PTHTML__", partida.html(pt))
             .replace("__PTJS__", partida.js(pt))
@@ -554,7 +566,8 @@ def _pagina_de(escena, mov, capa_svg, hyper, p, destino, capa_fija="", fps=30,
             .replace("__CAPAFIJA__", capa_fija or "")
             .replace("__LETRASCSS__", letras.css_para((capa_fija or "") + mg_json
                                                      + rotulos.css(rt)
-                                                     + partida.css(pt)))
+                                                     + partida.css(pt)
+                                                     + editorial.css(ed)))
             .replace("__MOV__", json.dumps({"ventana_ini": mov["ventana_ini"],
                                             "ventana_fin": mov["ventana_fin"]}))
             .replace("__FPS__", str(int(fps)))
@@ -1128,6 +1141,7 @@ def renderizar_plano(tarea, navegador=None):
                         amb=tarea.get("ambiente"), fotos_clip=fotos_clip,
                         mar=tarea.get("marioneta"), mg=tarea.get("motion"),
                         rt=tarea.get("rotulos"), pt=tarea.get("partida"),
+                        ed=tarea.get("editorial"),
                         cam=tarea.get("camara"))
 
     navegador.abrir(pagina)
@@ -1532,6 +1546,16 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
     except Exception as e:  # noqa: BLE001
         print(f"[render] sin pantalla partida ni tono ({e})", flush=True)
         confs_partida = {}
+    # EL MODO EDITORIAL (pasos/editorial.py, P5): titular grande con serifa y
+    # cuadros clasicos de dominio publico con su pie. Los cuadros se bajan
+    # AQUI, una vez, a trabajo/cuadros (cache: volver a montar no sale a red).
+    try:
+        confs_editorial = ({} if con_motion else
+                           editorial.preparar(escenas, p, ancho, alto,
+                                              os.path.join(trabajo, "cuadros")))
+    except Exception as e:  # noqa: BLE001
+        print(f"[render] sin modo editorial ({e})", flush=True)
+        confs_editorial = {}
     for indice, escena in enumerate(escenas):
         sid = escena["id"]
         uid = f"escena:{sid}"
@@ -1646,7 +1670,13 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
             pt = {k: v for k, v in pt.items() if k != "partida"} or None
         if pt:
             print(f"[render] {sid}: {partida.resumen(pt)}", flush=True)
+        ed = confs_editorial.get(sid)
+        if ed and con_clip:
+            ed = editorial.sin_cuadro(ed)
+        if ed:
+            print(f"[render] {sid}: {editorial.resumen(ed)}", flush=True)
         tareas.append({
+            "editorial": ed,
             "partida": pt,
             "rotulos": rt,
             "camara": cam,

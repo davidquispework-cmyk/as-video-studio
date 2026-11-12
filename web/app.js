@@ -7002,6 +7002,7 @@ function vistaElegidoLight() {
     selectorDibujo(e.marioneta, v => { e.marioneta = v; }),
     selectorMotion(e.motion, v => { e.motion = v; }),
     selectorCamara(e, () => {}),
+    selectorEditorial(e.editorial, v => { e.editorial = v; }),
     selectorGancho(e.gancho, v => { e.gancho = v; pintarLight(); }),
     selectorLetras(e, () => {}),
     selectorSubtitulo(e, () => {}),
@@ -7213,6 +7214,29 @@ function selectorCamara(e, alCambiar) {
    primeros 3 s y subtítulos que se encienden palabra a palabra, con la palabra
    clave y las cifras resaltadas. Va al param `gancho` del paso callouts y solo
    se escribe si alguien lo toca; cambiarlo solo pide volver a montar. */
+/* EL MODO EDITORIAL (pasos/editorial.py, P5, estilo «Resumario»): titular
+   grande con serifa y una palabra en cursiva de color en cada plano, y cuadros
+   clásicos de dominio público (Met Museum) con su pie cuando se nombra una
+   historia conocida. Param `editorial` del render; apagado no se escribe. */
+function selectorEditorial(valor, alCambiar) {
+  const tira = h('div', { clase: 'tira-modos formatos' });
+  [
+    { id: false, nombre: 'Normal', pista: 'Como siempre' },
+    { id: true, nombre: '📜 Editorial', pista: 'Titular grande con serifa en cada plano (una palabra en cursiva de color) y cuadros clásicos de dominio público con su pie («Rembrandt, 1630») cuando se nombra una historia: José, Lázaro, Jonás, la Última Cena…' },
+  ].forEach(op => {
+    tira.appendChild(h('button', {
+      clase: 'mini' + (!!valor === op.id ? ' activo' : ''), title: op.pista,
+      'data-id': String(op.id),
+      onclick: () => {
+        tira.querySelectorAll('button').forEach(b => b.classList.toggle('activo', b.dataset.id === String(op.id)));
+        alCambiar(op.id);
+      },
+    }, op.nombre));
+  });
+  return h('div', { clase: 'campo' }, h('label', {}, 'Modo editorial'), tira,
+    h('div', { clase: 'pista' }, 'Gratis: los cuadros salen de museos (dominio público) y se bajan una vez. No va con motion graphics. Cambiarlo solo pide volver a montar.'));
+}
+
 function selectorGancho(valor, alCambiar) {
   const tira = h('div', { clase: 'tira-modos formatos' });
   [
@@ -7553,6 +7577,7 @@ async function crearYGenerarLight(estilo) {
         letra: e.letra || '',
         resalte: e.resalte || '',
         subtitulo_pos: e.subtitulo_pos || '',
+        editorial: !!e.editorial,
         tiktok: e.tiktok || false,
       },
     });
@@ -7619,6 +7644,7 @@ const CAMPOS_ENCARGO = [
   { clave: 'motion', paso: 'render', param: 'motion' },
   { clave: 'camara', paso: 'render', param: 'camara' },
   { clave: 'camara_fuerza', paso: 'render', param: 'camara_fuerza' },
+  { clave: 'editorial', paso: 'render', param: 'editorial' },
   { clave: 'gancho', paso: 'callouts', param: 'gancho' },
   { clave: 'letra', paso: 'callouts', param: 'letra' },
   { clave: 'resalte', paso: 'callouts', param: 'resalte' },
@@ -7661,6 +7687,7 @@ function pedidoDelVideoLight() {
     motion: params('render').motion || false,
     camara: String(params('render').camara || ''),
     camara_fuerza: String(params('render').camara_fuerza || ''),
+    editorial: !!params('render').editorial,
     gancho: !!params('callouts').gancho,
     letra: String(params('callouts').letra || ''),
     resalte: String(params('callouts').resalte || ''),
@@ -7720,6 +7747,7 @@ function vistaEncargoVideoLight() {
     selectorDibujo(e.marioneta, valor => { e.marioneta = valor; programarGuardadoEncargo(); }),
     selectorMotion(e.motion, valor => { e.motion = valor; programarGuardadoEncargo(); }),
     selectorCamara(e, programarGuardadoEncargo),
+    selectorEditorial(e.editorial, valor => { e.editorial = valor; programarGuardadoEncargo(); }),
     selectorGancho(e.gancho, valor => { e.gancho = valor; programarGuardadoEncargo(); pintarLight(); }),
     selectorLetras(e, programarGuardadoEncargo),
     selectorSubtitulo(e, programarGuardadoEncargo),

@@ -10,3 +10,9 @@ con su licencia al lado. Al añadir una pieza nueva, apúntala en esta tabla.
 | Montserrat, Bebas Neue, Lilita One, Playfair Display | `motores/fuentes/` | SIL OFL 1.1 (`OFL-*.txt`) | letras de subtítulos y rótulos |
 
 GSAP NO: su licencia gratuita no es libre.
+
+**Lo que se baja al montar (no va en el repo):** los cuadros del modo editorial
+(`pasos/editorial.py`) salen de **The Met Open Access** (solo obras marcadas de
+dominio público, CC0). Se bajan una vez por vídeo a `trabajo/cuadros/` con su
+ficha (título, autor, fecha, número de objeto), y el pie del cuadro dice autor y
+año. Sin internet el plano sale sin cuadro.

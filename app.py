@@ -11229,6 +11229,10 @@ def _sembrar_video_light(ctx, datos):
     # de fabrica y no se escribe; solo «centro», si la piden.
     if str(datos.get("subtitulo_pos") or "").strip().lower() == "centro":
         ctx.estado.actualizar_params("callouts", {"subtitulo_pos": "centro"})
+    # EL MODO EDITORIAL (pasos/editorial.py, P5): titulares con serifa y
+    # cuadros clasicos. Solo si lo piden: apagado no se escribe nada.
+    if datos.get("editorial"):
+        ctx.estado.actualizar_params("render", {"editorial": True})
     # MAS IMAGENES EN LOS VIDEOS CORTOS (8-nov-2026, David): con las imagenes
     # GRATIS (modo manual) un video de 70 s con ritmo «Medio» salia con ~24
     # planos, una imagen cada 3 s, y lo que se contaba iba por delante de lo

@@ -415,7 +415,7 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    Pendiente: elegir la palabra tachada/resaltada a mano desde la pantalla
    (hoy se puede forzando `~~palabra~~` y `*palabra*` en el texto).
 10. **SIGUIENTE: el plan «NIVEL PROFESIONAL» (12-nov)** — ver la sección del
-   mismo nombre más abajo; P1, P2, P3 y P4 HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río); siguiente, P5. (Siguen sobre la mesa, para
+   mismo nombre más abajo; P1, P2, P3, P4 y P5 HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río); siguiente, P6. (Siguen sobre la mesa, para
    después: grabar tu voz desde la propia página; afinar la tabla de voces.)
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
@@ -940,6 +940,34 @@ del VPS no debe depender de internet; anotar licencia de cada cosa en un LICENCI
   («🌅 Silueta a contraluz»), para encenderlo o quitarlo a mano.
 - P5. Modo «editorial» (estilo Resumario): texto grande centrado a lo largo del
   vídeo + cuadros de dominio público buscados solos con su pie.
+  **HECHO (12-nov-2026)**: `pasos/editorial.py`, capa del render encima de la
+  imagen y de la pantalla partida, debajo de rótulos y subtítulo. Se enciende en
+  el encargo: **«Modo editorial» → 📜 Editorial** (vídeo nuevo o ya creado; param
+  `editorial: true` del render; apagado no se escribe nada). **Titular**: en cada
+  plano, 3-6 palabras de lo que se dice, en Playfair grande arriba, entrando
+  palabra a palabra con la voz; UNA en cursiva de color (oro sobre imagen, rojo
+  oscuro sobre papel): el nombre propio, la cifra o la palabra más larga.
+  **Cuadros**: si el plano nombra una historia conocida (José y sus hermanos,
+  Lázaro, Jonás, Noé, Babel, David y Goliat, Daniel, Isaac, Moisés, Sansón,
+  Última Cena, Crucifixión, Resurrección, Belén, Pródigo… ~35 en
+  `editorial.HISTORIAS`), busca en **The Met Open Access** (solo dominio
+  público, CC0): primero pinturas europeas, si no un dibujo o grabado antiguo;
+  el título tiene que nombrar la historia. Sale enmarcado sobre papel beige,
+  con pie («Rembrandt, 1630») y un zoom lento. Cada historia UNA vez por vídeo y
+  nunca dos planos seguidos tapados (la imagen del plano también se ve). Se
+  bajan al montar a `trabajo/cuadros/` (cache: volver a montar no sale a
+  internet); sin internet, el plano sale sin cuadro. Ojo: el Met jubiló su
+  buscador viejo el 1-oct-2026; se usa `/v1.1/search`.
+  A mano en `plan.json`, escena: `"titular": "La túnica de *José*"` (asteriscos
+  = acento) o `false`; `"cuadro": "Joseph and his brothers"` (busca eso, en
+  inglés) o `{"ruta": "C:/…/x.jpg", "pie": "Velázquez, 1630"}` o `false`;
+  `"editorial": false` (ese plano sin nada). Titulares sin cuadros: param
+  `editorial: {"cuadros": false}`. No va con motion graphics; con clip de
+  vídeo sale el titular sin cuadro. No toca firmas de imágenes: basta
+  «Regenerar Vídeo». Prueba: `pasos/prueba_editorial.py` (`--red` baja un cuadro
+  de verdad; `--ver CARPETA` escribe páginas vertical/horizontal).
+  Falta: verlo en un vídeo real con Resumario al lado; elegir el cuadro desde
+  la pantalla (hoy solo en `plan.json`); Wikimedia Commons como segunda fuente.
 - P6. Escenario 3D fijo con Three.js (Biblia abierta, plastilina) y cámara.
 - P7. Boca con Rhubarb y la voz grabada de David.
 - P8. Guion con la fórmula de arriba (plantilla en el encargo: gancho, dato,
