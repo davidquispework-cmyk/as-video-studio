@@ -87,9 +87,19 @@ CATALOGO = """PIEZAS (coordenadas en FRACCIONES del cuadro: x 0=izquierda 1=dere
 - {"tipo":"lista","items":["Orar","Leer","Servir"],"en":"orar"}
 - {"tipo":"contador","n":5000,"cosa":"hombres","en":"cinco"}
 - {"tipo":"lamina","x":.5,"y":.37}   la imagen del plano enmarcada (solo si el plano tiene imagen).
-- {"tipo":"escenario","nombre":"mar","hora":"noche","efectos":["fuego"]}   el SITIO, de fondo, detrás de todo
-  (ponlo PRIMERO). nombre: mar, desierto, ciudad, torre, templo, trono, monte, campo; hora: dia, atardecer,
-  noche; efectos (opcional): fuego, humo, luz. Úsalo con personajes cuando el plano no tiene imagen.
+- {"tipo":"escenario","nombre":"mar","hora":"noche","efectos":["fuego"],"mas":["antorcha"]}   el SITIO, de
+  fondo, detrás de todo (ponlo PRIMERO). Úsalo con personajes cuando el plano no tiene imagen.
+  nombre (sitio ya montado): mar, desierto, ciudad, torre, templo, trono, monte, campo, cueva, carcel,
+  establo, rio. "mas" le SUMA cosas. O ármalo TÚ pieza a pieza según lo que cuente el guion:
+  {"tipo":"escenario","fondo":"tierra","hora":"atardecer","cosas":[{"cosa":"cruz","x":.5,"tam":1.2},
+   {"cosa":"cruz","x":.2},{"cosa":"cruz","x":.8},"roca"]}   (el Gólgota: TRES cruces)
+  fondos: hierba, tierra, arena, mar, rio (exteriores); sala, cueva, celda, establo (interiores).
+  cosas: palmera, olivo, tienda, roca, barca (flota si hay agua), pozo, oveja, burro, juncos, cruz, mesa,
+  altar, antorcha, farol, pesebre, paja, rejas, cadenas; grandes (ocupan el fondo, van centradas):
+  muralla, zigurat, santuario, cumbre, columnas, cortinas, alfombra, trono. Cada cosa: texto o
+  {"cosa","x" 0-1 del cuadro,"tam" veces su tamaño (1 = normal),"dy" sube(-)/baja(+)}; sin x se colocan
+  solas a los lados (el centro es de los personajes). Máximo 10. hora: dia, atardecer, noche;
+  efectos (opcional): fuego, humo, luz (el fuego va encima del altar si lo hay).
 ICONOS: {iconos}"""
 
 

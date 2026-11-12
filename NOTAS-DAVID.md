@@ -415,7 +415,7 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    Pendiente: elegir la palabra tachada/resaltada a mano desde la pantalla
    (hoy se puede forzando `~~palabra~~` y `*palabra*` en el texto).
 10. **SIGUIENTE: el plan «NIVEL PROFESIONAL» (12-nov)** — ver la sección del
-   mismo nombre más abajo; P1, P2 y P3 HECHOS (12-nov); siguiente, P4. (Siguen sobre la mesa, para
+   mismo nombre más abajo; P1, P2 y P3 HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río); siguiente, P4. (Siguen sobre la mesa, para
    después: grabar tu voz desde la propia página; afinar la tabla de voces.)
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
@@ -862,8 +862,29 @@ del VPS no debe depender de internet; anotar licencia de cada cosa en un LICENCI
   storyboard `{"tipo": "escenario", ...}` (Claude ya lo conoce). Apagar en todo el
   vídeo: param `motion: {"escenarios": false}`. No toca firmas: basta «Regenerar
   Vídeo». Prueba: `pasos/prueba_escenarios.py` (`--ver CARPETA` pinta los ocho).
-  Falta: verlo en un vídeo real con la referencia al lado; más objetos (camello,
-  cruz, mesa) y que el muñeco camine por el escenario; aún sin botón en pantalla.
+  **PIEZAS SUELTAS (12-nov-2026, 2.ª parte)**: cada sitio ya no es un dibujo
+  cerrado: es UN FONDO (hierba, tierra, arena, mar, río; o dentro: sala, cueva,
+  celda, establo) + COSAS sueltas encima (palmera, olivo, tienda, roca, barca,
+  pozo, oveja, burro, juncos, cruz, mesa, altar, antorcha, farol, pesebre, paja,
+  rejas, cadenas; y las grandes: muralla, zigurat, santuario, cumbre, columnas,
+  cortinas, alfombra, trono). Los sitios de antes son «recetas» ya combinadas
+  y se ven igual. **Cuatro sitios nuevos**: **cueva** (boca abierta al cielo,
+  estalactitas, antorcha), **cárcel** (muro de sillares, ventanuco con barrotes y
+  haz de luz, cadenas, rejas, paja), **establo** (tablas, vigas, puerta abierta,
+  pesebre, burro, farol) y **río** (prado con río que corre, juncos, piedras).
+  Cómo se combina: SOLO, la narración elige el sitio y le SUMA lo que nombra
+  («Jesús subió a la barca en el río» → río + barca; «cruz», «ovejas», «cena»
+  → mesa, «burro», «cadenas»...; dos cosas como mucho). Claude, en el
+  storyboard, toma un sitio y le suma cosas (`"mas": ["antorcha"]`) o lo monta
+  él pieza a pieza (`"fondo": "tierra", "cosas": [{"cosa": "cruz", "x": .5}...]`,
+  el Gólgota con TRES cruces). Igual a mano en `plan.json`. Las cosas sin sitio
+  se colocan solas en el hueco libre (el centro es de los muñecos); el fuego va
+  encima del altar si lo hay. No toca firmas: basta «Regenerar Vídeo».
+  Código: `escenarios.RECETAS`, `FONDOS`, `COSAS`, `receta`, `del_cuadro`,
+  `a_mano`; texto para Claude en `motion_storyboard.py`. Prueba:
+  `pasos/prueba_escenarios.py` (`probar_piezas_sueltas`).
+  Falta: verlo en un vídeo real con la referencia al lado; camello; que el
+  muñeco camine por el escenario; aún sin botón en pantalla.
 - P4. Siluetas a contraluz con borde luminoso (estilo Lázaro) sobre imágenes de
   Gemini: rembg ya recorta; añadir el brillo y los haces.
 - P5. Modo «editorial» (estilo Resumario): texto grande centrado a lo largo del

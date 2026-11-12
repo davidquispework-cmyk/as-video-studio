@@ -34,10 +34,49 @@ def probar_deteccion():
     # a mano manda; False quita
     assert escenarios.de_la_escena({"narracion": "en el mar", "escenario": False}) is False
     m = escenarios.de_la_escena({"narracion": "de noche", "escenario": "templo"})
-    assert m == {"nombre": "templo", "hora": "noche", "efectos": []}, m
+    assert (m["nombre"], m["hora"], m["efectos"], m["mas"]) == ("templo", "noche", [], []), m
     m = escenarios.de_la_escena({"narracion": "x", "escenario": {"nombre": "mar",
                                                              "efectos": ["fuego", "rayo"]}})
     assert m["efectos"] == ["fuego"] and m["hora"] == "dia", m
+    # los cuatro nuevos
+    assert d("Pablo y Silas, encadenados en la cárcel")["nombre"] == "carcel"
+    assert d("María lo acostó en un pesebre")["nombre"] == "establo"
+    assert d("David se escondió en la cueva de Adulam")["nombre"] == "cueva"
+    assert d("Juan bautizaba en el río Jordán")["nombre"] == "rio"
+
+
+def probar_piezas_sueltas():
+    """Las recetas son fondo + cosas; la narracion SUMA lo que nombra; a mano
+    se monta un sitio pieza a pieza con la x del cuadro."""
+    for n, r in escenarios.RECETAS.items():
+        assert r["fondo"] in escenarios.FONDOS, n
+        assert all((q if isinstance(q, str) else q["cosa"]) in escenarios.COSAS for q in r["cosas"]), n
+    assert set(escenarios.NOMBRES) == set(escenarios.RECETAS)
+    e = escenarios.escenario_de("Jesús entró en la barca a la orilla del río y vio una cruz")
+    assert e["nombre"] == "rio" and e["mas"] == ["barca", "cruz"], e
+    assert escenarios.escenario_de("Jonás en la barca, en el mar")["mas"] == []   # ya la tiene
+    # x del cuadro (0..1) -> del escenario (1.3 veces mas ancho, centro 0)
+    q = escenarios.del_cuadro([{"cosa": "cruz", "x": 1.0, "tam": 2}, "nada", "olivo"])
+    assert [c["cosa"] for c in q] == ["cruz", "olivo"] and abs(q[0]["x"] - 0.385) < 0.001, q
+    assert abs(q[0]["tam"] - 2 * escenarios.COSAS["cruz"][1]) < 1e-6
+    # sin x: las grandes al centro, las demas a huecos libres distintos
+    f, cs = escenarios.receta(fondo="tierra", cosas=["muralla", "cruz", "cruz", "cruz"])
+    assert f == "tierra" and cs[0]["x"] == 0 and len({c["x"] for c in cs[1:]}) == 3, cs
+    # golgota a mano: fondo + tres cruces; y el templo con el fuego en su altar
+    m = escenarios.de_la_escena({"narracion": "al atardecer", "escenario": {
+        "fondo": "tierra", "cosas": [{"cosa": "cruz", "x": .5}, {"cosa": "cruz", "x": .2}, "cruz"]}})
+    p = escenarios.pieza(m["nombre"], m["hora"], [], 1080, 1920, 0, fondo=m["fondo"], cosas=m["cosas"])
+    assert p["nombre"] == "tierra" and p["cosas"] == ["cruz"] * 3 and m["hora"] == "atardecer", p["cosas"]
+    t = escenarios.pieza("templo", "dia", ["fuego"], 1080, 1920, 0)
+    alt = escenarios.receta("templo")[1][1]
+    assert alt["cosa"] == "altar" and abs(t["efectos"][0]["x"] - 1080 * 1.3 * alt["x"]) < 1, t["efectos"]
+    # cada cosa se dibuja en cada fondo sin romper el SVG
+    todas = list(escenarios.COSAS)
+    for fondo in escenarios.FONDOS:
+        for hora in escenarios.HORAS:
+            p = escenarios.pieza(None, hora, [], 1920, 1080, 0, fondo=fondo, cosas=todas[:10] if hora == "dia"
+                                 else todas[10:20] if hora == "noche" else todas[20:])
+            xml.dom.minidom.parseString(f'<svg xmlns="http://www.w3.org/2000/svg">{p["svg"]}</svg>')
 
 
 def probar_svg_y_lottie():
@@ -105,6 +144,13 @@ def probar_motion():
     c5 = motion.preparar(escenas, {"motion": True}, {}, W, H)
     p = [q for q in c5["S002"]["piezas"] if q["id"].startswith("S002")][0]
     assert p["nombre"] == "desierto" and p["efectos"][0]["tipo"] == "luz", p["nombre"]
+    # storyboard de Claude montado pieza a pieza
+    escenas[1]["motion"] = [{"tipo": "escenario", "fondo": "establo", "hora": "noche",
+                             "cosas": ["pesebre", {"cosa": "burro", "x": .85}], "mas": ["farol"]}]
+    c6 = motion.preparar(escenas, {"motion": True}, {}, W, H)
+    p = [q for q in c6["S002"]["piezas"] if q["id"].startswith("S002")][0]
+    assert p["suelo"] == "establo" and p["cosas"] == ["pesebre", "burro", "farol"], p["cosas"]
+    assert p["hora"] == "noche" and "esc-halo" in p["svg"]
 
 
 def ver(carpeta):
@@ -145,7 +191,7 @@ def ver(carpeta):
         peq = [Image.open(f).convert("RGB").resize((W // 4, (1920 if W == 1080 else 1080) // 4))
                for f in mias]
         cw, ch = peq[0].size
-        hoja_c = Image.new("RGB", (4 * cw, 2 * ch), "white")
+        hoja_c = Image.new("RGB", (4 * cw, -(-len(peq) // 4) * ch), "white")
         for i, im in enumerate(peq):
             hoja_c.paste(im, ((i % 4) * cw, (i // 4) * ch))
         hoja_c.save(os.path.join(carpeta, f"contactos_{W}.png"))
@@ -154,6 +200,7 @@ def ver(carpeta):
 
 def main():
     probar_deteccion()
+    probar_piezas_sueltas()
     probar_svg_y_lottie()
     probar_motion()
     if "--ver" in sys.argv:

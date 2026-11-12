@@ -1128,8 +1128,9 @@ def _automatico(escena, voz, W, H, lamina, laminas, hoy, mapeados, fichas, munec
         a_mano = escena.get("escenario") not in (None, False)
         if esc and (a_mano or not (lamina and laminas)):
             pies = figs["y"] if figs and not (lamina and laminas) else None
-            piezas.insert(0, escenarios.pieza(esc["nombre"], esc["hora"], esc["efectos"],
-                                              W, H, voz.t_in, suelo_px=pies))
+            piezas.insert(0, escenarios.pieza(esc.get("nombre"), esc["hora"], esc["efectos"],
+                                              W, H, voz.t_in, suelo_px=pies, fondo=esc.get("fondo"),
+                                              cosas=esc.get("cosas"), mas=esc.get("mas")))
     return piezas
 
 
@@ -1218,13 +1219,16 @@ def _normalizar_de_verdad(pieza, voz, W, H, ctx):
             q["entra"] = pieza["entra"]
         return q
     if t == "escenario":
-        auto = escenarios.escenario_de((ctx.get("escena") or {}).get("narracion") or "") or {}
-        efectos = p.get("efectos") if "efectos" in p else auto.get("efectos", [])
-        if isinstance(efectos, str):
-            efectos = [efectos]
-        return escenarios.pieza(p.get("nombre") or auto.get("nombre") or "campo",
-                                p.get("hora") or auto.get("hora") or "dia", efectos,
-                                W, H, p["en"] if pieza.get("en") is not None else voz.t_in)
+        narr = (ctx.get("escena") or {}).get("narracion") or ""
+        auto = escenarios.escenario_de(narr) or {}
+        if not p.get("nombre") and not p.get("fondo"):
+            p = dict(p, nombre=auto.get("nombre") or "campo")
+            if "mas" not in p:
+                p["mas"] = auto.get("mas") or []
+        esc = escenarios.a_mano(p, narr)
+        return escenarios.pieza(esc["nombre"], esc["hora"], esc["efectos"],
+                                W, H, p["en"] if pieza.get("en") is not None else voz.t_in,
+                                fondo=esc["fondo"], cosas=esc.get("cosas"), mas=esc["mas"])
     if t == "personajes":
         nombres = p.get("nombres") or ctx.get("personajes") or []
         if isinstance(nombres, str):
