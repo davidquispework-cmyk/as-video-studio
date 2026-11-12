@@ -414,9 +414,9 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    (llamada desde `gancho.contrastes`). Prueba: `pasos/prueba_gancho.py`.
    Pendiente: elegir la palabra tachada/resaltada a mano desde la pantalla
    (hoy se puede forzando `~~palabra~~` y `*palabra*` en el texto).
-10. **SIGUIENTE:** decidir con David qué toca. Quedan sobre la mesa: grabar tu
-   voz desde la propia página (sin WhatsApp); afinar la tabla de voces
-   oyéndolas.
+10. **SIGUIENTE: el plan «NIVEL PROFESIONAL» (12-nov)** — ver la sección del
+   mismo nombre más abajo; empezar por su punto P1. (Siguen sobre la mesa, para
+   después: grabar tu voz desde la propia página; afinar la tabla de voces.)
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
 (abajo), un chat por punto. A, B+B+, C, **G con D** y **E** HECHOS (6-nov).
@@ -736,7 +736,79 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Pendiente: ~~más formas de «lo falso → lo verdadero»~~ (HECHO 11-nov, punto 9
    del orden nuevo); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el punto 10.
+Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1).
+
+## NIVEL PROFESIONAL (decidido 12-nov-2026) — manda sobre el punto 10 del ORDEN NUEVO
+David quiere que sus vídeos queden AL MISMO NIVEL que los de referencia, no «parecidos
+pero más simples». Referencias: Drive → carpeta «IMAGENES DE IDEAS DE TIKTOK»
+(7 vídeos + 11 capturas; analizados el 12-nov, ver abajo). «Igual» = mismo nivel de
+acabado y los mismos RECURSOS, con diseño PROPIO: no copiar marca, personajes ni
+look exacto de esos canales (TikTok no paga contenido no original y es copia). Y nada
+de trozos de películas (el vídeo de gnesis_2815 usa «El príncipe de Egipto»: NO).
+
+**Lo que hacen las referencias (la fórmula):**
+- Gancho en el 1.er segundo: pregunta o algo que contradice lo sabido («La túnica de
+  José no era de colores»), o el FINAL primero y luego «hay que retroceder» (Abimelec).
+- 55-110 s casi todos (Creator Rewards > 1 min). Frases de 3-8 palabras.
+- UNA historia + UN dato que nadie sabe (palabra hebrea, «400 años», papiro 616).
+- Algo que se repite (la piedra con 69 rayas) y frase que cierra el círculo.
+- Cierre con Jesús en espejo (70 monedas ↔ 30; mató a sus hermanos ↔ murió por ellos).
+- Final que pide algo: «envíaselo a ese amigo…», «¿tú cómo te la imaginabas?»,
+  «en el próximo vídeo…» (serie). Lo PROPIO de David: «el reto de esta semana».
+- Cifras enormes que brillan; subtítulos palabra a palabra con la clave resaltada.
+
+**Los estilos (canal → qué hay que tener):**
+- Sin filtro pero con-texto (Abimelec): vectorial plano, noche/rojo ↔ papel beige
+  en el MISMO vídeo, siluetas con ojos rojos, SELLOS rojos torcidos («NO», «SIN
+  REY»), pastilla fija arriba con la cita («JUECES 9:5»), «◀◀ rebobinando −25 años».
+- Un Cristiano Inquieto (Jonás): ilustración plana con luz cuidada (atardecer, mar
+  con olas por capas), mapa con ruta, «Día 3» / «40 días» en placa.
+- unidos.en.oracion (el rico y Lázaro): siluetas a contraluz con borde que brilla,
+  fuego de calidad, haces de luz, subtítulo arriba.
+- Bibliando contigo (Apocalipsis): dibujo animado de colores dentro de una TARJETA,
+  etiqueta «DATO», cita arriba a la derecha, «VS» con bocadillos «!» «?!».
+- Tesoro Bíblico (capturas): fila de muñequitos de colores, «70 AÑOS» en círculo,
+  ruta punteada con ✗, palito con bola y cadena «PECADO».
+- Resumario (túnica de José): tipografía editorial grande con serifa y cursiva de
+  acento, CUADROS clásicos de dominio público con su pie («Velázquez, 1630»),
+  palabra hebrea/griega en placa.
+- El origen de las cosas (los silencios): UN escenario fijo (Biblia abierta en 3D,
+  muñecos de plastilina), marcador «+400 AÑOS» de rodillos, pantalla PARTIDA
+  «ÉXODO | MATEO» con una raya roja.
+
+**Código abierto a usar (todo gratis, se guarda DENTRO del repo, sin CDN: el render
+del VPS no debe depender de internet; anotar licencia de cada cosa en un LICENCIAS):**
+- anime.js (MIT): curvas y líneas de tiempo de animación en la página del render.
+  (GSAP NO: su licencia gratuita no es libre y prohíbe ciertos usos.)
+- lottie-web (MIT) + animaciones de LottieFiles con licencia libre: piezas animadas
+  hechas por diseñadores (fuego, humo, destellos, explosión, llamas, agua).
+- Three.js (MIT): escenarios 3D en el navegador del render (Biblia abierta, mesa,
+  look plastilina), sin GPU (WebGL por software; medir el tiempo por fotograma).
+- Rough.js (MIT): trazo «a mano» (círculos, tachados, flechas).
+- Rhubarb Lip Sync (MIT, CPU): boca de los muñecos sincronizada con la voz real.
+- Iconos: Tabler/Lucide (MIT/ISC) y game-icons.net (CC BY 3.0: poner crédito).
+- Cuadros: Met Museum Open Access y Wikimedia Commons (dominio público / CC0), con
+  autor y año en el pie, como Resumario.
+- Sonidos: Kenney (CC0) y Freesound filtrado a CC0. Fuentes: Google Fonts (OFL).
+
+**Etapas (una por chat, en orden; cada una con prueba y vista en un vídeo real):**
+- P1. Sellos rojos, pastilla fija de la cita, etiqueta «DATO», placa de cifra
+  («Día 3», «+400 AÑOS» de rodillos) y «◀◀ rebobinando». Con anime.js.
+- P2. Pantalla partida para paralelos (A | B con raya) y mezclar papel/noche por
+  plano (el tema puede cambiar en una escena).
+- P3. Calidad de dibujo: biblioteca de escenarios y objetos vectoriales con luz,
+  sombras y capas (mar, desierto, ciudad amurallada, torre, templo, barca, trono…)
+  y muñecos mejores; fuego/humo/luz con Lottie.
+- P4. Siluetas a contraluz con borde luminoso (estilo Lázaro) sobre imágenes de
+  Gemini: rembg ya recorta; añadir el brillo y los haces.
+- P5. Modo «editorial» (estilo Resumario): texto grande centrado a lo largo del
+  vídeo + cuadros de dominio público buscados solos con su pie.
+- P6. Escenario 3D fijo con Three.js (Biblia abierta, plastilina) y cámara.
+- P7. Boca con Rhubarb y la voz grabada de David.
+- P8. Guion con la fórmula de arriba (plantilla en el encargo: gancho, dato,
+  espejo con Jesús, final que pide algo, «reto de la semana», serie numerada).
+Al acabar cada etapa: hacer UN vídeo de prueba con su referencia al lado y apuntar
+aquí lo que aún se nota distinto.
 
 ## Prompts de imagen: dos fallos de fondo arreglados (11-nov-2026)
 Visto en el vídeo del rey David (borrado después; no se arregló ese vídeo).
