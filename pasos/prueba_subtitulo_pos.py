@@ -32,7 +32,20 @@ def main():
                   f"{salida}: sin param, «abajo» o un valor raro dan la banda de siempre")
     comprobar(p7.banda_subtitulo(h)["suelo"] == 1080 - p7.SUB_MARGEN,
               "horizontal abajo: al pie")
-    comprobar(p7.banda_subtitulo(v)["suelo"] == 1280.0, "vertical abajo: a un tercio")
+    # 12-11-2026: en el cuarto de abajo (no a un tercio: tapaba cabezas) y por
+    # encima de los controles del movil
+    suelo = p7.banda_subtitulo(v)["suelo"]
+    comprobar(0.75 * 1920 < suelo < 0.85 * 1920,
+              f"vertical abajo: en el cuarto de abajo ({suelo})")
+    # el palabra a palabra es el de siempre y va mas grande que el clasico
+    grande = p7.letra_subtitulo({}, v)
+    clasico = p7.letra_subtitulo({"subtitulo_estilo": "clasico"}, v)
+    comprobar(grande["palabras"] and not clasico["palabras"],
+              "sin param, palabra a palabra; «clasico» a mano")
+    comprobar(grande["tam"] >= 85 and grande["tam"] > clasico["tam"] * 1.25,
+              f"palabra a palabra grande ({grande['tam']} px frente a {clasico['tam']})")
+    comprobar(grande["cap_trozo"] == grande["cap"] and grande["cap"] <= 16,
+              f"un renglon corto por trozo ({grande['cap']} caracteres)")
     for salida in (h, v):
         centro = p7.banda_subtitulo(salida, {"subtitulo_pos": "centro"})
         alto = salida[1]
@@ -40,6 +53,15 @@ def main():
                   f"{salida}: «centro» pone la base cerca de la mitad ({centro['suelo']})")
         comprobar(centro["ancho"] == p7.banda_subtitulo(salida)["ancho"],
                   f"{salida}: «centro» no cambia el ancho")
+    # un trozo nunca junta el final de una frase con la siguiente («nombre La
+    # Biblia» en el video de prueba del 12-11-2026)
+    import subtitulos
+    pal = "Dios conoce tu nombre. La Biblia lo dice. Sí.".split()
+    for cap in (14, 38):
+        textos = [" ".join(pal[a:b]) for a, b in
+                  subtitulos.tramos(pal, cap_linea=cap, cap_trozo=cap)]
+        comprobar(all(not any(w.endswith(".") for w in t.split()[:-1]) for t in textos),
+                  f"con {cap} caracteres, ningun trozo cruza un punto: {textos}")
     # el tope de renglon sale de la misma banda
     plan = {"resolucion": list(h)}
     comprobar(p7.cap_subtitulo_de({"subtitulo_pos": "centro"}, plan) is not None,

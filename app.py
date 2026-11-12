@@ -5268,10 +5268,9 @@ def _medidor_de_subtitulo(ctx, plan):
         params_callouts = ctx.estado.params("callouts") or {}
         banda = p7.banda_subtitulo(salida, params_callouts)
         _, ficha_diseno = p7.diseno_de(params_callouts)
-        # el cuerpo de ESTA salida: en vertical es mas grande (p7.escala_subtitulo)
-        medir = p7._medidor((ficha_diseno or {}).get("fuente") or "Verdana",
-                            p7.tamano_subtitulo(params_callouts, salida),
-                            negrita=p7.SUB_PESO >= 600)
+        # la letra, el cuerpo y el medidor del ESTILO de subtitulo de este
+        # video (palabra a palabra o clasico), los mismos que dibuja el render
+        medir = p7.letra_subtitulo(params_callouts, salida, ficha_diseno)["medir"]
         return medir, banda
     except Exception:                                         # noqa: BLE001
         return None, None
@@ -5357,9 +5356,8 @@ def leer_previsualizacion(pid: str):
                 # los mismos trozos que el render: en vertical son mas cortos
                 cap_linea=PASOS_MODULOS.p7_callouts.cap_subtitulo_de(
                     params_callouts, plan),
-                cap_trozo=PASOS_MODULOS.p7_callouts.cap_trozo_subtitulo(
-                    PASOS_MODULOS.p7_callouts.cap_subtitulo_de(params_callouts, plan),
-                    PASOS_MODULOS.p7_callouts.salida_de(plan)),
+                cap_trozo=PASOS_MODULOS.p7_callouts.cap_trozo_subtitulo_de(
+                    params_callouts, plan),
                 texto=PASOS_MODULOS.p7_callouts.texto_subtitulo_de(
                     params_callouts, f"escena:{sid}")) or []
         except Exception:                                     # noqa: BLE001

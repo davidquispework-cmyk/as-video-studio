@@ -7149,8 +7149,8 @@ function selectorMotion(valor, alCambiar) {
    palabra que importa, temblor en los impactos, respiración y arrastre a través
    del corte— o la «clásica» de antes. Vacío = no lo ha tocado nadie = viva. No
    mueve firmas: cambiarlo solo pide volver a montar, que es gratis. */
-/* DÓNDE VA EL SUBTÍTULO (11-nov): abajo (lo de siempre; en vertical, a un
-   tercio desde abajo) o en el centro. Param `subtitulo_pos` de callouts:
+/* DÓNDE VA EL SUBTÍTULO (11-nov): abajo (lo de siempre; en vertical, en el
+   cuarto de abajo desde el 12-nov) o en el centro. Param `subtitulo_pos` de callouts:
    «abajo» se guarda VACÍO, que es lo que tiene todo vídeo que nunca lo eligió
    (escribir «abajo» movería la firma sin que cambie nada). */
 function selectorSubtitulo(e, alCambiar) {
@@ -7160,7 +7160,7 @@ function selectorSubtitulo(e, alCambiar) {
     const actual = e.subtitulo_pos === 'centro' ? 'centro' : 'abajo';
     const tira = h('div', { clase: 'tira-modos formatos' });
     [
-      { id: 'abajo', nombre: '⬇ Abajo', pista: 'Al pie, como siempre (en vertical, a un tercio desde abajo, donde no lo tapan los botones del móvil)' },
+      { id: 'abajo', nombre: '⬇ Abajo', pista: 'Abajo, grande y palabra a palabra (en vertical, en el cuarto de abajo: no tapa a los personajes ni lo tapan los botones del móvil)' },
       { id: 'centro', nombre: '⏺ Centro', pista: 'En mitad de la pantalla, más grande a la vista: estilo TikTok/Shorts' },
     ].forEach(op => {
       tira.appendChild(h('button', {

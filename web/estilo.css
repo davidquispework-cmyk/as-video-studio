@@ -2058,8 +2058,9 @@ button.primario.grande { padding: 9px 18px; font-size: 14px; }
   margin-left: auto; margin-right: auto;
 }
 .previa-marco.vertical { height: 72vh; }
-/* en vertical el subtitulo va a un tercio desde abajo, como en el video */
-.previa-marco.vertical .previa-sub { bottom: 31%; }
+/* en vertical el subtitulo va en el cuarto de abajo (linea base al 79 % del
+   alto, p7_callouts.SUB_ALTURA_VERTICAL), como en el video */
+.previa-marco.vertical .previa-sub { bottom: 19%; }
 @media (max-height: 900px) {
   .marco-video.vertical { aspect-ratio: 9 / 16; height: 60vh; width: auto; }
 }

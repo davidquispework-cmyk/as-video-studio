@@ -58,8 +58,10 @@ ROJO = "#FF3B3B"
 #: Ya no se usa: las cifras van del MISMO tamano que el resto (un criterio).
 ESCALA_CIFRA = 1.0
 
-#: Las palabras dichas aun no llegan a blancas del todo: se ven, pero apagadas.
-APAGADA = 0.45
+#: Las palabras AUN NO dichas se ven, pero apagadas (0,45 era ilegible sobre el
+#: papel claro del motion; 12-11-2026). Va en `opacity`, no en `fill-opacity`:
+#: con el relleno a medias se transparentaba el contorno negro y salian turbias.
+APAGADA = 0.62
 
 _VACIAS = set("""
 a al ante bajo con contra de del desde durante en entre hacia hasta mediante
@@ -599,7 +601,9 @@ def bloque_palabras(trozo, banda, tam, medir, fuente="Verdana", peso=600,
         lineas = [list(range(len(vistas)))]
     clave, tachar = trozo.get("clave"), set(trozo.get("tachar") or ())
     anchos = [medir(x) for x in vistas]
-    espacio = max(medir(" ") * 1.1, tam * 0.22)
+    # el contorno (centrado en el borde de la letra) se come medio grueso por
+    # cada lado: sin sumarlo, dos palabras quedaban pegadas («tresreyes,»)
+    espacio = max(medir(" ") * 1.1, tam * 0.22) + (max(2.0, tam * 0.16) if contorno else 0.0)
     salto = tam * 1.22
     base = float(banda["suelo"]) - salto * (len(lineas) - 1)
     centro = float(banda["centro"])
@@ -644,7 +648,7 @@ def bloque_palabras(trozo, banda, tam, medir, fuente="Verdana", peso=600,
                 c1 = min(max(d1, d0 + 0.5), d0 + 1.2, max(d0 + 0.2, hasta_t - 0.05))
                 pasos = _pasos_contador(ficha, d0, c1)
                 cuerpo = (f'<text x="0" y="0" {letra} fill="{relleno}" '
-                          f'fill-opacity="{APAGADA}">{_escapar(palabra)}'
+                          f'opacity="{APAGADA}">{_escapar(palabra)}'
                           f'<set attributeName="visibility" to="hidden" '
                           f'begin="{d0:.2f}s"/></text>')
                 for n, (texto, t) in enumerate(pasos):
@@ -658,12 +662,12 @@ def bloque_palabras(trozo, banda, tam, medir, fuente="Verdana", peso=600,
                 inicio_pop = c1
             else:
                 cuerpo = (f'<text x="0" y="0" {letra} fill="{relleno}" '
-                          f'fill-opacity="{APAGADA}">{_escapar(palabra)}'
-                          f'<set attributeName="fill-opacity" to="1" '
+                          f'opacity="{APAGADA}">{_escapar(palabra)}'
+                          f'<set attributeName="opacity" to="1" '
                           f'begin="{d0:.2f}s"/>')
                 if i in tachar:
                     raya = max(d0, min(d0 + (d1 - d0) * 0.4, hasta_t - 0.4))
-                    cuerpo += (f'<set attributeName="fill-opacity" to="0.6" '
+                    cuerpo += (f'<set attributeName="opacity" to="0.6" '
                                f'begin="{raya + 0.25:.2f}s"/>')
                 cuerpo += '</text>'
                 inicio_pop = d0

@@ -37,7 +37,7 @@ LETRAS = {
                  "mayus": False},
 }
 
-#: La que se usa con el gancho puesto si nadie eligio otra.
+#: La que se usa si nadie eligio otra (antes, solo con el gancho puesto).
 POR_DEFECTO = "montserrat"
 
 
@@ -51,7 +51,10 @@ def de_params(p):
     p = p or {}
     clave = str(p.get("letra") or "").strip().lower()
     if not clave:
-        clave = POR_DEFECTO if p.get("gancho") else "estilo"
+        # desde el 12-11-2026 el subtitulo es palabra a palabra en TODO video
+        # (p7_callouts.SUB_ESTILOS), no solo con gancho: va con la de TikTok.
+        # «estilo» a mano sigue dando la del estilo.
+        clave = POR_DEFECTO
     ficha = LETRAS.get(clave)
     if not ficha or not os.path.exists(ruta(clave)):
         return None

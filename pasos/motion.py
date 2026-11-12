@@ -1070,7 +1070,10 @@ def _apartar_munecos(piezas, autos, W, H):
     for q in piezas:
         if q.get("tipo") != "personajes" or q in autos:
             continue
-        alto = min(float(q.get("alto") or 0) or H, H * (0.22 if vertical else 0.36))
+        # en vertical, por DEBAJO del subtitulo (que vive entre el 72 y el 80 %
+        # del alto, p7_callouts.SUB_ALTURA_VERTICAL): del 84 % al 97 %. Con
+        # 0,22 la cabeza llegaba al 75 % y el subtitulo se la tapaba
+        alto = min(float(q.get("alto") or 0) or H, H * (0.13 if vertical else 0.36))
         escala = alto / max(1.0, float(q.get("alto") or alto))
         q["alto"] = round(alto, 1)
         for f in q.get("figuras") or []:
@@ -1326,6 +1329,16 @@ def _normalizar_de_verdad(pieza, voz, W, H, ctx):
     p["luego"] = luego
     vertical = H > W
     t = p["tipo"]
+    if vertical and isinstance(p.get("y"), (int, float)):
+        # LA FRANJA DEL SUBTITULO (del ~70 al ~82 % del alto en vertical,
+        # p7_callouts.SUB_ALTURA_VERTICAL) no se pisa: el prompt ya se lo dice
+        # a Claude («deja libre y > 0.72») y aqui se asegura. Un muñeco (su y
+        # son los PIES) sube hasta apoyarse encima; un texto o icono (su y es
+        # el centro), igual. Lo que va entero por debajo se queda.
+        if t == "personajes" and H * 0.72 < p["y"] < H * 0.97:
+            p["y"] = round(H * 0.72, 1)
+        elif t in ("texto", "icono") and H * 0.68 < p["y"] < H * 0.86:
+            p["y"] = round(H * 0.66, 1)
     if t == "lamina":
         lam = ctx.get("lamina")
         if not lam:

@@ -95,9 +95,22 @@ _CIERRA = re.compile(r"[,;:]$")
 _GUION = re.compile(r"^[—–-]$")
 
 
+#: Y LOS QUE CIERRAN FRASE, que son frontera DURA: un trozo nunca junta el
+#: final de una frase con el principio de la siguiente. Antes solo se cortaba
+#: en `,;:` y el reagrupado juntaba «...tu nombre. La Biblia» en un trozo: en
+#: pantalla se leia «nombre La Biblia», un corte a media frase (video de prueba
+#: del 12-11-2026). Un cierre puede llevar comillas o parentesis detras.
+_FIN_FRASE = re.compile(r"[.!?…][»\"')\]]*$")
+
+
 def _cierra_clausula(token):
     token = str(token or "")
-    return bool(_CIERRA.search(token) or _GUION.match(token))
+    return bool(_CIERRA.search(token) or _GUION.match(token)
+                or _FIN_FRASE.search(token))
+
+
+def _cierra_frase(token):
+    return bool(_FIN_FRASE.search(str(token or "")))
 
 
 def tramos(palabras, cap_linea=CAP_LINEA, cap_blando=CAP_BLANDO,
@@ -177,10 +190,15 @@ def tramos(palabras, cap_linea=CAP_LINEA, cap_blando=CAP_BLANDO,
 
     piezas = [trozo for par in rangos for trozo in partir(par)]
 
+    # una frase acabada no se junta con la siguiente (ver _FIN_FRASE), salvo
+    # dentro de algo intocable («Mt. 5», una cifra)
+    def frontera(a):
+        return a > 0 and a not in dentro and _cierra_frase(palabras[a - 1])
+
     # 3 · se reagrupa mientras quepa comodo
     salida = []
     for a, b in piezas:
-        if salida:
+        if salida and not frontera(a):
             ultimo = salida[-1]
             junto = largo(ultimo[0], b)
             if (junto <= cap_blando
@@ -190,18 +208,23 @@ def tramos(palabras, cap_linea=CAP_LINEA, cap_blando=CAP_BLANDO,
                 continue
         salida.append([a, b])
 
-    # 4 · los huerfanos se funden
+    # 4 · los huerfanos se funden. Uno de dos o tres letras («de», «y») pasa
+    #     un poco del tope si hace falta: un «de» solo en pantalla no se lee
+    #     (salia en el palabra a palabra, con trozos de un renglon corto)
     i = 0
     while i < len(salida) and len(salida) > 1:
-        if largo(salida[i][0], salida[i][1]) >= min_trozo:
+        propio = largo(salida[i][0], salida[i][1])
+        if propio >= min_trozo:
             i += 1
             continue
-        if i > 0 and largo(salida[i - 1][0], salida[i][1]) <= cap_trozo:
+        tope = cap_trozo + (4 if propio <= 3 else 0)
+        if (i > 0 and not frontera(salida[i][0])
+                and largo(salida[i - 1][0], salida[i][1]) <= tope):
             salida[i - 1][1] = salida[i][1]
             salida.pop(i)
             i = max(0, i - 1)
-        elif (i < len(salida) - 1
-                and largo(salida[i][0], salida[i + 1][1]) <= cap_trozo):
+        elif (i < len(salida) - 1 and not frontera(salida[i + 1][0])
+                and largo(salida[i][0], salida[i + 1][1]) <= tope):
             salida[i + 1][0] = salida[i][0]
             salida.pop(i)
         else:

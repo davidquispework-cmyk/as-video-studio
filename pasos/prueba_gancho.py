@@ -75,11 +75,17 @@ def main():
 
     p = p7_callouts._con_defectos({})
     salida = (1080, 1920)
+    # sin gancho: palabra a palabra igual (desde el 12-11-2026 es el de
+    # siempre), pero sin el cartel grande; «clasico» deja el de caja
     normal, _ = p7_callouts.capa_fija_de(_escena(), p, salida=salida, primera=True)
-    assert "gancho" not in normal and "fill-opacity" not in normal, "sin param, como siempre"
+    assert 'class="gancho"' not in normal and 'opacity="0.62"' in normal, "sin gancho, sin cartel"
+    assert "Shaddai Montserrat" in normal and 'fill="#000000"' not in normal, "grande, sin caja"
+    clasico, _ = p7_callouts.capa_fija_de(_escena(), dict(p, subtitulo_estilo="clasico"),
+                                          salida=salida, primera=True)
+    assert 'opacity="0.62"' not in clasico and 'fill="#000000"' in clasico, "clasico, como era"
     con, fichas = p7_callouts.capa_fija_de(_escena(), dict(p, gancho=True),
                                            salida=salida, primera=True)
-    assert 'class="gancho"' in con and "fill-opacity" in con and fichas
+    assert 'class="gancho"' in con and 'opacity="0.62"' in con and fichas
     assert "¿SABÍAS" in con and "Shaddai Montserrat" in con
     # B (1): mientras esta el cartel (hasta que se dice «Jesús?» + 0,35 s) no
     # hay subtitulo: el primer trozo palabra a palabra entra despues
@@ -91,7 +97,7 @@ def main():
     assert "#FF3B3B" in con                                   # tachado rojo
     segundo, _ = p7_callouts.capa_fija_de(_escena(), dict(p, gancho=True),
                                           salida=salida, primera=False)
-    assert 'class="gancho"' not in segundo and "fill-opacity" in segundo
+    assert 'class="gancho"' not in segundo and 'opacity="0.62"' in segundo
     sin_cartel, _ = p7_callouts.capa_fija_de(dict(_escena(), gancho=False),
                                              dict(p, gancho=True), salida=salida,
                                              primera=True)

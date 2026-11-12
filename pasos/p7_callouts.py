@@ -493,10 +493,29 @@ SUB_PESO = 600
 #: renglones de un tercio de pantalla (02-09-2026, primer video vertical).
 SUB_ESCALA_VERTICAL_MAX = 1.35
 
-#: EN VERTICAL EL SUBTITULO VA A UN TERCIO DE LA PANTALLA desde abajo, no al
-#: pie: en un movil el pie lo tapan los controles y la mirada esta en el
-#: centro. Es la fraccion del alto que queda por debajo de la linea base.
-SUB_ALTURA_VERTICAL = 1.0 / 3.0
+#: EN VERTICAL EL SUBTITULO VA EN EL CUARTO DE ABAJO, no al pie: el pie lo
+#: tapan los controles del movil (nombre, descripcion, musica: el ~15 % de
+#: abajo). Es la fraccion del alto que queda por debajo de la linea base.
+#:
+#: Era un tercio (1/3) y el 12-11-2026 se bajo a proposito: a esa altura el
+#: subtitulo caia ENCIMA de las cabezas (video de Epafrodito, «CARTA DE» y
+#: «FILIPENSES 2:27» sobre los personajes). Los muñecos del motion viven por
+#: encima del 70 % del alto (`motion._automatico`) o, apartados, por debajo
+#: del 84 % (`motion._apartar_munecos`): esta franja queda libre entre ambos.
+SUB_ALTURA_VERTICAL = 0.21
+
+#: EL ESTILO DEL SUBTITULO (param `subtitulo_estilo` de este paso, que NO va
+#: en los defectos): «palabras» es el de TikTok -- grande, palabra a palabra,
+#: la clave en amarillo/rojo y sin caja (pasos/gancho.py) -- y es el de
+#: siempre desde el 12-11-2026; antes solo salia con «Gancho + textos TikTok»
+#: y sin el los videos salian con el clasico (pequeno y en caja oscura).
+#: «clasico» lo deja como era, para quien lo pida.
+SUB_ESTILOS = ("palabras", "clasico")
+
+#: Y en el palabra a palabra el cuerpo crece este tanto sobre el elegido (y
+#: sobre la escala de su letra): «los quiero grandes». Con Montserrat Black
+#: en vertical salen ~94 px en 1080 de ancho, dos o tres palabras por trozo.
+SUB_ESCALA_PALABRAS = 1.2
 
 #: LA POSICION DEL SUBTITULO, elegible (param `subtitulo_pos` de este paso,
 #: 11-nov-2026): «abajo» es lo de siempre -- el pie en horizontal y un tercio
@@ -512,6 +531,12 @@ def posicion_subtitulo(p=None):
     """«abajo» o «centro», segun los params. Cualquier otra cosa es «abajo»."""
     valor = str((p or {}).get("subtitulo_pos") or "abajo").strip().lower()
     return valor if valor in SUB_POSICIONES else "abajo"
+
+
+def estilo_subtitulo(p=None):
+    """«palabras» (el de TikTok, por defecto) o «clasico»."""
+    valor = str((p or {}).get("subtitulo_estilo") or "palabras").strip().lower()
+    return valor if valor in SUB_ESTILOS else "palabras"
 
 
 def es_vertical(salida=None):
@@ -587,7 +612,55 @@ def cap_trozo_subtitulo(cap_linea, salida):
 def cap_subtitulo_de(p, plan):
     """La misma cuenta que hace `capa_fija_de`, para quien solo tiene el plan."""
     salida = salida_de(plan)
-    return cap_subtitulo(tamano_subtitulo(p, salida), banda_subtitulo(salida, p))
+    return letra_subtitulo(p, salida)["cap"]
+
+
+def cap_trozo_subtitulo_de(p, plan):
+    """El tope del trozo que usa `capa_fija_de`, para quien solo tiene el plan."""
+    return letra_subtitulo(p, salida_de(plan))["cap_trozo"]
+
+
+def letra_subtitulo(p, salida, diseno=None):
+    """Con que letra, a que cuerpo y con que topes se dibuja el subtitulo de
+    ESTA salida, segun su estilo. Un solo sitio para el render y para la vista
+    previa de la pantalla (app.py): dos cuentas se separan el dia que alguien
+    toca una. -> {"palabras", "fuente", "familia", "peso", "tam", "medir",
+    "medidor_cartel", "mayus", "cap", "cap_trozo"}"""
+    p = p or {}
+    if diseno is None:
+        _, diseno = diseno_de(p, (p.get("estilo") or {}).get("guia"))
+    banda = banda_subtitulo(salida, p)
+    tam = tamano_subtitulo(p, salida)
+    fuente_estilo = (diseno or {}).get("fuente") or "Verdana"
+    if estilo_subtitulo(p) == "clasico":
+        cap = cap_subtitulo(tam, banda)
+        return {"palabras": False, "fuente": fuente_estilo, "familia": None,
+                "peso": SUB_PESO, "tam": tam,
+                "medir": _medidor(fuente_estilo, tam, negrita=SUB_PESO >= 600),
+                "medidor_cartel": None, "mayus": False, "cap": cap,
+                "cap_trozo": cap_trozo_subtitulo(cap, salida)}
+    ficha = letras.de_params(p)
+    tam = int(round(tam * SUB_ESCALA_PALABRAS))
+    if ficha:
+        familia = ficha["familia"]
+        tam = int(round(tam * ficha["escala"]))
+        fuente_nombre = f"'{familia}', Verdana, sans-serif"
+        medir = _medidor_exacto(familia, tam)
+        medidor_cartel = lambda t: _medidor_exacto(familia, t)  # noqa: E731
+        peso, mayus = "normal", ficha["mayus"]
+    else:
+        familia, fuente_nombre, peso, mayus = None, fuente_estilo, SUB_PESO, False
+        medir = _medidor(fuente_estilo, tam, negrita=SUB_PESO >= 600)
+        medidor_cartel = lambda t: _medidor(fuente_estilo, t, negrita=True)  # noqa: E731
+    # el cap se mide con el cuerpo de la letra de verdad (las de TikTok son
+    # mas anchas que Verdana a igual cuerpo: se cuenta por la escala)
+    cap = cap_subtitulo(tam, banda)
+    # palabra a palabra, UN renglon por trozo tambien en horizontal: dos o
+    # tres palabras que se leen de un golpe
+    return {"palabras": True, "fuente": fuente_nombre, "familia": familia,
+            "peso": peso, "tam": tam, "medir": medir,
+            "medidor_cartel": medidor_cartel, "mayus": mayus, "cap": cap,
+            "cap_trozo": cap}
 
 
 def _medidor(fuente_nombre, tam, negrita=False):
@@ -743,17 +816,19 @@ def capa_fija_de(escena, p, banda=None, salida=SALIDA, primera=False):
     # `diseno_de` devuelve (nombre, ficha): aqui interesa la ficha, que trae la
     # fuente
     _, diseno = diseno_de(p, (p.get("estilo") or {}).get("guia"))
-    tam = tamano_subtitulo(p, salida)
-    trozos = subtitulos.de_escena(
-        escena, idioma=p.get("idioma"),
-        cap_linea=cap_subtitulo(tam, banda),
-        cap_trozo=cap_trozo_subtitulo(cap_subtitulo(tam, banda), salida),
-        texto=texto_subtitulo_de(p, f"escena:{escena.get('id')}"))
     tapa = opacidad_de_caja(p)
-    if con_gancho:
-        piezas = _subtitulos_gancho(escena, p, banda, tam, paleta, diseno,
-                                    tapa, salida, primera)
+    letra = letra_subtitulo(p, salida, diseno)
+    tam = letra["tam"]
+    if letra["palabras"]:
+        # el de TikTok (ver SUB_ESTILOS); el cartel del gancho, solo con gancho
+        piezas, trozos = _subtitulos_gancho(escena, p, banda, letra, paleta,
+                                            diseno, tapa, salida,
+                                            primera and con_gancho)
     else:
+        trozos = subtitulos.de_escena(
+            escena, idioma=p.get("idioma"), cap_linea=letra["cap"],
+            cap_trozo=letra["cap_trozo"],
+            texto=texto_subtitulo_de(p, f"escena:{escena.get('id')}"))
         # en vertical sin fundidos: cada trozo dura poco y se lee entero
         piezas = [bloque_subtitulo(x, banda, tam, paleta, diseno, tapa,
                                    fundido=not es_vertical(salida))
@@ -780,45 +855,39 @@ def _medidor_exacto(familia, tam):
 
 
 def _acento_tiktok(paleta):
-    """El color de la clave: el acento del estilo si se ve, si no rojo TikTok.
+    """El color de la clave: AMARILLO O ROJO, como en TikTok.
 
-    Un acento apagado (gris, beige, casi negro) no resalta nada encima de una
-    imagen; lo pidio David: «palabra marcada en rojo».
+    El acento del estilo vale solo si ya es un rojo o un amarillo vivo; si no,
+    rojo. Lo pidio David dos veces: «palabra marcada en rojo» (6-11) y «la
+    palabra clave en amarillo o rojo» (12-11). Antes valia cualquier acento
+    vivo, y el papel del motion la pintaba en terracota: no resaltaba.
     """
+    import colorsys
     rgb = _rgb((paleta or {}).get("acento"))
-    if rgb and _saturacion(rgb) >= 90 and 70 <= _luz(rgb) <= 225:
-        return "#%02x%02x%02x" % rgb
+    if rgb and _saturacion(rgb) >= 90 and 70 <= _luz(rgb) <= 235:
+        tono = colorsys.rgb_to_hsv(*(c / 255.0 for c in rgb))[0] * 360
+        if tono <= 8 or tono >= 345 or 42 <= tono <= 60:
+            return "#%02x%02x%02x" % rgb
     return gancho.ROJO
 
 
-def _subtitulos_gancho(escena, p, banda, tam, paleta, diseno, tapa, salida,
+def _subtitulos_gancho(escena, p, banda, letra, paleta, diseno, tapa, salida,
                        primera):
     """Subtitulos palabra a palabra estilo TikTok y, en el primer plano, el
     cartel grande (sin subtitulo debajo mientras esta: ver gancho.py).
 
-    En vertical los trozos van mas cortos (dos a cuatro palabras), como en el
-    formato TikTok; en horizontal se respeta el troceo de siempre.
+    Trozos de UN renglon (dos o tres palabras), letra y cuerpo de
+    `letra_subtitulo`. `primera` = este plano lleva el cartel del gancho.
+    -> (piezas, trozos)
     """
-    ficha = letras.de_params(p)
-    if ficha:
-        fuente_nombre = f"'{ficha['familia']}', Verdana, sans-serif"
-        familia, peso = ficha["familia"], "normal"
-        tam = int(round(tam * ficha["escala"]))
-        medir = _medidor_exacto(familia, tam)
-        medidor_cartel = lambda t: _medidor_exacto(familia, t)  # noqa: E731
-        mayus = ficha["mayus"]
-    else:
-        fuente_nombre = (diseno or {}).get("fuente") or "Verdana"
-        peso = SUB_PESO
-        medir = _medidor(fuente_nombre, tam, negrita=SUB_PESO >= 600)
-        medidor_cartel = lambda t: _medidor(fuente_nombre, t, negrita=True)  # noqa: E731
-        mayus = False
+    fuente_nombre, peso, tam = letra["fuente"], letra["peso"], letra["tam"]
+    medir, medidor_cartel = letra["medir"], letra["medidor_cartel"]
+    mayus, ficha = letra["mayus"], letra["familia"]
     acento = _acento_tiktok(paleta)
     resalte = str(p.get("resalte") or "subrayado").strip().lower()
-    cap = cap_subtitulo(tam, banda)
     trozos = subtitulos.de_escena(
-        escena, idioma=p.get("idioma"), cap_linea=cap,
-        cap_trozo=cap_trozo_subtitulo(cap, salida),
+        escena, idioma=p.get("idioma"), cap_linea=letra["cap"],
+        cap_trozo=letra["cap_trozo"],
         texto=texto_subtitulo_de(p, f"escena:{escena.get('id')}"),
         con_palabras=True)
     # se prepara con el plano ENTERO antes de quitar lo que tapa el cartel: un
@@ -853,7 +922,7 @@ def _subtitulos_gancho(escena, p, banda, tam, paleta, diseno, tapa, salida,
         for x in trozos]
     if cartel:
         piezas.append(cartel)
-    return piezas
+    return piezas, trozos
 
 
 def capa_de_escena(escena, p, mov=None, banda=None, aspecto=16 / 9,

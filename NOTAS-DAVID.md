@@ -415,7 +415,7 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    Pendiente: elegir la palabra tachada/resaltada a mano desde la pantalla
    (hoy se puede forzando `~~palabra~~` y `*palabra*` en el texto).
 10. **SIGUIENTE: el plan «NIVEL PROFESIONAL» (12-nov)** — ver la sección del
-   mismo nombre más abajo; P1 a P8, P6b y P6c HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río; P6b = objetos de plastilina en la mesa; P6c = Claude construye cualquier otro objeto y lo guarda en una biblioteca; P8 = el guion sigue la fórmula de las referencias); vídeo de prueba con todo HECHO (12-nov, ver «Vídeo de prueba con todo» en NIVEL PROFESIONAL); siguiente: el punto 1 de su lista (subtítulos grandes palabra a palabra) y seguir esa lista. (Siguen sobre la mesa, para
+   mismo nombre más abajo; P1 a P8, P6b y P6c HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río; P6b = objetos de plastilina en la mesa; P6c = Claude construye cualquier otro objeto y lo guarda en una biblioteca; P8 = el guion sigue la fórmula de las referencias); vídeo de prueba con todo HECHO (12-nov, ver «Vídeo de prueba con todo» en NIVEL PROFESIONAL); punto 1 de su lista (subtítulos grandes palabra a palabra) HECHO (12-nov); siguiente: el punto 2 (gancho enorme) y seguir esa lista. (Siguen sobre la mesa, para
    después: grabar tu voz desde la propia página; afinar la tabla de voces.)
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
@@ -736,7 +736,7 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Pendiente: ~~más formas de «lo falso → lo verdadero»~~ (HECHO 11-nov, punto 9
    del orden nuevo); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1 a P8, P6b y P6c HECHOS; vídeo de prueba HECHO; ahora, la lista «Siguiente» de «Vídeo de prueba con todo»).
+Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1 a P8, P6b y P6c HECHOS; vídeo de prueba HECHO; ahora, la lista «Siguiente» de «Vídeo de prueba con todo»: 1 HECHO, sigue el 2, gancho enorme).
 
 ## NIVEL PROFESIONAL (decidido 12-nov-2026) — manda sobre el punto 10 del ORDEN NUEVO
 David quiere que sus vídeos queden AL MISMO NIVEL que los de referencia, no «parecidos
@@ -1074,6 +1074,30 @@ tarda ~15 min por look). Comparado con el análisis de las referencias (arriba).
    referencias: grandes, palabra a palabra, clave en amarillo/rojo, en el tercio
    de abajo o arriba sin tapar la figura. Además se come la puntuación
    («nombre La Biblia», «dice en»): cortes a media frase.
+   **ARREGLADO (12-nov-2026)**: ahora TODO vídeo lleva el subtítulo de TikTok,
+   no solo con «Gancho + textos TikTok» (sin él salía el clásico en caja).
+   **Grande** (Montserrat Black, ~94 px en un vertical de 1080 de ancho, un 20 %
+   más que el del gancho), **palabra a palabra** (trozos de UN renglón, 1-3
+   palabras; cada una se enciende al decirla), **sin caja** (contorno negro) y
+   la **clave en rojo** (o en el acento del estilo solo si ya es rojo o
+   amarillo vivo; antes valía cualquiera y en el motion salía terracota).
+   **Sitio**: en vertical la línea base baja de 2/3 de alto al **79 %** (franja
+   del 72 al 80 %, encima de los controles del móvil); los muñecos del motion
+   quedan por encima o, los «apartados» al pie, por debajo (más bajitos, del
+   84 al 97 %), y un muñeco/texto/icono que Claude ponga en la franja sube
+   (`motion._normalizar_de_verdad`). **Cortes**: un trozo ya no junta el final
+   de una frase con la siguiente («nombre. | La Biblia»), y un «de» suelto se
+   junta con el vecino. «⏺ Centro» sigue igual si lo eliges. El de antes, a
+   mano: param `"subtitulo_estilo": "clasico"` en callouts.
+   Código: `p7_callouts.letra_subtitulo` (un solo sitio para render y vista
+   previa), `SUB_ALTURA_VERTICAL`, `SUB_ESCALA_PALABRAS`, `_acento_tiktok`;
+   `letras.de_params` (Montserrat por defecto); `gancho.bloque_palabras`
+   (`opacity` en vez de `fill-opacity`: las no dichas salían turbias; más
+   espacio entre palabras); `subtitulos.tramos` (`_FIN_FRASE`). No toca
+   firmas: para un vídeo ya hecho, volver a montar **callouts** y luego
+   «Regenerar Vídeo». Prueba: `pasos/prueba_subtitulo_pos.py` y
+   `pasos/prueba_gancho.py`. Pendiente: verlo en un vídeo real con imágenes
+   (no motion); si en alguno tapa algo, se puede bajar más (`SUB_ALTURA_VERTICAL`).
 2. **El gancho no se ve**: el 1.er segundo es la imagen con «Los ángeles» en el
    subtítulo; la pregunta «¿Los ángeles conocen tu nombre?» debería salir
    ENORME 2-3 s (como «La túnica de José no era de colores»).
@@ -1161,7 +1185,7 @@ tarda ~15 min por look). Comparado con el análisis de las referencias (arriba).
    correcto. El contraluz se nota poco con láminas planas: juzgarlo con imágenes
    reales.
 **Siguiente (un chat cada uno, en este orden):** subtítulos grandes palabra a
-palabra (1) → gancho enorme (2) → citas dichas en palabras y pastilla al día
+palabra (1, HECHO) → gancho enorme (2) → citas dichas en palabras y pastilla al día
 (3, HECHO) → placas/sellos nuevos (4, HECHO) → titular editorial sin choque (5, HECHO) → tarjeta
 final (6, HECHO). Luego repetir este vídeo de prueba y comparar.
 
@@ -1197,9 +1221,8 @@ capa de subtítulos, volver a montar también callouts).
    de media altura se quita de la capa (`plantilla_tiktok.sin_seguir`); el
    motion ya no pinta «SÍGUEME»/«COMENTA» como palabra gigante
    (`motion._sin_llamadas`).
-Pendiente (punto 1 de la lista del vídeo de prueba): el SUBTÍTULO a media
-altura tapa caras («CARTA DE», «FILIPENSES 2:27»): subtítulos grandes palabra a
-palabra en un sitio que no tape a los personajes.
+~~Pendiente: el SUBTÍTULO a media altura tapa caras~~ — HECHO 12-nov (punto 1
+de «Vídeo de prueba con todo»: grande, palabra a palabra, al 79 % del alto).
 
 ## Prompts de imagen: dos fallos de fondo arreglados (11-nov-2026)
 Visto en el vídeo del rey David (borrado después; no se arregló ese vídeo).
