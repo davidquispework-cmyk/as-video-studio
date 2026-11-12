@@ -8703,11 +8703,16 @@ function bloquesLight() {
    `<personaje nombre="…">…</personaje>` lo dice otra voz y `<clave>…</clave>`
    se dice despacio y con un silencio delante. El texto no las enseña (se lee
    lo que se oye), así que la cabecera del bloque dice que están. */
+const RE_PERSONAJE_VOZ = new RegExp('<personaje\\s+nombre="([^"<>]+)"', 'gi');
+const RE_CLAVE_VOZ = new RegExp('<clave\\s*>', 'gi');
+
 function marcasVozLight(texto) {
   const crudo = String(texto || '');
-  const nombres = [...new Set([...crudo.matchAll(/<personaje\s+nombre="([^"<>]+)"/gi)]
+  /* Con RegExp y no con /.../: las comillas y los ángulos dentro de una
+     expresión literal despistan a los analizadores de `herramientas/`. */
+  const nombres = [...new Set([...crudo.matchAll(RE_PERSONAJE_VOZ)]
     .map(m => m[1].trim()))];
-  const claves = (crudo.match(/<clave\s*>/gi) || []).length;
+  const claves = (crudo.match(RE_CLAVE_VOZ) || []).length;
   return [
     ...nombres.map(n => h('span', { clase: 'pastilla marca-voz',
       title: `Las palabras de ${n} las dice otra voz` }, `🎭 ${n}`)),
