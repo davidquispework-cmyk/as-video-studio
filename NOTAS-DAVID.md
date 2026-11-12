@@ -1082,6 +1082,17 @@ tarda ~15 min por look). Comparado con el análisis de las referencias (arriba).
    «LUCAS 1:19» del plano anterior). La Biblia 3D SÍ lo detecta («SALMO 147»):
    unificar con ese detector. Y la pastilla va un plano retrasada a veces
    («DANIEL 10:11» cuando ya habla de Abraham).
+   **ARREGLADO (12-nov-2026)**: el detector (`citas.buscar`, el mismo de la
+   Biblia 3D) sí entendía «ciento cuarenta y siete, versículo cuatro»; el fallo
+   era que el CORTE partía la cita en dos planos («…el Salmo ciento cuarenta y
+   siete,» | «versículo cuatro…») y la pastilla pedía el versículo en el mismo
+   plano. Ahora mira también las palabras del plano siguiente y vale la cita que
+   EMPIEZA en este (`rotulos._pastilla`); sin versículo vale si se dijo
+   «capítulo» («Lee Lucas capítulo uno» → LUCAS 1). Y la heredada se QUITA al
+   empezar un bloque del guion que cita otra cosa (`rotulos.preparar`, por
+   `origen.bloque`); un bloque que no cita nada la conserva. No toca firmas:
+   basta «Regenerar Vídeo». Prueba: `probar_citas_dichas` en
+   `pasos/prueba_rotulos.py`.
 4. **Sin placas ni sellos** en un guion que los pide: «cuatro veces» →
    placa «4 VECES»; «Primera / Segunda / Tercera / Cuarta» → marcador «1/4…4/4»;
    «La Biblia NO dice eso» → sello «NO». Los disparadores de `rotulos.py` solo

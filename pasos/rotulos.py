@@ -234,20 +234,36 @@ def _dato(v):
     return None
 
 
-def _pastilla(v):
-    for c in citas.buscar(v.crudas):
-        if c["v1"]:
+def _pastilla(v, siguiente=None):
+    """La cita que EMPIEZA en este plano, aunque acabe en el siguiente.
+
+    El corte parte una cita dicha en palabras por donde cae la pausa: «El
+    Salmo ciento cuarenta y siete,» | «versiculo cuatro, habla...». Por eso
+    se buscan las palabras de este plano seguidas de las del siguiente, y
+    vale la cita que arranca aqui. Sin versiculo vale si se dijo «capitulo»
+    («Lee Lucas capitulo uno» -> LUCAS 1), igual que en la Biblia 3D.
+    """
+    mias = len(v.crudas)
+    for c in citas.buscar(v.crudas + list(siguiente or [])):
+        if c["inicio"] >= mias:
+            break
+        dicho_cap = any(w in citas.CAPITULO for w in v.pl[c["libro_fin"]:c["fin"]])
+        if c["v1"] or dicho_cap:
             return {"tipo": "pastilla", "texto": c["cita"].upper(),
                     "t": v.t(c["inicio"])}
     return None
 
 
-def automaticos(escena):
-    """Los rotulos que salen solos de la narracion del plano. -> [rotulo]"""
+def automaticos(escena, siguiente=None):
+    """Los rotulos que salen solos de la narracion del plano. -> [rotulo]
+
+    `siguiente` son las palabras del plano de despues: solo sirven para
+    acabar una cita que el corte partio en dos.
+    """
     v = _Voz(escena)
     salida = []
     for f in (_pastilla, _rebobinar, _cifra, _dato, _sello):
-        r = f(v)
+        r = f(v, siguiente) if f is _pastilla else f(v)
         if r:
             salida.append(r)
     # la placa de cifra y el DATO comparten esquina de arriba: uno por plano
@@ -292,29 +308,47 @@ def activos(p):
     return (p or {}).get("rotulos") is not False
 
 
+def _bloque(escena):
+    """El bloque del guion del que sale el plano (B003), o '' si no se sabe."""
+    return str((escena.get("origen") or {}).get("bloque") or "")
+
+
 def preparar(escenas, p, ancho, alto):
     """Los rotulos de TODO el video, por plano. -> {id: conf}
 
     Se recorre en orden porque la pastilla de la cita se HEREDA: entra en el
-    plano donde se nombra y sigue arriba, quieta, en los siguientes.
+    plano donde se nombra y sigue arriba, quieta, en los siguientes. Pero al
+    empezar un bloque del guion que cita OTRA cosa, la vieja se quita: si no,
+    «DANIEL 10:11» seguia arriba con la narracion ya en Abraham, hasta que
+    se nombraba Genesis. Un bloque que no cita nada la conserva (sigue
+    hablando de lo mismo).
     """
     if not activos(p):
         return {}
-    confs, fija = {}, None
-    for e in escenas:
-        sid = e.get("id")
-        if e.get("cartela"):
-            continue
+    planos = [e for e in escenas if not e.get("cartela")]
+    hechos = []
+    for k, e in enumerate(planos):
         propios = e.get("rotulos")
         if propios is False:
             items = []
         elif isinstance(propios, list):
             items = _a_mano(e, propios)
         else:
-            items = automaticos(e)
+            sig = (str(planos[k + 1].get("narracion") or "").split()
+                   if k + 1 < len(planos) else None)
+            items = automaticos(e, sig)
+        hechos.append((e, propios, items))
+    con_cita = {_bloque(e) for e, _p, items in hechos
+                if _bloque(e) and any(r["tipo"] == "pastilla" for r in items)}
+    confs, fija, bloque_fija = {}, None, ""
+    for e, propios, items in hechos:
+        sid = e.get("id")
+        b = _bloque(e)
+        if fija and b and b != bloque_fija and b in con_cita:
+            fija = None                  # este bloque nombra la suya
         nueva = next((r for r in items if r["tipo"] == "pastilla"), None)
         if nueva:
-            fija = nueva["texto"]
+            fija, bloque_fija = nueva["texto"], b
         elif fija and propios is not False:
             items.insert(0, {"tipo": "pastilla", "texto": fija, "t": 0.0,
                              "fija": True})

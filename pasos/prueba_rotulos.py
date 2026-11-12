@@ -68,6 +68,46 @@ def probar_video():
     print("ok video")
 
 
+def probar_citas_dichas():
+    """Lo que fallo en el video de prueba de los angeles (12-nov-2026)."""
+    def en(bloque, sid, texto, t):
+        return dict(_escena(sid, texto, t), origen={"bloque": bloque})
+    escenas = [
+        en("B004", "s1", "Le dice en Daniel, capítulo diez, versículo once:", 0),
+        en("B004", "s2", "«Daniel, varón muy amado».", 6),
+        # bloque nuevo que cita OTRA cosa: la de Daniel se quita al empezar
+        en("B005", "s3", "Cuarta. Abraham, en el monte.", 12),
+        en("B005", "s4", "lo llama, en Génesis, capítulo veintidós, versículo once", 18),
+        # el corte parte la cita dicha en palabras en dos planos
+        en("B007", "s5", "Quien lo sabe es Dios. El Salmo ciento cuarenta y siete,", 24),
+        en("B007", "s6", "versículo cuatro, habla de las estrellas", 30),
+        # un bloque que no cita nada conserva la de antes
+        en("B008", "s7", "Si lo hace con cada estrella, ¿no va a saber el tuyo?", 36),
+        en("B009", "s8", "Lee Lucas capítulo uno tú mismo", 42),
+    ]
+    c = rotulos.preparar(escenas, {}, 1080, 1920)
+
+    def pastilla(sid):
+        return next((r for r in c.get(sid, {}).get("items", [])
+                     if r["tipo"] == "pastilla"), None)
+    assert pastilla("s1")["texto"] == "DANIEL 10:11"
+    assert pastilla("s2")["fija"] and pastilla("s2")["texto"] == "DANIEL 10:11"
+    assert pastilla("s3") is None, c.get("s3")
+    assert pastilla("s4")["texto"] == "GÉNESIS 22:11"
+    p5 = pastilla("s5")
+    assert p5["texto"] == "SALMO 147:4" and not p5.get("fija"), p5
+    assert p5["t"] > 2, p5          # entra al decir «Salmo», no al empezar
+    assert pastilla("s6")["texto"] == "SALMO 147:4"
+    assert pastilla("s7")["texto"] == "SALMO 147:4"
+    assert pastilla("s8")["texto"] == "LUCAS 1"
+    # sin «capitulo» ni versiculo no hay pastilla («Lucas uno» a secas, no)
+    a = rotulos.automaticos(_escena("x", "como cuenta Mateo cinco amigos"))
+    assert not any(r["tipo"] == "pastilla" for r in a), a
+    # un plano que EMPIEZA a media cita no la repite como suya
+    assert rotulos.automaticos(_escena("y", "versículo cuatro, habla")) == []
+    print("ok citas dichas")
+
+
 def ver(carpeta):
     """Una pagina de render de verdad, con todos los rotulos, en Chromium."""
     import p8_render
@@ -110,5 +150,6 @@ def ver(carpeta):
 if __name__ == "__main__":
     probar_automaticos()
     probar_video()
+    probar_citas_dichas()
     if "--ver" in sys.argv:
         ver(sys.argv[sys.argv.index("--ver") + 1])
