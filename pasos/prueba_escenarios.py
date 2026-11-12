@@ -153,6 +153,46 @@ def probar_motion():
     assert p["hora"] == "noche" and "esc-halo" in p["svg"]
 
 
+def probar_todo_dibujado():
+    """Opcion «Imagenes: ninguna» (motion.imagenes = false): ningun plano pide
+    imagen y cada uno lleva su escenario; el que no nombra sitio sigue en el
+    del plano de antes. Sin motion la opcion no existe."""
+    import tempfile
+    import p6_assets
+    W, H = 1080, 1920
+    escenas = [_escena("S001", "Pablo y Silas estaban en la cárcel", 0.0, 4.0),
+               _escena("S002", "Y entonces oraron y cantaron himnos", 4.0, 8.0),
+               _escena("S003", "Dios ama a todos", 8.0, 11.0)]
+    escenas[1]["personajes"] = ["Pablo"]
+    escenas[2]["escenario"] = False
+    lam = {"href": "x.png", "ancho": 1024, "alto": 1536}
+    p = {"motion": {"tema": "papel", "imagenes": False}}
+    assert motion.sin_imagenes(p) and not motion.sin_imagenes({"motion": {"imagenes": False, "activo": False}})
+    assert not motion.sin_imagenes({"motion": {"tema": "papel"}})
+    c = motion.preparar(escenas, p, {"S001": lam, "S002": lam}, W, H)
+    for sid, nombre in (("S001", "carcel"), ("S002", "carcel")):
+        propias = [q for q in c[sid]["piezas"] if q["id"].startswith(sid)]
+        assert propias[0]["tipo"] == "escenario" and propias[0]["nombre"] == nombre, (sid, propias[0])
+        assert not any(q["tipo"] == "lamina" for q in propias), sid
+    assert not any(q["tipo"] == "escenario" for q in c["S003"]["piezas"] if q["id"].startswith("S003"))
+    # sin la opcion, la lamina manda como siempre
+    c2 = motion.preparar(escenas, {"motion": {"tema": "papel"}}, {"S001": lam}, W, H)
+    assert [q for q in c2["S001"]["piezas"] if q["id"].startswith("S001")][0]["tipo"] == "lamina"
+    # el paso de imagenes: nada que subir, un lienzo liso que el guardian no cuenta
+    plan = {"escenas": [{"id": "S001", "narracion": "x"}, {"id": "S002", "narracion": "y"}]}
+    assert len(list(p6_assets._escenas_con_imagen(plan))) == 2
+    assert list(p6_assets._escenas_con_imagen(plan, dibujado=True)) == []
+    with tempfile.TemporaryDirectory() as d:
+        for sid in ("S001", "S002"):
+            p6_assets._lienzo_liso(os.path.join(d, "escenas", f"{sid}.png"), "vertical")
+        fichas = {f"escena:{sid}": {"tipo": "escena", "id": sid, "png": f"escenas/{sid}.png",
+                                   "origen": "dibujado"} for sid in ("S001", "S002")}
+        assert not p6_assets._planos_repetidos(fichas, d)
+        for f in fichas.values():
+            f["origen"] = "generada"
+        assert p6_assets._planos_repetidos(fichas, d)     # y sin la marca, si salta
+
+
 def ver(carpeta):
     from PIL import Image
     from playwright.sync_api import sync_playwright
@@ -203,6 +243,7 @@ def main():
     probar_piezas_sueltas()
     probar_svg_y_lottie()
     probar_motion()
+    probar_todo_dibujado()
     if "--ver" in sys.argv:
         ver(sys.argv[sys.argv.index("--ver") + 1])
     print("OK prueba_escenarios")

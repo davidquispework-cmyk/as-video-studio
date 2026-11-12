@@ -283,7 +283,7 @@ def prompts_para_subir(proyecto, params, plan=None, para="chat", munecos=False):
                         for e in plan.get("escenas") or [])
     anterior = None
     salida = []
-    for escena in _escenas_con_imagen(plan):
+    for escena in _escenas_con_imagen(plan, dibujado=todo_dibujado(proyecto)):
         sid = escena.get("id")
         salida.append({
             "id": sid,
@@ -304,8 +304,33 @@ def prompts_para_subir(proyecto, params, plan=None, para="chat", munecos=False):
     return salida
 
 
-def _escenas_con_imagen(plan):
-    """Los planos que piden imagen propia (ni cartela, ni continuacion, ni pieza)."""
+def _lienzo_liso(destino, formato):
+    """El fichero de un plano de un video todo dibujado: liso, del tamano con
+    que se generaria su imagen (los pasos de abajo miden el plano con el)."""
+    from PIL import Image
+    ancho, alto = p2_brief.comun.ficha_formato(formato)["generacion"]
+    os.makedirs(os.path.dirname(destino), exist_ok=True)
+    Image.new("RGB", (int(ancho), int(alto)), (239, 230, 210)).save(destino)
+
+
+def todo_dibujado(proyecto):
+    """¿Este video va TODO DIBUJADO? (opcion «Imagenes: ninguna» de la
+    animacion: param `motion.imagenes` del RENDER, ver motion.sin_imagenes).
+    Se lee al generar y no se copia a los params de este paso, igual que el
+    modo manual: encenderla o apagarla no mueve ninguna firma de imagen."""
+    try:
+        from nucleo.estado import Estado
+        import motion
+        return motion.sin_imagenes(Estado(proyecto).params("render") or {})
+    except Exception:                                # noqa: BLE001
+        return False
+
+
+def _escenas_con_imagen(plan, dibujado=False):
+    """Los planos que piden imagen propia (ni cartela, ni continuacion, ni pieza).
+    En un video todo dibujado, ninguno."""
+    if dibujado:
+        return
     for escena in plan.get("escenas") or []:
         if not escena.get("id") or cartelas.sin_imagen(escena) \
                 or escena.get("sigue_a") or escena.get("componente"):
@@ -333,7 +358,8 @@ def prompt_unico(proyecto, params, solo_faltan=False, munecos=False, plan=None):
     except Exception:                                # noqa: BLE001
         catalogo = {"reparto": {}, "sets": {}}
     hechas = subidas.listar(proyecto.raiz) if solo_faltan else {}
-    escenas = [e for e in _escenas_con_imagen(plan) if e.get("id") not in hechas]
+    escenas = [e for e in _escenas_con_imagen(plan, dibujado=todo_dibujado(proyecto))
+               if e.get("id") not in hechas]
     contexto = " ".join(str(e.get("narracion") or "")
                         for e in plan.get("escenas") or [])
     return subidas.prompt_unico(
@@ -3807,6 +3833,7 @@ def _generar_escenas(plan, dirs, p, trabajo, toca, unidades, resultados, avisar,
     # modo manual: los planos que aun no tienen imagen subida. Se juntan y se
     # dicen todos al final, en vez de parar en el primero.
     manual = _es_manual(p)
+    dibujado = bool(p.get("_dibujado"))
     faltan = []
 
     def anunciar(sid):
@@ -3838,6 +3865,11 @@ def _generar_escenas(plan, dirs, p, trabajo, toca, unidades, resultados, avisar,
                 hecho = bool(guardada_previa) and not guardada_previa.get("png")
             else:
                 hecho = os.path.exists(destino)
+                # el lienzo liso de un video que IBA todo dibujado no es una
+                # imagen: si ya no lo va, el plano vuelve a pedir la suya
+                if hecho and not dibujado and (medios.leer_json(ficha_json, {}) or {}).get(
+                        "origen") == "dibujado":
+                    hecho = False
             # UNA IMAGEN QUE YA EXISTE SE QUEDA. Solo se rehace si alguien la
             # ha pedido -- por su unidad, o con el «rehacer» de la pantalla.
             #
@@ -3929,6 +3961,16 @@ def _generar_escenas(plan, dirs, p, trabajo, toca, unidades, resultados, avisar,
                 # menos por cartela en cada tanda.
                 meta = {"origen": "cartela", "coste": 0.0,
                         "plantilla": escena["cartela"].get("plantilla")}
+                prompt = ""
+                referencias = []
+            elif dibujado:
+                # VIDEO TODO DIBUJADO: no se pide, no se sube y no se paga.
+                # Se deja un lienzo liso para que los pasos de abajo (el
+                # movimiento, la capa de rotulos) tengan su fichero; el render
+                # no lo enseña nunca (motion.sin_imagenes): cada plano lleva su
+                # escenario dibujado delante.
+                _lienzo_liso(destino, plan.get("formato") or "")
+                meta = {"origen": "dibujado", "coste": 0.0}
                 prompt = ""
                 referencias = []
             elif escena.get("sigue_a"):
@@ -4199,6 +4241,10 @@ def _planos_repetidos(resultados, trabajo, copiados=()):
                         transicion en medio. Es byte a byte identica porque
                         tiene que serlo.
 
+    Y un tercero, que no es imagen: el LIENZO LISO de un video todo dibujado
+    (`origen: "dibujado"`) es el mismo fichero en todos los planos porque no
+    hay nada que pintar; no se genera, no se paga y el render no lo enseña.
+
     El segundo caso salio el 22-08 y es una leccion de las buenas: hasta
     entonces la continuacion se quedaba con su imagen VIEJA, o sea que NO
     coincidia con su hogar y este guardian no la veia. Al arreglar la copia, la
@@ -4218,7 +4264,7 @@ def _planos_repetidos(resultados, trabajo, copiados=()):
         if ficha.get("tipo") != "escena" or not ficha.get("png"):
             continue
         sid = ficha.get("id") or str(uid).split(":", 1)[-1]
-        if ficha.get("origen") in ("cartela", "sigue") \
+        if ficha.get("origen") in ("cartela", "sigue", "dibujado") \
                 or sid in copiados or ficha.get("sigue_a"):
             continue
         ruta = os.path.join(trabajo, ficha["png"])
@@ -4954,6 +5000,8 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_assets=False,
     # donde estan las imagenes subidas (modo manual); va en la copia local de
     # los params, no en los guardados: no entra en ninguna firma
     p["_subidas"] = subidas.carpeta(proyecto.raiz)
+    # y si el video va todo dibujado (sin imagenes): lo mismo, no entra en firmas
+    p["_dibujado"] = todo_dibujado(proyecto)
     _exigir_estilo(p)
     trabajo = medios.sembrar_trabajo(proyecto, "assets")
     dirs = {

@@ -29,6 +29,7 @@ aplastamiento al llegar; luego pueden TRANSFORMARSE (`luego`) y se quedan.
 Como se gobierna:
     params del render  "motion": true | "papel" | "noche"
                        | {"tema": "papel", "laminas": false}
+                       | {"tema": "papel", "imagenes": false}   (todo dibujado: ver sin_imagenes)
                        Falta = el render de siempre. No va en los defectos del
                        paso: no mueve la firma de ningun proyecto.
     plan.json, escena  "motion": [ {pieza}, ... ]   el storyboard de ese plano
@@ -185,6 +186,16 @@ def tema_de(p):
 def _opciones(p):
     v = (p or {}).get("motion")
     return v if isinstance(v, dict) else {}
+
+
+def sin_imagenes(p):
+    """¿Video TODO DIBUJADO? Opcion `motion: {"imagenes": false}` del render:
+    ningun plano pide imagen (ni se sube ni se paga) y cada uno lleva su
+    escenario dibujado (pasos/escenarios.py). Solo existe con motion graphics:
+    sin motion no hay nada que dibujar en su lugar. Lo lee tambien el paso de
+    imagenes al GENERAR (p6_assets.todo_dibujado), sin escribirlo en sus params:
+    encenderla no deja obsoleta ninguna imagen ya hecha."""
+    return bool(tema_de(p)) and _opciones(p).get("imagenes") is False
 
 
 # ------------------------------------------------------------ las palabras
@@ -1134,6 +1145,29 @@ def _automatico(escena, voz, W, H, lamina, laminas, hoy, mapeados, fichas, munec
     return piezas
 
 
+def _escenario_dibujado(e, piezas, ultimo, W, H):
+    """En un video todo dibujado, CADA plano lleva escenario: el que nombra su
+    voz (o el de a mano) y, si no nombra ninguno, el del plano de antes (la
+    escena sigue en el mismo sitio). Lo pone delante si el storyboard (de
+    Claude o automatico) no lo trajo. -> el escenario que queda para el siguiente."""
+    if e.get("escenario") is False:
+        return ultimo
+    propio = escenarios.de_la_escena(e)
+    if propio:
+        esc = propio
+    elif ultimo:
+        esc = dict(ultimo, efectos=escenarios.efectos_de(e.get("narracion") or ""))
+    else:
+        return None
+    if not any(pz.get("tipo") == "escenario" for pz in piezas):
+        figs = next((pz for pz in piezas if pz.get("tipo") == "personajes"), None)
+        piezas.insert(0, escenarios.pieza(
+            esc.get("nombre"), esc["hora"], esc["efectos"], W, H, Voz(e).t_in,
+            suelo_px=figs["y"] if figs else None, fondo=esc.get("fondo"),
+            cosas=esc.get("cosas"), mas=esc.get("mas")))
+    return esc
+
+
 def _par(escena):
     return sum(map(ord, str(escena.get("id") or ""))) % 2 == 0
 
@@ -1611,16 +1645,22 @@ def preparar(escenas, p, laminas_px, ancho, alto, hoy=None, fichas=None, claude=
     laminas = opciones.get("laminas", True) is not False
     munecos = opciones.get("munecos", True) is not False
     fondos = opciones.get("escenarios", True) is not False
+    dibujado = sin_imagenes(p) and fondos
+    if sin_imagenes(p):
+        laminas_px = {}       # todo dibujado: ninguna imagen, aunque quede alguna vieja
     W, H = float(ancho), float(alto)
     puntos = paradas(len(escenas), W, H)
     tramos = camara(escenas, puntos)
     por_plano, mapeados = [], set()
+    ultimo = None
     for i, e in enumerate(escenas):
         ox, oy = puntos[i][0] - W / 2, puntos[i][1] - H / 2
         piezas = storyboard(e, W, H, (laminas_px or {}).get(e.get("id")),
                             laminas=laminas, hoy=hoy, mapeados=mapeados,
                             fichas=fichas, munecos=munecos, fondos=fondos,
                             claude=(claude or {}).get(e.get("id")))
+        if dibujado:
+            ultimo = _escenario_dibujado(e, piezas, ultimo, W, H)
         for pz in piezas:
             pz["x"] = round(float(pz.get("x", W / 2)) + ox, 1)
             pz["y"] = round(float(pz.get("y", H / 2)) + oy, 1)

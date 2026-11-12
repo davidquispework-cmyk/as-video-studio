@@ -113,6 +113,11 @@ def escenario_de(texto):
     return dict(_luz_de(t), nombre=nombre, mas=cosas_de(t, ya))
 
 
+def efectos_de(texto):
+    """Los efectos (fuego, humo, luz) que nombra una narracion."""
+    return _luz_de(fidelidad.plegar(texto))["efectos"]
+
+
 def _luz_de(t):
     """La hora y los efectos que nombra un texto ya plegado."""
     return {"hora": next((h for h, ps in _HORA if _busca(t, ps)), "dia"),

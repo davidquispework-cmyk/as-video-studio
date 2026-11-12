@@ -11136,7 +11136,7 @@ def _sembrar_video_light(ctx, datos):
         limpio = {"tema": motion_pedido["tema"]}
         if motion_pedido.get("storyboard") in ("claude", "auto"):
             limpio["storyboard"] = motion_pedido["storyboard"]
-        for clave in ("munecos", "sonidos", "laminas"):
+        for clave in ("munecos", "sonidos", "laminas", "imagenes"):
             if motion_pedido.get(clave) is False:
                 limpio[clave] = False
         ctx.estado.actualizar_params("render", {"motion": limpio})

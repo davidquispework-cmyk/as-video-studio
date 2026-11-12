@@ -1484,7 +1484,7 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
             m_ = movimientos.get(e.get("id")) or {}
             hy = m_.get("hyperframe")
             hy = hy if hy and os.path.isabs(hy) else os.path.join(base_callouts, hy or "")
-            if m_.get("hyperframe") and os.path.exists(hy):
+            if m_.get("hyperframe") and os.path.exists(hy) and not motion.sin_imagenes(p):
                 px = m_.get("hyperframe_px") or [3072, 2048]
                 laminas[e["id"]] = {"href": _url_local(hy), "ancho": px[0], "alto": px[1]}
         # los muñecos planos del mundo se visten con las fichas del reparto, y

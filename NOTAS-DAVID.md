@@ -885,6 +885,24 @@ del VPS no debe depender de internet; anotar licencia de cada cosa en un LICENCI
   `pasos/prueba_escenarios.py` (`probar_piezas_sueltas`).
   Falta: verlo en un vídeo real con la referencia al lado; camello; que el
   muñeco camine por el escenario; aún sin botón en pantalla.
+  **VÍDEO TODO DIBUJADO, SIN IMÁGENES (12-nov-2026, 3.ª parte)**: en el encargo,
+  Animación → Motion graphics → fila «Imágenes de los planos (solo en este
+  vídeo)»: **🖼 Una por plano** (como siempre) o **🎨 Ninguna: escenario
+  dibujado**. Solo sale con motion graphics y solo vale para ESE vídeo (los
+  demás siguen pidiendo imágenes). Con «Ninguna»: no se pide subir nada, no se
+  genera ni se paga ninguna imagen, y cada plano lleva su escenario armado
+  según el guion; si un plano no nombra sitio, sigue en el del plano anterior
+  (con `"escenario": false` en `plan.json` se queda sin él). Por dentro: param
+  `motion: {"imagenes": false}` del render, leído al generar por
+  `p6_assets.todo_dibujado` (no mueve firmas de imágenes; el render sí, pero
+  montar es gratis). Cada plano deja un lienzo liso (`origen: "dibujado"`) para
+  que los pasos de abajo tengan su fichero; el guardián de planos repetidos no
+  lo cuenta y el render no lo enseña. Si se vuelve a «Una por plano», esos
+  planos vuelven a pedir su imagen. Código: `motion.sin_imagenes`,
+  `motion._escenario_dibujado`, `p6_assets._lienzo_liso`. Prueba:
+  `probar_todo_dibujado` en `pasos/prueba_escenarios.py`.
+  Pendiente: aún se escriben los prompts de imagen (la dirección y el catálogo
+  visual con Claude) aunque no se usen; quitarlos ahorraría plan de Claude.
 - P4. Siluetas a contraluz con borde luminoso (estilo Lázaro) sobre imágenes de
   Gemini: rembg ya recorta; añadir el brillo y los haces.
 - P5. Modo «editorial» (estilo Resumario): texto grande centrado a lo largo del

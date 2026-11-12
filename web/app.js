@@ -7124,6 +7124,10 @@ function selectorMotion(valor, alCambiar) {
         { id: 'claude', nombre: '🧠 Claude, con metáforas', pista: 'Claude lee el guion y decide cada plano: metáforas (el pecado = bola con cadena), muñecos con su gesto y su cara, flechas, barras… Una llamada a Sonnet por vídeo; volver a montar no gasta' },
         { id: 'auto', nombre: '⚙️ Automático (no gasta Claude)', pista: 'El estudio pone solo lo que puede medir: versículo, mapa, años, horas, barras, antes/ahora, árbol, lista, contador; si no, la lámina' },
       ]);
+      fila('Imágenes de los planos (solo en este vídeo)', 'imagenes', [
+        { id: true, nombre: '🖼 Una por plano', pista: 'Como siempre: cada plano pide su imagen (subida o generada) y sale como lámina' },
+        { id: false, nombre: '🎨 Ninguna: escenario dibujado', pista: 'No se pide ni se paga ninguna imagen: cada plano lleva su escenario dibujado (mar, desierto, templo, cueva, cárcel, establo, río…) armado según el guion, con los muñecos delante' },
+      ]);
       fila('Muñecos planos dentro del mundo', 'munecos', [
         { id: true, nombre: '🧍 Sí', pista: 'Los personajes del plano como muñecos planos con caras muy expresivas; la boca sigue la voz cuando hablan' },
         { id: false, nombre: 'No', pista: 'Solo piezas e imágenes' },
