@@ -33,7 +33,8 @@ import unicodedata
 import numpy as np
 from PIL import Image, ImageFilter
 
-EFECTOS = ("luz", "particulas", "agua", "nubes", "lluvia", "rayos", "gloria")
+EFECTOS = ("luz", "particulas", "agua", "nubes", "lluvia", "rayos", "gloria",
+           "contraluz")
 
 # Palabras (sin tildes, en minuscula) que encienden cada efecto. Cada una es el
 # PRINCIPIO de una palabra («nube» vale para «nubes»); las cortas que se
@@ -55,7 +56,20 @@ PALABRAS = {
     "gloria": ("gloria", "angel", "espiritu", "celestial", "divina", "divino",
                "resplandor", "milagro", "trono", "glory", "heaven", "divine",
                "holy", "miracle", "radiant"),
+    # P4 (NIVEL PROFESIONAL): la figura recortada pasa a SILUETA a contraluz
+    # con borde que brilla y haces detras (estilo «el rico y Lazaro»). Solo
+    # cuaja si rembg separo una figura; sin ella se quita (ver `configurar`).
+    "contraluz": ("contraluz", "silueta", "abismo", "hades", "infierno",
+                  "tormento", "seno de abraham", "atardecer", "ocaso",
+                  "amanecer", "puesta de sol", "anochecer", "backlit",
+                  "silhouette", "sunset", "sunrise"),
 }
+
+# El color del borde y de los haces: fuego si el texto arde, oro si no.
+_CONTRALUZ_FUEGO = ("infierno", "hades", "tormento", "fuego", "llama",
+                    "abismo", "fire", "hell", "flame")
+COLORES_CONTRALUZ = {"oro": (255, 214, 140), "fuego": (255, 120, 40),
+                     "luna": (170, 200, 255)}
 
 
 def _plano(texto):
@@ -216,6 +230,79 @@ def _recortar(img, sesion, carpeta, huella):
     return {"fondo": r_fondo, "figura": r_figura, "ancla": ancla}
 
 
+def color_contraluz(texto, pedido=None):
+    """"oro" | "fuego" | "luna". `pedido` (param o plan) manda si es valido."""
+    if pedido in COLORES_CONTRALUZ:
+        return pedido
+    t = _plano(texto)
+    if any(re.search(r"\b" + p, t) for p in _CONTRALUZ_FUEGO):
+        return "fuego"
+    if re.search(r"\b(noche|luna|moon|night)", t):
+        return "luna"
+    return "oro"
+
+
+def silueta(figura, carpeta, color="oro"):
+    """La figura recortada vuelta SILUETA a contraluz. -> dict
+
+    Tres cosas en UN png (se mueve con la figura sin capas de mas): el cuerpo
+    casi negro con un poco de su color, un BORDE de luz por dentro del
+    contorno (mas fuerte arriba, de donde viene la luz) y un HALO por fuera
+    que se funde con el fondo. Devuelve la ruta y el centro/alto de la figura
+    en [0..1] para poner detras el resplandor y los haces. Cache por huella.
+    """
+    huella = _huella(figura, "contraluz-" + color)
+    ruta = os.path.join(carpeta, f"{huella}_silueta.png")
+    ficha = ruta[:-4] + ".json"
+    if os.path.exists(ruta) and os.path.exists(ficha):
+        try:
+            with open(ficha, "r", encoding="utf-8") as fh:
+                return json.load(fh)
+        except (OSError, ValueError):
+            pass
+    img = Image.open(figura).convert("RGBA")
+    ancho, alto = img.size
+    alfa = img.getchannel("A")
+    a = np.asarray(alfa, dtype=np.float32) / 255.0
+    ys, xs = np.nonzero(a > 0.5)
+    if not len(xs):
+        return {}
+    alto_fig = float(ys.max() - ys.min()) / alto
+    col = np.array(COLORES_CONTRALUZ[color], dtype=np.float32)
+    # radio del borde y del halo, proporcional a la figura (no al cuadro)
+    r = max(2, int(alto_fig * alto * 0.012))
+    dentro = np.asarray(alfa.filter(ImageFilter.MinFilter((r * 2) | 1)),
+                        dtype=np.float32) / 255.0
+    borde = np.clip(a - dentro, 0, 1)
+    borde = np.asarray(Image.fromarray((borde * 255).astype(np.uint8))
+                       .filter(ImageFilter.GaussianBlur(r * 0.8)),
+                       dtype=np.float32) / 255.0
+    # la luz viene de detras y de arriba: el borde de arriba brilla mas
+    fila = np.linspace(0, 1, alto, dtype=np.float32)[:, None]
+    y0, y1 = ys.min() / alto, ys.max() / alto
+    arriba = np.clip(1.15 - (fila - y0) / max(1e-3, y1 - y0) * 0.7, 0.35, 1)
+    borde = np.clip(borde * 1.8 * arriba, 0, 1)
+    halo = np.asarray(alfa.filter(ImageFilter.GaussianBlur(r * 4)),
+                      dtype=np.float32) / 255.0
+    halo = np.clip(halo * 1.3 - a, 0, 1) * 0.75
+    rgb = np.asarray(img.convert("RGB"), dtype=np.float32)
+    cuerpo = rgb * 0.10 + np.array([8, 6, 10], dtype=np.float32)
+    mezcla = cuerpo * (1 - borde[..., None]) + col * borde[..., None]
+    # fuera del cuerpo solo hay halo: color puro, con su transparencia
+    luz = np.clip(col * 1.0 + 30, 0, 255)
+    salida = np.where(a[..., None] > 0.02, mezcla, luz)
+    alfa_out = np.clip(np.maximum(a, halo), 0, 1)
+    out = np.dstack([np.clip(salida, 0, 255), alfa_out * 255]).astype(np.uint8)
+    Image.fromarray(out, "RGBA").save(ruta, optimize=False, compress_level=1)
+    datos = {"figura": ruta, "color": color,
+             "centro": [round(float(xs.mean()) / ancho, 4),
+                        round(float(ys.mean()) / alto, 4)],
+             "alto": round(alto_fig, 4)}
+    with open(ficha, "w", encoding="utf-8") as fh:
+        json.dump(datos, fh)
+    return datos
+
+
 def configurar(escena_plan, hyper, carpeta, p, sesion=None):
     """La configuracion de ambiente de UN plano para la pagina. -> dict|None"""
     modo = p.get("ambiente", "auto")
@@ -231,6 +318,21 @@ def configurar(escena_plan, hyper, carpeta, p, sesion=None):
     efectos = elegir(texto, forzados)
     datos = preparar(hyper, carpeta, sesion,
                      profundidad=bool(p.get("profundidad", True)))
+    # P4. Param `contraluz`: False lo apaga en todo el video; "oro" | "fuego" |
+    # "luna" fija el color. En plan.json, `"contraluz": "fuego"` o False.
+    pedido = escena_plan.get("contraluz", p.get("contraluz"))
+    if pedido is False:
+        efectos = [e for e in efectos if e != "contraluz"]
+    elif pedido and "contraluz" not in efectos:
+        efectos = [e for e in EFECTOS if e in set(efectos) | {"contraluz"}]
+    if "contraluz" in efectos:
+        sil = silueta(datos["figura"], carpeta,
+                      color_contraluz(texto, pedido)) if datos.get("figura") else {}
+        if sil:
+            datos = dict(datos, figura=sil["figura"],
+                         contraluz={k: sil[k] for k in ("color", "centro", "alto")})
+        else:   # sin figura recortada no hay silueta que hacer
+            efectos = [e for e in efectos if e != "contraluz"]
     return {"efectos": efectos, **datos,
             "semilla": int(hashlib.sha1(str(escena_plan.get("id")).encode())
                            .hexdigest()[:6], 16) % 997}
@@ -300,6 +402,40 @@ function nubes(t){
       xA.fillRect(px - pr, py - pr, pr*2, pr*2);
     }
   }
+}
+
+// P4. CONTRALUZ: detras de la silueta, un resplandor que respira y haces que
+// salen de la figura hacia fuera, girando muy despacio. Va en #atras (dentro
+// de la camara, debajo de la figura), asi que acompana al zoom.
+function contraluz(t){
+  if (!xA || !EF.has('contraluz') || !AMB.contraluz) return;
+  const C = AMB.contraluz, w = cAtras.width, h = cAtras.height;
+  const col = C.color === 'fuego' ? '255,120,40' :
+              (C.color === 'luna' ? '170,200,255' : '255,214,140');
+  const X = C.centro[0]*w, Y = (C.centro[1] - C.alto*0.12)*h;
+  const R = Math.max(w, h)*(0.25 + C.alto*0.35);
+  const resp = 0.85 + 0.15*ruido(t*1.4, 7);
+  xA.globalCompositeOperation = 'lighter';
+  let g = xA.createRadialGradient(X, Y, 0, X, Y, R);
+  g.addColorStop(0, 'rgba(255,250,235,' + (0.55*resp).toFixed(3) + ')');
+  g.addColorStop(0.25, 'rgba(' + col + ',' + (0.40*resp).toFixed(3) + ')');
+  g.addColorStop(1, 'rgba(' + col + ',0)');
+  xA.fillStyle = g; xA.fillRect(X - R, Y - R, R*2, R*2);
+  const n = 14, largo = Math.max(w, h)*1.1, giro = t*0.025;
+  for (let i = 0; i < n; i++){
+    const a = TAU*i/n + giro + (azar(i+300) - 0.5)*0.3;
+    const an = 0.025 + azar(i+310)*0.04;
+    const al = (0.05 + 0.07*ruido(t*0.6, i + 320))*resp;
+    const gr = xA.createRadialGradient(X, Y, R*0.1, X, Y, largo);
+    gr.addColorStop(0, 'rgba(' + col + ',' + al.toFixed(3) + ')');
+    gr.addColorStop(1, 'rgba(' + col + ',0)');
+    xA.fillStyle = gr;
+    xA.beginPath(); xA.moveTo(X, Y);
+    xA.lineTo(X + Math.cos(a - an)*largo, Y + Math.sin(a - an)*largo);
+    xA.lineTo(X + Math.cos(a + an)*largo, Y + Math.sin(a + an)*largo);
+    xA.closePath(); xA.fill();
+  }
+  xA.globalCompositeOperation = 'source-over';
 }
 
 function agua(t){
@@ -439,6 +575,7 @@ function delante(t, v, s){
 function ambiente(t, v, s){
   capaFigura(t, v, s);
   nubes(t);
+  contraluz(t);
   agua(t);
   delante(t, v, s);
 }

@@ -415,7 +415,7 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    Pendiente: elegir la palabra tachada/resaltada a mano desde la pantalla
    (hoy se puede forzando `~~palabra~~` y `*palabra*` en el texto).
 10. **SIGUIENTE: el plan «NIVEL PROFESIONAL» (12-nov)** — ver la sección del
-   mismo nombre más abajo; P1, P2 y P3 HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río); siguiente, P4. (Siguen sobre la mesa, para
+   mismo nombre más abajo; P1, P2, P3 y P4 HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río); siguiente, P5. (Siguen sobre la mesa, para
    después: grabar tu voz desde la propia página; afinar la tabla de voces.)
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
@@ -736,7 +736,7 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Pendiente: ~~más formas de «lo falso → lo verdadero»~~ (HECHO 11-nov, punto 9
    del orden nuevo); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1, P2 y P3 HECHOS; ahora P4).
+Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1, P2, P3 y P4 HECHOS; ahora P5).
 
 ## NIVEL PROFESIONAL (decidido 12-nov-2026) — manda sobre el punto 10 del ORDEN NUEVO
 David quiere que sus vídeos queden AL MISMO NIVEL que los de referencia, no «parecidos
@@ -910,6 +910,21 @@ del VPS no debe depender de internet; anotar licencia de cada cosa en un LICENCI
   plano, y de ahí salen los muñecos y su ropa; sin él los planos irían vacíos.
 - P4. Siluetas a contraluz con borde luminoso (estilo Lázaro) sobre imágenes de
   Gemini: rembg ya recorta; añadir el brillo y los haces.
+  **HECHO (12-nov-2026)**: efecto nuevo `contraluz` del ambiente (`pasos/ambiente.py`).
+  La figura que rembg ya recortaba pasa a SILUETA casi negra con un BORDE de luz
+  (más fuerte arriba) y un halo por fuera, todo en un png (`ambiente.silueta`, con
+  caché); detrás, en la capa de atrás, un resplandor que respira y 14 haces que
+  salen de la figura y giran despacio. Tres colores: **fuego** (infierno, hades,
+  tormento, abismo, fuego), **luna** (noche, luna) y **oro** (el resto). Sale SOLO
+  si la narración dice contraluz, silueta, abismo, hades, infierno, tormento, seno
+  de Abraham, atardecer, ocaso, amanecer, puesta de sol, anochecer; y SOLO si rembg
+  separó una figura (paisajes, planos con muñecos, clips o motion: no sale).
+  A mano: en `plan.json`, escena `"contraluz": "fuego"|"oro"|"luna"` (lo fuerza) o
+  `false`; en todo el vídeo, param del render `contraluz: false` o un color.
+  No toca firmas: basta «Regenerar Vídeo». Prueba: `pasos/prueba_contraluz.py`
+  (`--ver CARPETA` guarda la silueta). Falta: verlo en un vídeo real con la
+  referencia (Lázaro) al lado. En la pantalla del plano ya sale entre sus efectos
+  («🌅 Silueta a contraluz»), para encenderlo o quitarlo a mano.
 - P5. Modo «editorial» (estilo Resumario): texto grande centrado a lo largo del
   vídeo + cuadros de dominio público buscados solos con su pie.
 - P6. Escenario 3D fijo con Three.js (Biblia abierta, plastilina) y cámara.

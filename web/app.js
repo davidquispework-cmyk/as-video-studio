@@ -9888,6 +9888,7 @@ async function clipAutomatico(sid) {
 const NOMBRE_EFECTO = {
   luz: '🔥 Fuego / luz', particulas: '✨ Polvo', agua: '🌊 Agua', nubes: '☁️ Nubes',
   lluvia: '🌧️ Lluvia', rayos: '⚡ Rayos', gloria: '🌟 Haces de luz',
+  contraluz: '🌅 Silueta a contraluz',
 };
 async function elegirEfectos(sid, efectos) {
   const v = videoAbierto();
