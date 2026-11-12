@@ -4844,6 +4844,7 @@ def unidades_pendientes(proyecto, params):
     trabajo = proyecto.ruta_trabajo("assets", crear=False)
     if not os.path.isdir(trabajo):
         return None
+    p["_dibujado"] = todo_dibujado(proyecto)
     plan = planificar(proyecto, p)
     dirs = {
         "sets": os.path.join(trabajo, "assets", "sets"),
@@ -4869,7 +4870,7 @@ def _asset_hecho(uid, ficha, dirs, p):
     puede conservarlo.
     """
     nombre = ficha["nombre"]
-    if ficha["tipo"] == "reparto" and _es_manual(p):
+    if ficha["tipo"] == "reparto" and (_es_manual(p) or p.get("_dibujado")):
         # en modo manual no hay hojas de personaje: no se adjunta nada a nadie
         return True
     if ficha["tipo"] == "reparto":
@@ -5070,11 +5071,14 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_assets=False,
         avisar(0.05 + 0.25 * (indice / max(1, len(pendientes))),
                f"asset {ficha['nombre']} · {indice + 1} de {len(pendientes)}",
                (indice + 1, len(pendientes)))
-        if ficha["tipo"] == "reparto" and _es_manual(p):
+        if ficha["tipo"] == "reparto" and (_es_manual(p) or p.get("_dibujado")):
             # MODO MANUAL: las hojas de personaje solo sirven para adjuntarlas
             # al generador, y aqui no hay generador. Se da por hecha sin
             # imagen, para que la unidad no se quede pendiente para siempre.
-            resultados[uid] = {"tipo": "reparto", "origen": "manual",
+            # Y en un video TODO DIBUJADO, lo mismo: no hay planos que dibujar
+            # (los personajes son munecos vestidos con la ficha de texto).
+            resultados[uid] = {"tipo": "reparto",
+                               "origen": "dibujado" if p.get("_dibujado") else "manual",
                                "coste": 0.0}
         elif ficha["tipo"] == "reparto":
             destino = os.path.join(dirs["reparto"], f"{ficha['nombre']}.png")

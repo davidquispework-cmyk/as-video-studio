@@ -901,8 +901,13 @@ del VPS no debe depender de internet; anotar licencia de cada cosa en un LICENCI
   planos vuelven a pedir su imagen. Código: `motion.sin_imagenes`,
   `motion._escenario_dibujado`, `p6_assets._lienzo_liso`. Prueba:
   `probar_todo_dibujado` en `pasos/prueba_escenarios.py`.
-  Pendiente: aún se escriben los prompts de imagen (la dirección y el catálogo
-  visual con Claude) aunque no se usen; quitarlos ahorraría plan de Claude.
+  **Y sin la parte de imágenes (12-nov, 4.ª parte)**: en esos vídeos la tanda
+  se salta SOLA la guía de estilo, la dirección de cada plano y las piezas
+  (hojas de personaje, que se generaban y pagaban): `app.TAREAS_SOLO_DE_IMAGEN`
+  vía `app._apagadas_si_dibujado`, leído en cada tanda (no se guarda: volver a
+  «Una por plano» las vuelve a poner). El coste previsto dice 0 imágenes. SÍ
+  sigue corriendo «El reparto y los sitios» (Claude): dice quién sale en cada
+  plano, y de ahí salen los muñecos y su ropa; sin él los planos irían vacíos.
 - P4. Siluetas a contraluz con borde luminoso (estilo Lázaro) sobre imágenes de
   Gemini: rembg ya recorta; añadir el brillo y los haces.
 - P5. Modo «editorial» (estilo Resumario): texto grande centrado a lo largo del

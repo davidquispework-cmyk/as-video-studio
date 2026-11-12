@@ -191,6 +191,11 @@ def probar_todo_dibujado():
         for f in fichas.values():
             f["origen"] = "generada"
         assert p6_assets._planos_repetidos(fichas, d)     # y sin la marca, si salta
+        # ni hojas de personaje: en un video dibujado el reparto se da por hecho
+        ficha = {"tipo": "reparto", "nombre": "Pablo"}
+        dirs = {"reparto": d}
+        assert p6_assets._asset_hecho("reparto:Pablo", ficha, dirs, {"_dibujado": True, "motor_imagen": "adoptar"})
+        assert not p6_assets._asset_hecho("reparto:Pablo", ficha, dirs, {"motor_imagen": "adoptar"})
 
 
 def ver(carpeta):

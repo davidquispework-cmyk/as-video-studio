@@ -7452,7 +7452,8 @@ def generar_pestana(pid: str, pestana: str, cuerpo: dict = Body(default=None)):
         raise ErrorApi(400, f"modo desconocido: {modo!r}. Usa 'todo' o 'pendientes'")
     try:
         receta = recetas.resolver(pestana, datos.get("receta"),
-                                  datos.get("tareas"))
+                                  dict(datos.get("tareas") or {},
+                                       **_apagadas_si_dibujado(ctx, pestana)))
     except recetas.ErrorReceta as fallo:
         raise ErrorApi(400, str(fallo))
 
@@ -10250,7 +10251,30 @@ def _receta_de_video(ctx, pestana, datos=None):
     if ctx.proyecto.config.get(CONFIG_VIDEO_LIGHT) \
             or not ctx.proyecto.version_activa("assets"):
         pedidas.setdefault("direccion", True)
+    pedidas.update(_apagadas_si_dibujado(ctx, pestana))
     return recetas.resolver(pestana, datos.get("receta"), pedidas)
+
+
+#: Lo que solo sirve para DIBUJAR o PEDIR las imagenes de los planos. En un
+#: video TODO DIBUJADO (Animacion → «Imagenes: ninguna», param
+#: `motion.imagenes: false` del render) no hay imagen que pedir: la guia de
+#: estilo (mira fotogramas con Claude), la direccion de cada plano (una linea
+#: mas del prompt, con Claude) y las piezas (hojas de personaje y mapas, que se
+#: GENERAN) se saltan. El reparto y los sitios SI corren: dicen quien sale en
+#: cada plano, y de ahi salen los munecos y su ropa. Se decide en cada tanda,
+#: leyendo el param: volver a «Una por plano» las vuelve a poner.
+TAREAS_SOLO_DE_IMAGEN = ("guia_estilo", "direccion", "piezas")
+
+
+def _apagadas_si_dibujado(ctx, pestana):
+    if pestana != "video":
+        return {}
+    try:
+        if not PASOS_MODULOS.p6_assets.todo_dibujado(ctx.proyecto):
+            return {}
+    except Exception:                                # noqa: BLE001
+        return {}
+    return {t: False for t in TAREAS_SOLO_DE_IMAGEN}
 
 
 def _planos_previstos(ctx):
@@ -10263,6 +10287,9 @@ def _planos_previstos(ctx):
     light = PASOS_MODULOS.presets_light
     plan = PASOS_MODULOS.p6_assets.plan_actual(ctx.proyecto, "assets", estado=ctx.estado) or {}
     escenas = plan.get("escenas") or []
+    if _apagadas_si_dibujado(ctx, "video"):
+        # todo dibujado: ningun plano paga imagen
+        return {"total": len(escenas), "con_imagen": 0, "origen": "vídeo todo dibujado"}
     if escenas:
         cartelas = PASOS_MODULOS.cartelas
         con_imagen = [e for e in escenas
