@@ -439,12 +439,18 @@ def toma(texto, voz, velocidad=None, sr=44100, avisar=None):
     reloj = 0.0
     for (texto_trozo, silencio, _tono), (mp3, marcas) in zip(trozos, resultados):
         crudo = _mp3_a_pcm(mp3, sr)
+        dichas = []
         for marca in marcas:
             hablada = marcas_tts.texto_de_marca(marca["w"])
             if hablada is None:
                 continue
-            palabras.append({"w": hablada, "s": round(reloj + marca["s"], 3),
-                             "e": round(reloj + marca["e"], 3)})
+            dichas.append({"w": hablada, "s": round(reloj + marca["s"], 3),
+                           "e": round(reloj + marca["e"], 3)})
+        # Edge devuelve las palabras SIN signos: se los devuelve el texto
+        for marca, con_signos in zip(dichas, marcas_tts.puntuar(
+                [m["w"] for m in dichas], texto_trozo)):
+            marca["w"] = con_signos
+        palabras.extend(dichas)
         pcm.extend(crudo)
         reloj += len(crudo) / (sr * 2)
         if silencio > 0:

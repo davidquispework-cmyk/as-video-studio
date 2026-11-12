@@ -217,9 +217,11 @@ def probar_toma():
     igual({v for _t, v, _r in PEDIDOS}, {"es-PE-AlexNeural"}, "con la voz pedida")
     igual({r for _t, _v, r in PEDIDOS} <= {"-15%", "-24%"}, True,
           "y su velocidad (el remate corto, un poco más despacio)")
+    # con los SIGNOS del texto: Edge los quita y el estudio se los devuelve
+    # (marcas_tts.puntuar), como ya venian con Cartesia
     igual([p["w"] for p in palabras],
-          ["Diez", "millones", "esperaban", "Nadie", "sabia", "nada"],
-          "todas las palabras, en orden")
+          ["Diez", "millones", "esperaban.", "Nadie", "sabia", "nada."],
+          "todas las palabras, en orden y con sus signos")
     inicios = [p["s"] for p in palabras]
     ok(inicios == sorted(inicios), "los tiempos crecen")
     ok(palabras[3]["s"] - palabras[2]["e"] > 0.8,

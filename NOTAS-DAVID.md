@@ -1165,6 +1165,42 @@ palabra (1) → gancho enorme (2) → citas dichas en palabras y pastilla al dí
 (3, HECHO) → placas/sellos nuevos (4, HECHO) → titular editorial sin choque (5, HECHO) → tarjeta
 final (6, HECHO). Luego repetir este vídeo de prueba y comparar.
 
+## Fallos del vídeo de Epafrodito (motion graphics, voz gratis) — arreglados 12-nov-2026
+David mandó 5 capturas. Lo que pasaba y cómo quedó (prueba de todo:
+`pasos/prueba_video_real.py`, en `pruebas.ps1`). Nada toca firmas: basta
+«Regenerar Vídeo» (para el gancho y el «Sígueme» de la plantilla, que van en la
+capa de subtítulos, volver a montar también callouts).
+1. **La voz gratuita (Edge) devuelve las palabras SIN signos** (medido:
+   `'entrega', 'Casi', ... 'nombre', 'Epafrodito'`). Todo lo que busca un fin
+   de frase fallaba: el gancho juntó dos frases y cortó en «SU», las citas
+   entre comillas, «Primera.», la pregunta de la tarjeta final.
+   Arreglo: `marcas_tts.puntuar` devuelve a cada marca los signos del guion
+   (solo si la palabra casa; nunca cambia cuántas hay). Al GRABAR la voz
+   gratuita (vídeos nuevos) y, para los ya grabados, al MONTAR (p7 y p8, en
+   memoria con `puntuar_escenas`: el plan no se toca). Y el cartel del gancho
+   ya no termina nunca en una palabra colgando («su», «de»…).
+2. **«2 VERSÍCULO» gigante**: el corte dejó «Filipenses capítulo dos» en un
+   plano y «versículo veintisiete» en otro; sin versículo no había cita y el
+   contador leía «dos versículo» como cosas contadas. Ahora la cita se
+   reconoce en el plano donde acaba mirando el final del anterior
+   (`motion.cita_de`, `_previas`), y el contador nunca cuenta números de cita.
+3. **Muñecos repetidos (grandes y pequeños)**: Claude ponía a los personajes
+   y lo automático los volvía a poner. Si Claude trae personajes o escenario,
+   lo automático ya no los repite (`motion.storyboard`).
+4. **«990 km» encima de la cabeza**: Claude ponía al muñeco donde lo
+   automático pone el mapa. Con mapa, cita, línea, reloj… en el plano, los
+   muñecos de Claude bajan al pie del cuadro, más pequeños
+   (`motion._apartar_munecos`).
+5. **Tres «SÍGUEME» al final, uno tapando la cara**: queda UNO, la tarjeta
+   final de arriba (P6). Con la plantilla TikTok encendida, su «Sígueme» va
+   DENTRO de la tarjeta (con «para más historias como esta» debajo) y su cuadro
+   de media altura se quita de la capa (`plantilla_tiktok.sin_seguir`); el
+   motion ya no pinta «SÍGUEME»/«COMENTA» como palabra gigante
+   (`motion._sin_llamadas`).
+Pendiente (punto 1 de la lista del vídeo de prueba): el SUBTÍTULO a media
+altura tapa caras («CARTA DE», «FILIPENSES 2:27»): subtítulos grandes palabra a
+palabra en un sitio que no tape a los personajes.
+
 ## Prompts de imagen: dos fallos de fondo arreglados (11-nov-2026)
 Visto en el vídeo del rey David (borrado después; no se arregló ese vídeo).
 - **Desfase plano ↔ audio**: los planos se numeran por POSICIÓN (S001, S002…) y

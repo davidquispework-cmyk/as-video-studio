@@ -169,6 +169,37 @@ def piezas_de_plano(escena, ficha, salida, inicio_video, fin_video,
     return "".join(piezas)
 
 
+def sin_seguir(svg):
+    """La capa quieta sin el «Sígueme» de la plantilla (grupo `tiktok-seguir`).
+
+    Cuando el render pone la TARJETA FINAL (pasos/rotulos.py, arriba y sin
+    tapar a nadie) el cuadro de la plantilla sobra: salian dos «SÍGUEME», y
+    este a media altura, encima de la cara del personaje. Se quita del SVG
+    ya escrito por callouts, contando los <g> para cerrar donde toca.
+    """
+    texto = str(svg or "")
+    marca = '<g class="tiktok-seguir"'
+    while True:
+        ini = texto.find(marca)
+        if ini < 0:
+            return texto
+        nivel, k = 0, ini
+        while k < len(texto):
+            abre = texto.find("<g", k)
+            cierra = texto.find("</g>", k)
+            if cierra < 0:
+                return texto[:ini]
+            if 0 <= abre < cierra and texto[abre + 2:abre + 3] in (" ", ">"):
+                nivel += 1
+                k = abre + 2
+                continue
+            nivel -= 1
+            k = cierra + 4
+            if nivel == 0:
+                break
+        texto = texto[:ini] + texto[k:]
+
+
 def incrustar(svg, piezas):
     """Mete `piezas` al final de una capa SVG ya envuelta (encima de todo)."""
     if not piezas:

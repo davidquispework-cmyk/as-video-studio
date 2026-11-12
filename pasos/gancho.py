@@ -154,6 +154,12 @@ def cartel_de(narracion, propio=None, max_palabras=12):
     frase = re.split(r"(?<=[.!?…:;])\s", texto, maxsplit=1)[0]
     dichas = frase.split()
     if len(dichas) <= max_palabras:
+        if frase == texto and not re.search(r"[.!?…:;»”\"]$", frase):
+            # el plano se corta a media frase (y sin signos, como venia la voz
+            # gratuita): «...casi nadie recuerda SU» no puede quedarse colgando
+            while len(dichas) > 3 and _llana(dichas[-1]) in _VACIAS:
+                dichas.pop()
+            return " ".join(dichas).rstrip(",;:") + "…", len(dichas)
         return frase.rstrip(".:;"), len(dichas)
     # la primera clausula, si es una frase por si misma
     for i, palabra in enumerate(dichas[:max_palabras]):

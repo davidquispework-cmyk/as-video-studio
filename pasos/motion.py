@@ -207,6 +207,10 @@ class Voz:
         self.t_in = float(escena.get("t_in") or 0.0)
         self.t_out = float(escena.get("t_out") or self.t_in + 1.0)
         self.crudas = str(escena.get("narracion") or "").split()
+        # las ultimas palabras del plano de ANTES: una cita que el corte partio
+        # («Filipenses capitulo dos» | «versiculo veintisiete: ...») se reconoce
+        # en el plano donde acaba, que es donde se dice el versiculo
+        self.previas = [str(w) for w in (escena.get("_previas") or [])]
         marcas = escena.get("marcas") or []
         n = len(self.crudas)
         if n and len(marcas) == n:
@@ -294,14 +298,15 @@ def cita_de(voz):
     # sabia contar hasta 24, asi que «Mateo veintisiete, versiculo cuarenta y
     # seis» o «Salmo ciento diecinueve» no sacaban tarjeta
     ref, i_ref, fin_ref = None, None, None
-    for c in citas.buscar(voz.crudas):
-        if not c["v1"]:
-            continue
+    antes = len(voz.previas)
+    for c in citas.buscar(voz.previas + voz.crudas):
+        if not c["v1"] or c["fin"] <= antes:
+            continue                     # sin versiculo, o entera en el de antes
         nombre = "Salmos" if c["libro"] == "Salmo" else c["libro"]
         ref = f"{nombre} {c['ref']}"
         if c["orden"]:
             ref = f"{c['orden']} {ref}"
-        i_ref, fin_ref = c["inicio"], c["fin"] - 1
+        i_ref, fin_ref = max(0, c["inicio"] - antes), c["fin"] - 1 - antes
         break
     # las comillas, sobre las palabras CRUDAS
     abre = cierra = None
@@ -511,13 +516,22 @@ ICONO_DE_COSA = (("pan", "pan"), ("pez", "pez"), ("peces", "pez"), ("oveja", "ov
                  ("tinaja", "copa"), ("piedra", "tumba"), ("rollo", "pergamino"),
                  ("trompeta", "trompeta"), ("lampara", "vela"), ("barca", "barca"))
 NO_CONTABLES = ("hora", "horas", "km", "kilometros", "por", "veces", "de", "mas",
-                "anos", "ano", "siglos", "siglo")
+                "anos", "ano", "siglos", "siglo",
+                # los numeros de una cita no son cosas contadas: «capitulo dos,
+                # versiculo...» salia como una placa «2 VERSICULO»
+                "versiculo", "versiculos", "verso", "versos", "capitulo",
+                "capitulos")
 
 
 def contador_de(voz):
     """«5000 hombres», «40 días», «doce apóstoles» -> {"n", "cosa", "i", "fin"}"""
     patron = re.compile(r"\b" + _NUM + r"( mil)? ([a-zñ]{3,})\b")
+    en_cita = set()
+    for c in citas.buscar(voz.crudas):
+        en_cita.update(range(c["inicio"], c["fin"]))
     for m in patron.finditer(voz.texto):
+        if voz.indice_de(m.start()) in en_cita:
+            continue
         n = _n(m.group(1))
         cosa = m.group(3)
         if n and m.group(2):
@@ -805,7 +819,12 @@ def barras_de(voz):
         return salida[:4]
     patron = re.compile(r"\b" + _NUM + r"( mil)? ([a-zñ]{3,})\b")
     vistos = set()
+    en_cita = set()
+    for c in citas.buscar(voz.crudas):
+        en_cita.update(range(c["inicio"], c["fin"]))
     for m in patron.finditer(voz.texto):
+        if voz.indice_de(m.start()) in en_cita:
+            continue
         n = _n(m.group(1))
         cosa = m.group(3)
         if not n or cosa in VACIAS or cosa in NO_CONTABLES or cosa in vistos:
@@ -1006,19 +1025,64 @@ def storyboard(escena, ancho, alto, lamina=None, laminas=True, hoy=None,
     if isinstance(propio, list):
         return [p for p in (_normalizar(x, voz, W, H, ctx) for x in propio) if p]
     if isinstance(claude, list) and claude and propio is not False:
-        piezas = []
+        piezas, autos = [], []
+        suyos = [x for x in claude if isinstance(x, dict)]
+        # Si Claude ya pone a los personajes (o el escenario), lo automatico NO
+        # los vuelve a poner: salian los mismos muñecos dos veces, grandes y
+        # pequeños, en el mismo plano
+        con_munecos = any(x.get("tipo") == "personajes" for x in suyos)
+        con_fondo = any(x.get("tipo") == "escenario" for x in suyos)
         for x in claude:
             if isinstance(x, dict) and x.get("tipo") == "auto":
-                piezas += _automatico(escena, voz, W, H, lamina, laminas, hoy,
-                                      mapeados, fichas, munecos, fondos)
+                hechas = _automatico(escena, voz, W, H, lamina, laminas, hoy,
+                                     mapeados, fichas, munecos and not con_munecos,
+                                     fondos and not con_fondo)
+                piezas += hechas
+                autos += hechas
             else:
                 q = _normalizar(x, voz, W, H, ctx)
                 if q:
                     piezas.append(q)
+        piezas = _sin_llamadas(piezas)
         if piezas:
+            _apartar_munecos(piezas, autos, W, H)
             return piezas
     return _automatico(escena, voz, W, H, lamina, laminas, hoy, mapeados, fichas,
                        munecos, fondos)
+
+
+#: Las piezas automaticas que ocupan el centro del cuadro (mapa, cita, linea...).
+GRANDES = ("mapa", "linea", "reloj", "versiculo", "contador", "comparacion",
+           "antes", "arbol", "lista", "barras")
+
+
+def _apartar_munecos(piezas, autos, W, H):
+    """Los personajes que puso Claude, FUERA de la pieza grande automatica.
+
+    Claude los coloca sin saber que lo automatico va a poner ahi un mapa o una
+    cita: el muñeco quedaba delante del mapa con la distancia («990 km») en la
+    cabeza. Con una pieza grande en el plano, los muñecos bajan al pie del
+    cuadro (vertical) o se van al lado (horizontal), mas pequeños.
+    """
+    if not any(q.get("tipo") in GRANDES for q in autos):
+        return
+    vertical = H > W
+    for q in piezas:
+        if q.get("tipo") != "personajes" or q in autos:
+            continue
+        alto = min(float(q.get("alto") or 0) or H, H * (0.22 if vertical else 0.36))
+        escala = alto / max(1.0, float(q.get("alto") or alto))
+        q["alto"] = round(alto, 1)
+        for f in q.get("figuras") or []:
+            if "dx" in f:
+                f["dx"] = round(float(f["dx"]) * escala, 1)
+        if vertical:
+            q["x"], q["y"] = round(W / 2, 1), round(H * 0.97, 1)
+        else:
+            q["x"], q["y"] = round(W * 0.87, 1), round(H * 0.96, 1)
+        for paso in q.get("luego") or []:
+            paso.pop("x", None)
+            paso.pop("y", None)
 
 
 def _automatico(escena, voz, W, H, lamina, laminas, hoy, mapeados, fichas, munecos,
@@ -1172,10 +1236,29 @@ def _par(escena):
     return sum(map(ord, str(escena.get("id") or ""))) % 2 == 0
 
 
+#: Lo que se le pide al espectador al acabar: eso va en la TARJETA FINAL
+#: (pasos/rotulos.py), no como palabra gigante del motion.
+LLAMADAS = {"sigueme", "siguenos", "suscribete", "suscribanse", "comenta",
+            "comentame", "comentarios", "cuentame", "comparte", "compartelo",
+            "enviaselo", "mandaselo", "like", "seguir", "sigue"}
+
+
+def _sin_llamadas(piezas):
+    """Fuera los textos que solo dicen «SÍGUEME», «COMENTA»...: con la tarjeta
+    final salian dos (o tres) «SÍGUEME» a la vez en el ultimo plano."""
+    def solo_llamada(q):
+        if q.get("tipo") != "texto":
+            return False
+        ws = [fidelidad.plegar(str(w.get("t") or "")) for w in q.get("palabras") or []]
+        ws = [w for w in ws if w and w not in VACIAS]
+        return bool(ws) and all(w in LLAMADAS for w in ws)
+    return [q for q in piezas if not solo_llamada(q)]
+
+
 def _palabra_fuerte(voz):
     mejor = None
     for i, (cruda, pl) in enumerate(zip(voz.crudas, voz.plegadas)):
-        if pl in VACIAS or len(pl) < 5 or not pl.isalpha():
+        if pl in VACIAS or len(pl) < 5 or not pl.isalpha() or pl in LLAMADAS:
             continue
         if mejor is None or len(pl) > len(mejor[2]):
             mejor = (cruda.strip(",.;:¿?¡!«»\""), i, pl)
@@ -1655,6 +1738,8 @@ def preparar(escenas, p, laminas_px, ancho, alto, hoy=None, fichas=None, claude=
     ultimo = None
     for i, e in enumerate(escenas):
         ox, oy = puntos[i][0] - W / 2, puntos[i][1] - H / 2
+        if i:
+            e = dict(e, _previas=str(escenas[i - 1].get("narracion") or "").split()[-8:])
         piezas = storyboard(e, W, H, (laminas_px or {}).get(e.get("id")),
                             laminas=laminas, hoy=hoy, mapeados=mapeados,
                             fichas=fichas, munecos=munecos, fondos=fondos,

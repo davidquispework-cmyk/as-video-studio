@@ -62,6 +62,7 @@ import partida  # noqa: E402
 import editorial  # noqa: E402
 import biblia3d  # noqa: E402
 import medios  # noqa: E402
+import marcas_tts  # noqa: E402
 import plantilla_tiktok  # noqa: E402
 import sonido  # noqa: E402
 import transiciones  # noqa: E402
@@ -1448,6 +1449,10 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
         os.makedirs(ruta, exist_ok=True)
 
     escenas = plan.get("escenas") or []
+    # LOS SIGNOS DE LA NARRACION (voz gratuita): sus marcas llegan sin puntos,
+    # comas ni comillas y los rotulos, el gancho y las citas los necesitan. Se
+    # devuelven del guion EN MEMORIA: el plan no se toca, ninguna firma se mueve.
+    marcas_tts.puntuar_escenas(escenas, marcas_tts.texto_del_guion(proyecto))
     fps = int(p["fps"])
     # QUE transicion concreta lleva cada plano. El plan solo trae la RANURA
     # (corte / suave / acento), que es una decision del corte; cual la ocupa se
@@ -1558,7 +1563,11 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
     # LOS ROTULOS (pasos/rotulos.py, P1): sellos, pastilla de la cita, DATO,
     # cifra con rodillos y rebobinando. Un fallo aqui no tumba el render.
     try:
-        confs_rotulos = rotulos.preparar(escenas, p, ancho, alto)
+        # el «Sígueme» de la plantilla TikTok va DENTRO de la tarjeta final
+        ficha_tiktok = plantilla_tiktok.normalizar(
+            ((medios.leer_json(ruta_mov, {}) or {}).get("plantilla") or {}).get("tiktok"))
+        seguir_tiktok = ((ficha_tiktok or {}).get("seguir") or None)
+        confs_rotulos = rotulos.preparar(escenas, p, ancho, alto, seguir=seguir_tiktok)
     except Exception as e:  # noqa: BLE001
         print(f"[render] sin rotulos ({e})", flush=True)
         confs_rotulos = {}
@@ -1641,6 +1650,10 @@ def ejecutar(proyecto, params, avisar=None, unidades=None, solo_montar=False):
             if os.path.exists(ruta_fija):
                 with open(ruta_fija, "r", encoding="utf-8") as fh:
                     fija = fh.read()
+        # UN SOLO «SÍGUEME»: con tarjeta final en el plano, fuera el de la
+        # plantilla TikTok (iba a media altura, encima de la cara)
+        if fija and rotulos.tiene_final({sid: confs_rotulos.get(sid) or {}}):
+            fija = plantilla_tiktok.sin_seguir(fija)
 
         # EL AMBIENTE se prepara AQUI, en el proceso principal y una vez por
         # imagen (con cache en trabajo/ambiente): el recorte carga un modelo de

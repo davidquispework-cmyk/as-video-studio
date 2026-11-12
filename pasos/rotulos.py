@@ -466,6 +466,27 @@ def _tarjeta_final(hechos):
             return
 
 
+def _con_seguir(hechos, seguir):
+    """La plantilla TikTok pide «SÍGUEME» al final: va EN la tarjeta. Si la
+    narracion no pedia nada, una tarjeta solo con el boton y la frase de la
+    plantilla debajo («para más historias como esta»), los ultimos 3,5 s."""
+    vivos = [k for k, (e, propios, _i) in enumerate(hechos) if propios is not False]
+    if not vivos:
+        return
+    hay = [r for k in vivos[-2:] for r in hechos[k][2] if r["tipo"] == "final"]
+    for r in hay:
+        if "SÍGUEME" not in r["botones"] and "SÍGUENOS" not in r["botones"]:
+            r["botones"] = (r["botones"][:1] + ["SÍGUEME"])
+    if hay:
+        return
+    e = hechos[vivos[-1]][0]
+    v = _Voz(e)
+    hechos[vivos[-1]][2].append({
+        "tipo": "final", "serie": "", "titulo": "", "botones": ["SÍGUEME"],
+        "nota": str(seguir if isinstance(seguir, str) else ""),
+        "t": round(max(0.0, min(v.dur - 3.5, v.dur - 1.3)), 3)})
+
+
 def tiene_final(confs):
     """¿Alguno de estos rotulos es la tarjeta final? (el render no funde a negro)"""
     return any(r.get("tipo") == "final"
@@ -477,7 +498,7 @@ def _bloque(escena):
     return str((escena.get("origen") or {}).get("bloque") or "")
 
 
-def preparar(escenas, p, ancho, alto):
+def preparar(escenas, p, ancho, alto, seguir=None):
     """Los rotulos de TODO el video, por plano. -> {id: conf}
 
     Se recorre en orden porque la pastilla de la cita se HEREDA: entra en el
@@ -504,6 +525,8 @@ def preparar(escenas, p, ancho, alto):
         hechos.append((e, propios, items))
     _marcadores(hechos)
     _tarjeta_final(hechos)
+    if seguir:
+        _con_seguir(hechos, seguir)
     con_cita = {_bloque(e) for e, _p, items in hechos
                 if _bloque(e) and any(r["tipo"] == "pastilla" for r in items)}
     confs, fija, bloque_fija = {}, None, ""
@@ -613,6 +636,8 @@ def css(conf):
 .rt-final .boton{{background:#FFC845;color:#1C1530;font-size:{b*.042:.0f}px;white-space:nowrap;
   letter-spacing:.06em;padding:{b*.014:.0f}px {b*.03:.0f}px;border-radius:{b*.06:.0f}px}}
 .rt-final .boton .mas{{margin-right:.35em}}
+.rt-final .nota{{display:block;margin-top:{b*.022:.0f}px;font-family:'Shaddai Playfair',serif;
+  font-style:italic;font-size:{b*.036:.0f}px;color:#E9DCC0}}
 #rt-cinta{{position:absolute;left:0;top:0;width:{W}px;height:{H}px;opacity:0;
   background:repeating-linear-gradient(0deg,rgba(255,255,255,.07) 0 2px,
   rgba(0,0,0,0) 2px 5px);mix-blend-mode:screen}}
@@ -758,6 +783,10 @@ const RT_LINEAS = [];
         fila.appendChild(b); return b;
       });
       d.appendChild(fila);
+      if (r.nota){
+        const no = document.createElement('span'); no.className = 'nota';
+        no.textContent = r.nota; d.appendChild(no);
+      }
       if (r.fija){ d.style.opacity = 1; return; }
       const tl = linea(t)
         .add({targets: d, opacity: [0, 1], translateY: [80, 0], scale: [0.85, 1],

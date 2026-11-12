@@ -52,6 +52,7 @@ import gancho  # noqa: E402
 import letras  # noqa: E402
 import plantilla_tiktok  # noqa: E402
 import medios  # noqa: E402
+import marcas_tts  # noqa: E402
 import tipografia  # noqa: E402
 
 PARAMS_POR_DEFECTO = {
@@ -1492,6 +1493,8 @@ def ejecutar(proyecto, params, avisar=None, unidades=None):
         os.makedirs(ruta, exist_ok=True)
 
     escenas = plan.get("escenas") or []
+    # los signos de la voz gratuita, del guion y en memoria (ver p8_render)
+    marcas_tts.puntuar_escenas(escenas, marcas_tts.texto_del_guion(proyecto))
     pedidas = set(unidades) if unidades is not None else None
     movimiento = medios.motor("render_video/movimiento.py")
     # EL FORMATO DEL VIDEO, del plan: el cuadro de salida, el

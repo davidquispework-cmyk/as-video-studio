@@ -939,3 +939,73 @@ def instrucciones(con_emocion=True, motor="Cartesia", pauta_tono=None,
         "mide sobre lo que se oye.",
     ])
     return "\n".join(lineas)
+
+
+# ------------------------------------------------------------ la puntuacion
+
+def _plegada(palabra):
+    import unicodedata                                  # noqa: PLC0415
+    texto = unicodedata.normalize("NFD", str(palabra or "").lower())
+    texto = "".join(c for c in texto if unicodedata.category(c) != "Mn")
+    return re.sub(r"[^a-z0-9ñ]+", "", texto)
+
+
+def puntuar(palabras, texto):
+    """Las mismas palabras, con los signos que llevan en el TEXTO del guion.
+
+    La voz gratuita (Edge) devuelve las marcas SIN puntos, comas, comillas ni
+    interrogaciones: «entrega», «Casi»... y todo lo que de abajo busca un fin
+    de frase (el cartel del gancho, la cita entre comillas, «Primera.», la
+    pregunta de la tarjeta final) se quedaba ciego: el gancho juntaba dos
+    frases y cortaba en «su». Aqui se emparejan las dos listas (difflib, sobre
+    las palabras plegadas) y cada palabra que es LA MISMA que la del guion se
+    cambia por la del guion, con sus signos. Nunca cambia cuantas son ni toca
+    una palabra que no case: las marcas de tiempo van por posicion.
+    """
+    import difflib                                      # noqa: PLC0415
+    palabras = [str(p) for p in (palabras or [])]
+    fichas = [t for t in str(texto or "").split() if _plegada(t)]
+    if not palabras or not fichas:
+        return palabras
+    a = [_plegada(p) for p in palabras]
+    b = [_plegada(t) for t in fichas]
+    salida = list(palabras)
+    emparejar = difflib.SequenceMatcher(None, a, b, autojunk=False)
+    for i, j, n in emparejar.get_matching_blocks():
+        for k in range(n):
+            salida[i + k] = fichas[j + k]
+    return salida
+
+
+def puntuar_escenas(escenas, texto):
+    """Devuelve los signos a la narracion de los planos (en el sitio, en
+    memoria: no se guarda). Para los videos ya locutados con la voz gratuita:
+    sus planos llevan la narracion de las marcas, sin un solo signo."""
+    trozos = [str(e.get("narracion") or "").split() for e in escenas or []]
+    todas = [w for t in trozos for w in t]
+    if not todas or not any(ch in str(texto or "") for ch in ".,;:?!«»"):
+        return escenas
+    nuevas = puntuar(todas, texto)
+    k = 0
+    for e, t in zip(escenas, trozos):
+        if t:
+            e["narracion"] = " ".join(nuevas[k:k + len(t)])
+        k += len(t)
+    return escenas
+
+
+def texto_del_guion(proyecto):
+    """Todo el texto del guion de la version activa, tal como se oye. '' si no hay."""
+    try:
+        import medios                                   # noqa: PLC0415
+    except ImportError:
+        from . import medios                            # noqa: PLC0415
+    try:
+        ruta = medios.salida_de(proyecto, "guion", claves=("guion",),
+                                patrones=(r"guion\.json",))
+        guion = (medios.leer_json(ruta, {}) or {}) if ruta else {}
+    except Exception:  # noqa: BLE001 — sin guion, sin signos: como antes
+        return ""
+    bloques = guion.get("guion") if isinstance(guion, dict) else None
+    return " ".join(limpiar(b.get("texto") or "") for b in (bloques or [])
+                    if isinstance(b, dict))
