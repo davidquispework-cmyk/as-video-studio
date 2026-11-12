@@ -104,7 +104,7 @@ import time
 
 try:
     from . import cli_claude, comun, cta, estadisticas, fidelidad, fuentes, marcas_tts
-    from . import intencion
+    from . import formula, intencion
     from . import ajustes as ajustes_estudio
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
     import cli_claude
@@ -112,6 +112,7 @@ except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
     import cta
     import estadisticas
     import fidelidad
+    import formula
     import fuentes
     import intencion
     import marcas_tts
@@ -825,6 +826,22 @@ def _instruccion(transcript, metadatos, brief, anterior, opciones, correcciones,
     # EL RITMO (punto E): retencion, frases cortas y nada de muletillas. Solo
     # texto del encargo: no mueve la firma del guion.
     partes.extend(["", intencion.pauta_ritmo(intencion.es_corto(maximo), idioma)])
+
+    # LA FORMULA DE LAS REFERENCIAS (P8): gancho, dato, circulo, espejo con
+    # Jesus, final que pide algo, reto de la semana y serie. Solo texto del
+    # encargo: no mueve la firma del guion (`pasos/formula.py`).
+    pauta_formula = formula.pauta_guion(
+        corto=intencion.es_corto(maximo),
+        biblico=fidelidad.es_biblico(
+            metadatos.get("titulo"), brief.get("titulo"), brief.get("resumen"),
+            opciones.get("prompt_general"),
+            " ".join(str(t.get("texto") or "") for t in (transcript or [])[:400])),
+        encargo=opciones.get("prompt_general") or "",
+        con_cta_final=bool(((opciones.get("cta") or {}).get("cta_final") or {})
+                           .get("puesto")),
+        titulos=(metadatos.get("titulo"), brief.get("titulo")))
+    if pauta_formula:
+        partes.extend(["", pauta_formula])
 
     if opciones["anotaciones_voz"]:
         partes.append("")

@@ -415,7 +415,7 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    Pendiente: elegir la palabra tachada/resaltada a mano desde la pantalla
    (hoy se puede forzando `~~palabra~~` y `*palabra*` en el texto).
 10. **SIGUIENTE: el plan «NIVEL PROFESIONAL» (12-nov)** — ver la sección del
-   mismo nombre más abajo; P1 a P7, P6b y P6c HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río; P6b = objetos de plastilina en la mesa; P6c = Claude construye cualquier otro objeto y lo guarda en una biblioteca); siguiente, P8. (Siguen sobre la mesa, para
+   mismo nombre más abajo; P1 a P8, P6b y P6c HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río; P6b = objetos de plastilina en la mesa; P6c = Claude construye cualquier otro objeto y lo guarda en una biblioteca; P8 = el guion sigue la fórmula de las referencias); siguiente: hacer UN vídeo de prueba con todo (P1-P8) al lado de su referencia y apuntar lo que aún se nota distinto. (Siguen sobre la mesa, para
    después: grabar tu voz desde la propia página; afinar la tabla de voces.)
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
@@ -736,7 +736,7 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Pendiente: ~~más formas de «lo falso → lo verdadero»~~ (HECHO 11-nov, punto 9
    del orden nuevo); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1 a P7, P6b y P6c HECHOS; ahora P8).
+Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1 a P8, P6b y P6c HECHOS; ahora, el vídeo de prueba con todo).
 
 ## NIVEL PROFESIONAL (decidido 12-nov-2026) — manda sobre el punto 10 del ORDEN NUEVO
 David quiere que sus vídeos queden AL MISMO NIVEL que los de referencia, no «parecidos
@@ -1042,6 +1042,21 @@ del VPS no debe depender de internet; anotar licencia de cada cosa en un LICENCI
   mucho en «[boca]», ver cuánto; formas de boca propias de cada estilo.
 - P8. Guion con la fórmula de arriba (plantilla en el encargo: gancho, dato,
   espejo con Jesús, final que pide algo, «reto de la semana», serie numerada).
+  **HECHO (12-nov-2026)**: `pasos/formula.py`. Al redactar el guion se le pide
+  a Claude la fórmula: gancho en el 1.er segundo (pregunta, algo que contradice,
+  o el final primero), UNA historia + UN dato que nadie sabe, algo que se repite
+  y cierra el círculo, cifras dichas con peso; en vídeos cortos 55-110 s y
+  frases de 3-8 palabras. Si es BÍBLICO: cierre en espejo con Jesús y, antes
+  del final, «EL RETO DE ESTA SEMANA» (escribe «sin reto» en el encargo para
+  quitarlo). El final pide UNA cosa (envíaselo a un amigo, comenta, el próximo
+  de la serie); si ya marcaste la llamada final (cta_final), usa esa.
+  SERIE: escribe en el encargo «Parte 3 de la serie: Los jueces» y dirá «Parte
+  3» al empezar y anunciará la siguiente al final («capítulo 9» de la Biblia NO
+  cuenta como serie). Solo cambia el texto que se le pide a Claude: no toca
+  firmas, vale para el PRÓXIMO guion que redactes. Apagarlo: `ESTUDIO_FORMULA=no`.
+  Prueba: `pasos/prueba_formula.py` (en `pruebas.ps1`).
+  Falta: ver un guion real con la fórmula; si hace falta, casillas en la
+  pantalla para «serie» y «reto» (hoy se escriben en el encargo).
 Al acabar cada etapa: hacer UN vídeo de prueba con su referencia al lado y apuntar
 aquí lo que aún se nota distinto.
 
