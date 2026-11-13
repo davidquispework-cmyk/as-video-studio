@@ -7260,14 +7260,18 @@ function selectorBiblia3d(valor, alCambiar) {
     h('div', { clase: 'pista' }, 'Gratis: se dibuja en tu servidor, no pide imágenes. Cambiarlo solo pide volver a montar.'));
 }
 
+/* Desde el 13-11 el cartel sale si nadie lo quita: el param que falta vale
+   «con cartel» y quitarlo escribe `false` (valor !== false = puesto). Los
+   subtítulos palabra a palabra van siempre, con cartel o sin él. */
 function selectorGancho(valor, alCambiar) {
+  const puesto = valor !== false;
   const tira = h('div', { clase: 'tira-modos formatos' });
   [
-    { id: false, nombre: 'Subtítulos normales', pista: 'Como siempre' },
-    { id: true, nombre: '⚡ Gancho + textos TikTok', pista: '«¿Sabías…?» grande al empezar; subtítulos palabra a palabra con letra TikTok, la clave subrayada, cifras que cuentan y tachados' },
+    { id: true, nombre: '⚡ Gancho grande', pista: 'La primera frase del guion («¿Los ángeles conocen tu nombre?») ENORME en los 2-5 primeros segundos, con destello, mientras la voz la dice' },
+    { id: false, nombre: 'Sin cartel', pista: 'Empieza directamente con la imagen y los subtítulos' },
   ].forEach(op => {
     tira.appendChild(h('button', {
-      clase: 'mini' + (!!valor === op.id ? ' activo' : ''), title: op.pista,
+      clase: 'mini' + (puesto === op.id ? ' activo' : ''), title: op.pista,
       'data-id': String(op.id),
       onclick: () => {
         tira.querySelectorAll('button').forEach(b => b.classList.toggle('activo', b.dataset.id === String(op.id)));
@@ -7276,12 +7280,12 @@ function selectorGancho(valor, alCambiar) {
     }, op.nombre));
   });
   return h('div', { clase: 'campo' }, h('label', {}, 'Gancho'), tira,
-    h('div', { clase: 'pista' }, 'Estilo TikTok: el texto grande sale de la primera frase del guion. Cambiarlo es gratis (solo se vuelve a montar).'));
+    h('div', { clase: 'pista' }, 'Estilo TikTok: el texto ENORME sale de la primera frase del guion. Cambiarlo es gratis (solo se vuelve a montar).'));
 }
 
 /* LOS TEXTOS ESTILO TIKTOK (pasos/letras.py y gancho.py): qué letra llevan el
    cartel y los subtítulos palabra a palabra, y cómo se marca la palabra clave.
-   Solo se ve con el gancho puesto. Params `letra` y `resalte` de callouts, que
+   Se ve siempre (12-11: todo vídeo va palabra a palabra). Params `letra` y `resalte` de callouts, que
    solo se escriben si alguien los toca ('' = Montserrat y subrayado). Cambiarlo
    es gratis: solo se vuelve a montar. */
 const LETRAS_TIKTOK = [
@@ -7298,7 +7302,8 @@ const RESALTES_TIKTOK = [
 ];
 
 function selectorLetras(e, alCambiar) {
-  if (!e.gancho) return h('div', { clase: 'oculto' });
+  // los subtítulos son palabra a palabra en TODO vídeo (12-11): la letra y
+  // el resalte se eligen siempre, con cartel o sin él
   const tira = (lista, clave, defecto) => {
     const fila = h('div', { clase: 'tira-modos formatos' });
     const actual = e[clave] || defecto;
@@ -7596,7 +7601,7 @@ async function crearYGenerarLight(estilo) {
         motion: e.motion || false,
         camara: e.camara || '',
         camara_fuerza: e.camara_fuerza || '',
-        gancho: !!e.gancho,
+        gancho: e.gancho !== false,
         letra: e.letra || '',
         resalte: e.resalte || '',
         subtitulo_pos: e.subtitulo_pos || '',
@@ -7714,7 +7719,7 @@ function pedidoDelVideoLight() {
     camara_fuerza: String(params('render').camara_fuerza || ''),
     editorial: !!params('render').editorial,
     biblia3d: !!params('render').biblia3d,
-    gancho: !!params('callouts').gancho,
+    gancho: params('callouts').gancho !== false,
     letra: String(params('callouts').letra || ''),
     resalte: String(params('callouts').resalte || ''),
     subtitulo_pos: String(params('callouts').subtitulo_pos || ''),

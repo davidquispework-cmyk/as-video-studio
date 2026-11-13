@@ -415,7 +415,7 @@ cada vídeo se adapta a su tema. Medir qué le gusta a la gente y usarlo.
    Pendiente: elegir la palabra tachada/resaltada a mano desde la pantalla
    (hoy se puede forzando `~~palabra~~` y `*palabra*` en el texto).
 10. **SIGUIENTE: el plan «NIVEL PROFESIONAL» (12-nov)** — ver la sección del
-   mismo nombre más abajo; P1 a P8, P6b y P6c HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río; P6b = objetos de plastilina en la mesa; P6c = Claude construye cualquier otro objeto y lo guarda en una biblioteca; P8 = el guion sigue la fórmula de las referencias); vídeo de prueba con todo HECHO (12-nov, ver «Vídeo de prueba con todo» en NIVEL PROFESIONAL); punto 1 de su lista (subtítulos grandes palabra a palabra) HECHO (12-nov); siguiente: el punto 2 (gancho enorme) y seguir esa lista. (Siguen sobre la mesa, para
+   mismo nombre más abajo; P1 a P8, P6b y P6c HECHOS (12-nov; P3 ya con piezas sueltas y cueva/cárcel/establo/río; P6b = objetos de plastilina en la mesa; P6c = Claude construye cualquier otro objeto y lo guarda en una biblioteca; P8 = el guion sigue la fórmula de las referencias); vídeo de prueba con todo HECHO (12-nov, ver «Vídeo de prueba con todo» en NIVEL PROFESIONAL); puntos 1 (subtítulos grandes palabra a palabra, 12-nov) y 2 (gancho enorme, 13-nov) de su lista HECHOS; del 1 al 6 ya están todos: siguiente, repetir el vídeo de prueba y comparar (y mirar 7 nubes y 8 Biblia 3D). (Siguen sobre la mesa, para
    después: grabar tu voz desde la propia página; afinar la tabla de voces.)
 
 PLAN INMEDIATO (antiguo, del 6-nov; ya lo sustituye el orden nuevo de arriba): primero los puntos de «OPINIÓN DE DAVID»
@@ -736,7 +736,7 @@ B+. **Textos estilo TikTok — HECHO (6-nov-2026, con B)**.
    Pendiente: ~~más formas de «lo falso → lo verdadero»~~ (HECHO 11-nov, punto 9
    del orden nuevo); elegir la palabra clave a mano desde la pantalla; posición
    del subtítulo elegible (centro / abajo).
-Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1 a P8, P6b y P6c HECHOS; vídeo de prueba HECHO; ahora, la lista «Siguiente» de «Vídeo de prueba con todo»: 1 HECHO, sigue el 2, gancho enorme).
+Luego seguir el ORDEN NUEVO (11-nov): F, la voz grabada, los puntos 6, 7, 8 y 9 HECHOS; siguiente, el plan «NIVEL PROFESIONAL» (P1 a P8, P6b y P6c HECHOS; vídeo de prueba HECHO; ahora, la lista «Siguiente» de «Vídeo de prueba con todo»: 1 a 6 HECHOS; sigue repetir el vídeo de prueba y comparar).
 
 ## NIVEL PROFESIONAL (decidido 12-nov-2026) — manda sobre el punto 10 del ORDEN NUEVO
 David quiere que sus vídeos queden AL MISMO NIVEL que los de referencia, no «parecidos
@@ -1101,6 +1101,26 @@ tarda ~15 min por look). Comparado con el análisis de las referencias (arriba).
 2. **El gancho no se ve**: el 1.er segundo es la imagen con «Los ángeles» en el
    subtítulo; la pregunta «¿Los ángeles conocen tu nombre?» debería salir
    ENORME 2-3 s (como «La túnica de José no era de colores»).
+   **ARREGLADO (13-nov-2026)**: (1) **el cartel sale SIEMPRE** salvo que lo
+   quites: antes solo con «⚡ Gancho + textos TikTok» y el vídeo de prueba se
+   montó sin él. En la pantalla, fila «Gancho»: **⚡ Gancho grande** (lo de
+   fábrica) o **Sin cartel** (escribe `gancho: false`). (2) **ENORME**: cuerpo
+   del 16 % del lado corto (~172 px en vertical), hasta 5 renglones en vertical,
+   caja negra al 72 % (al 50 % asomaba la palabra grande del motion). (3) **La
+   pregunta partida por el corte sale entera**: se lee de los primeros planos
+   juntos (6 s) y el cartel SIGUE en el plano siguiente ya entrado, sin destello,
+   y el subtítulo de ese plano espera a que se vaya («La Biblia dice…» no se
+   pierde). Dura lo que la voz tarda en decirlo + 0,3 s (1,8-5 s).
+   Código: `gancho.activo`, `gancho.cartel_del_video` (VENTANA_S),
+   `svg_cartel(desfase=)` (CARTEL_TAM, CARTEL_RENGLONES, CARTEL_VELO),
+   `tras_el_cartel` con 0 palabras; `p7_callouts` lo calcula una vez por vídeo
+   (`cartel_video`) y lo pasa a cada plano (`capa_fija_de(cartel=)`); `app.py`
+   escribe `false` al crear sin cartel; `selectorGancho` en `web/app.js` (la
+   letra y el resalte se eligen ya siempre). Ojo aprendido: un `begin`
+   negativo en SMIL Chromium no lo pinta al saltar con setCurrentTime: lo ya
+   entrado se dibuja quieto. No toca firmas: volver a montar **callouts** y
+   «Regenerar Vídeo». Prueba: `probar_pregunta_partida` en
+   `pasos/prueba_gancho.py`.
 3. **La cita escrita en palabras no se reconoce**: «El Salmo ciento cuarenta y
    siete, versículo cuatro» no pone «SALMO 147:4» en la pastilla (se queda
    «LUCAS 1:19» del plano anterior). La Biblia 3D SÍ lo detecta («SALMO 147»):
@@ -1185,7 +1205,7 @@ tarda ~15 min por look). Comparado con el análisis de las referencias (arriba).
    correcto. El contraluz se nota poco con láminas planas: juzgarlo con imágenes
    reales.
 **Siguiente (un chat cada uno, en este orden):** subtítulos grandes palabra a
-palabra (1, HECHO) → gancho enorme (2) → citas dichas en palabras y pastilla al día
+palabra (1, HECHO) → gancho enorme (2, HECHO) → citas dichas en palabras y pastilla al día
 (3, HECHO) → placas/sellos nuevos (4, HECHO) → titular editorial sin choque (5, HECHO) → tarjeta
 final (6, HECHO). Luego repetir este vídeo de prueba y comparar.
 

@@ -783,8 +783,13 @@ def bloque_subtitulo(trozo, banda, tam, paleta, diseno, opacidad=None,
     return f'<g opacity="0">{"".join(piezas)}{entrada}</g>'
 
 
-def capa_fija_de(escena, p, banda=None, salida=SALIDA, primera=False):
+def capa_fija_de(escena, p, banda=None, salida=SALIDA, primera=False,
+                 cartel=None):
     """La capa QUIETA de un plano: sus subtitulos. -> (svg, fichas)
+
+    `cartel` es el cartel del gancho del VIDEO (`gancho.cartel_del_video`):
+    sale en cada plano que pisa, no solo en el primero. Sin el, `primera`
+    lo calcula con este plano solo (como antes).
 
     Vive aparte de `capa_de_escena` porque la necesitan las tres clases de plano
     y las tres construyen su capa movil de forma distinta: un plano normal
@@ -808,9 +813,12 @@ def capa_fija_de(escena, p, banda=None, salida=SALIDA, primera=False):
     """
     if cartelas.es_cartela(escena) or escena.get("capitulo_svg"):
         return _envoltorio_fijo("", salida), []
-    # EL GANCHO (pasos/gancho.py): param `gancho` de este paso. Sin el, todo
-    # sale como siempre.
-    con_gancho = bool(p.get("gancho"))
+    # EL GANCHO (pasos/gancho.py): param `gancho` de este paso. Desde el
+    # 13-11-2026 sale si nadie lo quito (`gancho: false`).
+    if cartel is None and primera:
+        cartel = gancho.cartel_del_video([escena], p)
+    if not gancho.activo(p):
+        cartel = None
     banda = banda or banda_subtitulo(salida, p)
     paleta = paleta_de_guia((p.get("estilo") or {}).get("guia"), p.get("paleta"))
     # `diseno_de` devuelve (nombre, ficha): aqui interesa la ficha, que trae la
@@ -820,10 +828,9 @@ def capa_fija_de(escena, p, banda=None, salida=SALIDA, primera=False):
     letra = letra_subtitulo(p, salida, diseno)
     tam = letra["tam"]
     if letra["palabras"]:
-        # el de TikTok (ver SUB_ESTILOS); el cartel del gancho, solo con gancho
+        # el de TikTok (ver SUB_ESTILOS), y encima el cartel si lo pisa
         piezas, trozos = _subtitulos_gancho(escena, p, banda, letra, paleta,
-                                            diseno, tapa, salida,
-                                            primera and con_gancho)
+                                            diseno, tapa, salida, cartel)
     else:
         trozos = subtitulos.de_escena(
             escena, idioma=p.get("idioma"), cap_linea=letra["cap"],
@@ -872,12 +879,12 @@ def _acento_tiktok(paleta):
 
 
 def _subtitulos_gancho(escena, p, banda, letra, paleta, diseno, tapa, salida,
-                       primera):
-    """Subtitulos palabra a palabra estilo TikTok y, en el primer plano, el
-    cartel grande (sin subtitulo debajo mientras esta: ver gancho.py).
+                       cartel=None):
+    """Subtitulos palabra a palabra estilo TikTok y, en los planos que pisa,
+    el cartel grande (sin subtitulo debajo mientras esta: ver gancho.py).
 
     Trozos de UN renglon (dos o tres palabras), letra y cuerpo de
-    `letra_subtitulo`. `primera` = este plano lleva el cartel del gancho.
+    `letra_subtitulo`. `cartel` = el del video (`gancho.cartel_del_video`).
     -> (piezas, trozos)
     """
     fuente_nombre, peso, tam = letra["fuente"], letra["peso"], letra["tam"]
@@ -893,22 +900,33 @@ def _subtitulos_gancho(escena, p, banda, letra, paleta, diseno, tapa, salida,
     # se prepara con el plano ENTERO antes de quitar lo que tapa el cartel: un
     # «no fue X, sino Y» puede empezar debajo del cartel y acabar despues
     trozos = gancho.preparar(trozos, mayus=mayus)
-    cartel = ""
-    propio = escena.get("gancho", p.get("gancho"))
-    if primera and propio is not False:
-        texto, dichas = gancho.cartel_de(escena.get("narracion"),
-                                         propio if isinstance(propio, str) else None)
-        dur = gancho.duracion_cartel(escena, dichas)
+    svg_cartel = ""
+    try:
+        t_in = float(escena.get("t_in") or 0.0)
+    except (TypeError, ValueError):
+        t_in = 0.0
+    sid = str(escena.get("id"))
+    if cartel and float(cartel["t0"]) - 0.05 <= t_in < float(cartel["fin"]) - 0.3:
+        texto, dichas = cartel["texto"], cartel.get("dichas")
         # el cartel tambien con cifras y CITAS escritas como tales («MATEO
         # 27:46», no «MATEO VEINTISIETE, VERSICULO CUARENTA Y SEIS»)
-        if texto and not isinstance(propio, str):
+        if dichas is not None:
             texto = subtitulos.limpiar_texto(texto.split(), p.get("idioma")) or texto
-        cartel = gancho.svg_cartel(
+        desfase = max(0.0, t_in - float(cartel["t0"]))
+        svg_cartel = gancho.svg_cartel(
             texto, salida, medidor_cartel, fuente=fuente_nombre, acento=acento,
-            duracion=dur, peso=peso if ficha else "900", resalte=resalte)
-        if cartel:
-            # MIENTRAS ESTA EL CARTEL NO HAY SUBTITULO: decia lo mismo dos veces
-            trozos = gancho.tras_el_cartel(trozos, dur, dichas)
+            duracion=float(cartel["fin"]) - float(cartel["t0"]),
+            peso=peso if ficha else "900", resalte=resalte, desfase=desfase)
+        if svg_cartel:
+            # MIENTRAS ESTA EL CARTEL NO HAY SUBTITULO: decia lo mismo dos
+            # veces. Se quitan las palabras del cartel que caen en ESTE plano
+            # (la pregunta puede empezar en el anterior) y lo demas espera.
+            locales = None
+            if dichas is not None:
+                inicio = (cartel.get("planos") or {}).get(sid, 0)
+                locales = max(0, int(dichas) - int(inicio))
+            trozos = gancho.tras_el_cartel(trozos, float(cartel["fin"]) - t_in,
+                                           locales)
     # con la caja en "auto" el estilo TikTok va sin caja (contorno negro)
     crudo = p.get("subtitulo_caja", "auto")
     if isinstance(crudo, bool) or crudo in (None, "", "auto"):
@@ -920,13 +938,13 @@ def _subtitulos_gancho(escena, p, banda, letra, paleta, diseno, tapa, salida,
         opacidad=tapa, radio=radio, partir=subtitulos.dos_lineas,
         resalte=resalte)
         for x in trozos]
-    if cartel:
-        piezas.append(cartel)
+    if svg_cartel:
+        piezas.append(svg_cartel)
     return piezas, trozos
 
 
 def capa_de_escena(escena, p, mov=None, banda=None, aspecto=16 / 9,
-                   lienzo=TAMANO, salida=SALIDA, primera=False):
+                   lienzo=TAMANO, salida=SALIDA, primera=False, cartel=None):
     """Las DOS capas de un plano y sus fichas. -> (svg_movil, svg_fijo, fichas)
 
     DOS Y NO UNA, y esa es la firma del cambio del 23-08 (PENDIENTE 38):
@@ -955,7 +973,8 @@ def capa_de_escena(escena, p, mov=None, banda=None, aspecto=16 / 9,
     que se podria deducir aqui; entra igual por parametro para que quien componga
     fuera (la vista previa, el repaso) use exactamente la misma.
     """
-    fija, fichas = capa_fija_de(escena, p, banda, salida, primera=primera)
+    fija, fichas = capa_fija_de(escena, p, banda, salida, primera=primera,
+                                cartel=cartel)
     if escena.get("capitulo_svg"):
         # Una cabecera de capitulo es una portada a cuadro completo: se incrusta
         # tal cual y va CON la imagen. Su subtitulo, como el de cualquier otro
@@ -1623,6 +1642,11 @@ def ejecutar(proyecto, params, avisar=None, unidades=None):
             escena, tiktok, salida, inicio_video, fin_video,
             acento=acento_tiktok, fuente=fuente_tiktok))
 
+    # EL CARTEL DEL GANCHO, del video entero (pasos/gancho.py): lee la primera
+    # frase aunque el corte la parta en dos planos, y cada plano que pisa lo
+    # pinta. Sale si nadie lo quito (`gancho: false`).
+    cartel_video = gancho.cartel_del_video(escenas, p)
+
     for indice, escena in enumerate(escenas):
         sid = escena["id"]
         uid = f"escena:{sid}"
@@ -1715,8 +1739,7 @@ def ejecutar(proyecto, params, avisar=None, unidades=None):
             svg, fija, fichas = capa_vacia(lienzo), capa_fija_vacia(salida), []
         else:
             svg, fija, fichas = capa_de_escena(escena, p, entrada, banda, aspecto,
-                                               lienzo, salida,
-                                               primera=(indice == 0))
+                                               lienzo, salida, cartel=cartel_video)
         fija = con_plantilla(fija, escena)
         medios.escribir_texto(svg_ruta, svg)
         medios.escribir_texto(fija_ruta, fija)

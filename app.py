@@ -11211,9 +11211,12 @@ def _sembrar_video_light(ctx, datos):
         ctx.estado.actualizar_params("render", {"camara_fuerza": fuerza_pedida})
     elif fuerza_pedida == "normal" and (ctx.estado.params("render") or {}).get("camara_fuerza"):
         ctx.estado.actualizar_params("render", {"camara_fuerza": "normal"})
-    # EL GANCHO (pasos/gancho.py): cartel «¿Sabías…?» y subtitulos palabra a
-    # palabra. Param del paso callouts, y tambien solo si lo pidieron.
-    if datos.get("gancho"):
+    # EL GANCHO (pasos/gancho.py): cartel grande al empezar. Desde el
+    # 13-11-2026 sale si nadie lo quita, asi que lo que se escribe es QUITARLO
+    # (`false`); pedirlo no hace falta y tampoco estorba (video nuevo).
+    if datos.get("gancho") is False:
+        ctx.estado.actualizar_params("callouts", {"gancho": False})
+    elif datos.get("gancho"):
         ctx.estado.actualizar_params("callouts", {"gancho": True})
     # LA LETRA Y EL RESALTE de los textos estilo TikTok (pasos/letras.py y
     # gancho.py). Solo si se eligieron: sin ellos, Montserrat y subrayado.

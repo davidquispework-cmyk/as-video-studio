@@ -6,11 +6,17 @@ las cifras grandes). Todo es SVG con SMIL dentro de la capa QUIETA del paso
 callouts (p7): el render ya la pinta encima de la imagen, asi que no hay nada
 que cambiar en el render ni nada que pagar.
 
-Se enciende con el param `gancho` del paso callouts:
+Va con el param `gancho` del paso callouts:
 
-    true            gancho automatico (sale de la primera frase del guion)
+    falta / true    gancho automatico (sale de la primera frase del guion)
     "¿Sabías que…?" ese texto, tal cual
-    false / falta   como siempre (no va en los defectos: no mueve firmas)
+    false           sin cartel (los subtitulos siguen palabra a palabra)
+
+DESDE EL 13-11-2026 EL CARTEL SALE SI NADIE LO QUITA (punto 2 del video de
+prueba: «el gancho no se ve»). Antes solo con el param puesto, y el video de
+prueba se monto sin el: el primer segundo era la imagen con «Los ángeles» de
+subtitulo. No va en los defectos (no mueve firmas): la falta del param es lo
+que cambia de significado, y apagarlo escribe `false`.
 
 Y en plan.json la PRIMERA escena puede llevar `"gancho": "texto"` (manda sobre
 el automatico) o `"gancho": false` (sin cartel grande, pero con los subtitulos
@@ -42,6 +48,75 @@ try:
     from . import citas
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
     import citas
+
+def activo(p):
+    """¿Lleva este video el cartel del gancho? Si nadie lo quito, si."""
+    valor = (p or {}).get("gancho")
+    if valor is False or valor == 0:
+        return False
+    return str(valor).strip().lower() not in ("false", "no", "off", "0")
+
+
+#: Cuanto puede mirar hacia delante el cartel: un corte puede partir la
+#: primera frase en dos planos («¿Los ángeles» | «conocen tu nombre?») y el
+#: cartel la lee entera de los primeros planos que caben en este tiempo.
+VENTANA_S = 6.0
+
+
+def cartel_del_video(escenas, p=None):
+    """El cartel del gancho del VIDEO, con tiempos del video. -> dict o None
+
+    {"texto", "dichas" (o None si es texto escrito a mano), "t0", "fin",
+    "planos": {id: palabra global donde empieza ese plano}}. Junta la
+    narracion de los primeros planos (ver VENTANA_S) para que una pregunta
+    partida por el corte salga entera, y el cartel puede seguir en pantalla
+    en el plano siguiente (p7 lo pinta en cada plano que pisa).
+    """
+    escenas = [e for e in (escenas or []) if isinstance(e, dict)]
+    if not escenas or not activo(p):
+        return None
+    primera = escenas[0]
+    propio = primera.get("gancho", (p or {}).get("gancho"))
+    if propio is False:
+        return None
+    try:
+        t0 = float(primera.get("t_in") or 0.0)
+    except (TypeError, ValueError):
+        return None
+    palabras, marcas, planos, fin_planos = [], [], {}, t0
+    for e in escenas:
+        try:
+            t_in = float(e.get("t_in") or 0.0)
+            t_out = float(e.get("t_out") or t_in)
+        except (TypeError, ValueError):
+            break
+        if palabras and t_in - t0 >= VENTANA_S:
+            break
+        dichas = str(e.get("narracion") or "").split()
+        suyas = e.get("marcas") or []
+        if len(dichas) != len(suyas):
+            break                     # sin tiempos fiables no se mira mas alla
+        planos[str(e.get("id"))] = len(palabras)
+        palabras += dichas
+        marcas += list(suyas)
+        fin_planos = t_out
+    if not palabras and not isinstance(propio, str):
+        return None
+    texto, dichas = cartel_de(" ".join(palabras),
+                              propio if isinstance(propio, str) else None)
+    if not texto:
+        return None
+    duracion = DURACION_S
+    if dichas and 0 < dichas <= len(marcas):
+        try:
+            fin = float(marcas[dichas - 1][1]) - t0
+            duracion = max(DURACION_MIN, min(DURACION_MAX, fin + 0.3))
+        except (TypeError, ValueError, IndexError):
+            pass
+    fin = min(t0 + duracion, max(fin_planos, t0 + 0.5))
+    return {"texto": texto, "dichas": dichas, "t0": round(t0, 3),
+            "fin": round(fin, 3), "planos": planos}
+
 
 #: Cuanto dura el cartel grande del principio, en segundos.
 DURACION_S = 3.0
@@ -481,6 +556,13 @@ def _trazo(x, y, ancho, alto, color, inicio, dur=0.28, radio=None, giro=0):
     """Una barra que SE DIBUJA de izquierda a derecha (subrayado, tachado,
     recuadro)."""
     radio = alto / 2.0 if radio is None else radio
+    if inicio <= 0:
+        # ya dibujada al empezar el plano (cartel que viene del anterior): un
+        # `begin` negativo no lo pinta Chromium al saltar con setCurrentTime
+        barra = (f'<g transform="translate({x:.1f} {y:.1f})">'
+                 f'<rect x="0" y="0" width="{ancho:.1f}" height="{alto:.1f}" '
+                 f'rx="{radio:.1f}" fill="{color}"/></g>')
+        return f'<g transform="rotate({giro})">{barra}</g>' if giro else barra
     barra = (f'<g transform="translate({x:.1f} {y:.1f})">'
              f'<rect x="0" y="0" width="{ancho:.1f}" height="{alto:.1f}" '
              f'rx="{radio:.1f}" fill="{color}" transform="scale(0 1)">'
@@ -496,29 +578,50 @@ def _contorno(tam):
             f'paint-order="stroke"')
 
 
+#: EL CARTEL ES ENORME (13-11-2026, «debería salir ENORME 2-3 s, como "La
+#: túnica de José no era de colores"»): cuerpo de arranque en fraccion del
+#: lado corto, y cuantos renglones puede ocupar antes de encoger. Era 0,115 y
+#: cuatro renglones: con una pregunta de cinco palabras se quedaba en titular.
+CARTEL_TAM = 0.16
+
+#: Lo que tapa la caja negra de detras: 0,5 dejaba ver a traves lo que el
+#: motion pone en el primer plano (su palabra grande «ÁNGELES») y competia
+#: con el cartel. Durante el gancho manda el cartel.
+CARTEL_VELO = 0.72
+CARTEL_RENGLONES = {"vertical": 5, "horizontal": 3}
+
+
 def svg_cartel(texto, salida, medidor, fuente="Verdana", acento=AMARILLO,
-               duracion=DURACION_S, peso="900", resalte="subrayado"):
+               duracion=DURACION_S, peso="900", resalte="subrayado",
+               desfase=0.0):
     """El cartel grande de los primeros segundos: destello, palabras que
     entran de golpe una detras de otra, la clave en el acento y fuera.
 
     `medidor(tam)` devuelve una funcion que mide texto a ese cuerpo con la
     fuente de verdad. Va en MAYUSCULAS y arriba del centro.
+
+    `desfase` = cuantos segundos lleva ya el cartel cuando empieza ESTE plano
+    (el cartel sigue en el plano siguiente si la voz aun lo esta diciendo):
+    todos los tiempos se adelantan eso, y con `fill="freeze"` el plano
+    siguiente lo recibe ya entero, sin volver a entrar ni destellar.
     """
     texto = " ".join(str(texto or "").split())
-    if not texto or duracion <= 0.3:
+    if not texto or duracion - desfase <= 0.3:
         return ""
     ancho, alto = salida
     palabras = texto.upper().split()
     clave = palabra_clave(texto.split())
-    ancho_max = ancho * 0.86
-    tam = int(min(ancho, alto) * 0.115)
+    # la caja negra suma casi un cuerpo de ancho: con 0,88 se salia del cuadro
+    ancho_max = ancho * 0.8
+    tope = CARTEL_RENGLONES["vertical" if alto > ancho else "horizontal"]
+    tam = int(min(ancho, alto) * CARTEL_TAM)
     while True:
         medir = medidor(tam)
         lineas = _partir(palabras, medir, ancho_max)
         largo = max(medir(" ".join(x)) for x in lineas)
-        if (len(lineas) <= 4 and largo <= ancho_max) or tam <= 40:
+        if (len(lineas) <= tope and largo <= ancho_max) or tam <= 40:
             break
-        tam = int(tam * 0.9)
+        tam = int(tam * 0.93)
     espacio = max(medir(" ") * 1.15, tam * 0.24)
     salto = tam * 1.12
     cx = ancho / 2.0
@@ -529,7 +632,7 @@ def svg_cartel(texto, salida, medidor, fuente="Verdana", acento=AMARILLO,
     piezas = [
         f'<rect x="{-caja_ancho / 2:.0f}" y="{arriba - cy - tam * 0.95:.0f}" '
         f'width="{caja_ancho:.0f}" height="{caja_alto:.0f}" rx="{tam * 0.25:.0f}" '
-        f'fill="#000000" opacity="0.5"/>']
+        f'fill="#000000" opacity="{CARTEL_VELO}"/>']
     n, total = 0, len(palabras)
     escalon = min(0.08, 0.9 / max(1, total))
     for indice, linea in enumerate(lineas):
@@ -537,7 +640,7 @@ def svg_cartel(texto, salida, medidor, fuente="Verdana", acento=AMARILLO,
         x = -(sum(anchos) + espacio * (len(linea) - 1)) / 2.0
         y = arriba - cy + salto * indice
         for palabra, w in zip(linea, anchos):
-            entra = 0.1 + escalon * n
+            entra = 0.1 + escalon * n - desfase
             es_clave = n == clave
             extra = ""
             if es_clave and resalte == "recuadro":
@@ -549,24 +652,28 @@ def svg_cartel(texto, salida, medidor, fuente="Verdana", acento=AMARILLO,
                                entra + 0.2)
             relleno = ("#ffffff" if es_clave and resalte == "recuadro"
                        else acento if es_clave else "#ffffff")
+            # una palabra que ya entro en el plano anterior va QUIETA: con un
+            # `begin` negativo el navegador la dejaba en scale(0), invisible
+            entrada = (f'<animateTransform attributeName="transform" type="scale" '
+                       f'values="0;1.18;0.96;1" keyTimes="0;0.55;0.8;1" dur="0.32s" '
+                       f'begin="{entra:.2f}s" fill="freeze"/>') if entra + 0.32 > 0 else ""
             piezas.append(
                 f'<g transform="translate({x + w / 2:.1f} {y:.1f})">'
-                f'<g transform="scale(0)">{extra}'
+                f'<g transform="{"scale(0)" if entrada else "scale(1)"}">{extra}'
                 f'<text x="0" y="0" font-family="{fuente}" font-size="{tam}" '
                 f'font-weight="{peso}" text-anchor="middle" fill="{relleno}" '
                 f'{_contorno(tam)}>{_escapar(palabra)}</text>'
-                f'<animateTransform attributeName="transform" type="scale" '
-                f'values="0;1.18;0.96;1" keyTimes="0;0.55;0.8;1" dur="0.32s" '
-                f'begin="{entra:.2f}s" fill="freeze"/></g></g>')
+                f'{entrada}</g></g>')
             x += w + espacio
             n += 1
-    fin = max(0.3, duracion - 0.3)
+    fin = max(0.3, duracion - 0.3) - desfase
     salida_anim = (f'<animate attributeName="opacity" from="1" to="0" '
                    f'begin="{fin:.2f}s" dur="0.3s" fill="freeze"/>')
-    destello = (f'<rect x="0" y="0" width="{ancho}" height="{alto}" '
-                f'fill="#ffffff" opacity="0">'
-                f'<animate attributeName="opacity" values="0.85;0" '
-                f'dur="0.35s" begin="0s" fill="freeze"/></rect>')
+    destello = "" if desfase > 0 else (
+        f'<rect x="0" y="0" width="{ancho}" height="{alto}" '
+        f'fill="#ffffff" opacity="0">'
+        f'<animate attributeName="opacity" values="0.85;0" '
+        f'dur="0.35s" begin="0s" fill="freeze"/></rect>')
     return (f'<g class="gancho">{destello}'
             f'<g transform="translate({cx:.0f} {cy:.0f})">'
             f'{"".join(piezas)}{salida_anim}</g></g>')
@@ -729,7 +836,9 @@ def tras_el_cartel(trozos, fin, dichas=None):
     fue…»). Sin `dichas` (cartel escrito a mano) se quita lo que cae debajo.
     """
     salida = []
-    if dichas:
+    if dichas is not None:
+        # con 0 (el cartel sigue de un plano anterior y aqui no ensena ninguna
+        # palabra de este) no se quita nada: solo espera a que se vaya
         quedan, pendiente = int(dichas), None
         for trozo in trozos:
             cuantas = len(trozo.get("vistas") or str(trozo.get("texto") or "").split())

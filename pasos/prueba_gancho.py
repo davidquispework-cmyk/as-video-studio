@@ -75,10 +75,16 @@ def main():
 
     p = p7_callouts._con_defectos({})
     salida = (1080, 1920)
-    # sin gancho: palabra a palabra igual (desde el 12-11-2026 es el de
-    # siempre), pero sin el cartel grande; «clasico» deja el de caja
-    normal, _ = p7_callouts.capa_fija_de(_escena(), p, salida=salida, primera=True)
+    # con el gancho QUITADO: palabra a palabra igual (desde el 12-11-2026 es el
+    # de siempre), pero sin el cartel grande; «clasico» deja el de caja
+    normal, _ = p7_callouts.capa_fija_de(_escena(), dict(p, gancho=False),
+                                         salida=salida, primera=True)
     assert 'class="gancho"' not in normal and 'opacity="0.62"' in normal, "sin gancho, sin cartel"
+    # 13-11-2026: SIN param el cartel sale (punto 2: «el gancho no se ve»)
+    por_defecto, _ = p7_callouts.capa_fija_de(_escena(), p, salida=salida, primera=True)
+    assert 'class="gancho"' in por_defecto, "sin param, con cartel"
+    assert gancho.activo({}) and gancho.activo({"gancho": True})
+    assert not gancho.activo({"gancho": False}) and not gancho.activo({"gancho": "no"})
     assert "Shaddai Montserrat" in normal and 'fill="#000000"' not in normal, "grande, sin caja"
     clasico, _ = p7_callouts.capa_fija_de(_escena(), dict(p, subtitulo_estilo="clasico"),
                                           salida=salida, primera=True)
@@ -102,9 +108,44 @@ def main():
                                              dict(p, gancho=True), salida=salida,
                                              primera=True)
     assert 'class="gancho"' not in sin_cartel
+    probar_pregunta_partida(p, salida)
     print("prueba_gancho: OK")
     if "--foto" in sys.argv:
         foto(con, salida)
+
+
+def probar_pregunta_partida(p, salida):
+    """El corte parte la pregunta en dos planos («¿Los ángeles» | «conocen
+    tu nombre? La Biblia...»): el cartel la ensena ENTERA, sigue en el plano
+    dos ya entrado (sin destello) y el subtitulo del dos espera a que se vaya."""
+    import re
+
+    def plano(sid, texto, t0):
+        pal = texto.split()
+        return {"id": sid, "t_in": t0, "t_out": round(t0 + 0.32 * len(pal) + 0.1, 2),
+                "narracion": texto,
+                "marcas": [(round(t0 + 0.32 * i, 2), round(t0 + 0.32 * i + 0.3, 2))
+                           for i in range(len(pal))]}
+    uno = plano("S001", "¿Los ángeles", 0.0)
+    dos = plano("S002", "conocen tu nombre? La Biblia dice algo que sorprende.", uno["t_out"])
+    cartel = gancho.cartel_del_video([uno, dos], p)
+    assert cartel and cartel["texto"] == "¿Los ángeles conocen tu nombre?", cartel
+    assert cartel["dichas"] == 5 and cartel["planos"] == {"S001": 0, "S002": 2}, cartel
+    a, _ = p7_callouts.capa_fija_de(uno, p, salida=salida, cartel=cartel)
+    b, _ = p7_callouts.capa_fija_de(dos, p, salida=salida, cartel=cartel)
+    assert "CONOCEN" in a and "CONOCEN" in b, "el cartel en los dos planos"
+    assert 'values="0.85;0"' in a and 'values="0.85;0"' not in b, "destello solo al empezar"
+    entradas = [float(x) for x in re.findall(
+        r'<set attributeName="opacity" to="1" begin="([\d.]+)s"/>', b)]
+    fin_local = cartel["fin"] - dos["t_in"]
+    assert entradas and min(entradas) >= fin_local - 0.31, (entradas, fin_local)
+    # «La Biblia...» no se pierde: sale al irse el cartel
+    assert "Biblia" in b
+    # ENORME: el cuerpo del cartel es mas del 12 % del ancho
+    tam = max(int(x) for x in re.findall(r'font-size="(\d+)"', b))
+    assert tam >= 0.12 * salida[0], tam
+    assert gancho.cartel_del_video([uno, dos], dict(p, gancho=False)) is None
+    assert gancho.cartel_del_video([dict(uno, gancho=False), dos], p) is None
 
 
 def foto(svg, salida, instantes=(0.9, 2.5, 3.6, 5.0)):
